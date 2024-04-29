@@ -3,6 +3,15 @@ uuid = "a881c433-3e17-400b-981d-9b1f368d4109"
 authors = ["Eduardo Grossi"]
 version = "1.0.0-DEV"
 
+[deps]
+Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+IntervalSets = "8197267c-284f-5f27-9208-e0e47529a953"
+MuladdMacro = "46d2c3a1-f734-5fdb-9937-b9b9aeba4221"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
+
 [compat]
 julia = "1"
 
