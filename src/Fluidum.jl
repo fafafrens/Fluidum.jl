@@ -8,7 +8,7 @@ using StructArrays: StructArray
 using IntervalSets
 using MuladdMacro
 using StaticArrays
-using Artifacts 
+using Pkg.Artifacts 
 
 const root_particle_lists=artifact"particle_lists"
 
