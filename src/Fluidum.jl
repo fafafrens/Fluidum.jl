@@ -8,6 +8,7 @@ using StructArrays: StructArray
 using IntervalSets
 using MuladdMacro
 using StaticArrays
+using Artifacts 
 
 
 const fmGeV= 1/0.1973261 
@@ -202,7 +203,7 @@ export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_
 export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient 
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
-export Heavy_Quark, IdealQCD, HQdiffusion, pressure_derivative, pressure, federica, QGPViscosity
+export Heavy_Quark, HQdiffusion, federica, QGPViscosity
 
 # type piracy 
 
