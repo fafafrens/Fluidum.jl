@@ -1,6 +1,6 @@
 [particle_lists]
-git-tree-sha1 = "46d6b62cc40445a9e8f116f10cbd1bebf964b38b"
+git-tree-sha1 = "701f869b6932dc4e2dc997a8db369bc6aaf4ce3f"
 
     [[particle_lists.download]]
-    sha256 = "aaf6d40812a0e5881453fbf7820eadc05448ebf5df190c3ba392762a3cb3ebca"
-    url = "https://gist.github.com/fafafrens/00b5e800948e00b595b4feabbf7dce16/raw/46d6b62cc40445a9e8f116f10cbd1bebf964b38b.tar.gz"
+    sha256 = "2dfb36bc8945f8e24ae67edb71ad8f7d687145df9d3a8d032f3db940c59a1060"
+    url = "https://gist.github.com/fafafrens/90a3954aaf422a78f8432d15cf33b78f/raw/701f869b6932dc4e2dc997a8db369bc6aaf4ce3f.tar.gz"
