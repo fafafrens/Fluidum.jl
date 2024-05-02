@@ -1,0 +1,6 @@
+[particle_lists]
+git-tree-sha1 = "46d6b62cc40445a9e8f116f10cbd1bebf964b38b"
+
+    [[particle_lists.download]]
+    sha256 = "aaf6d40812a0e5881453fbf7820eadc05448ebf5df190c3ba392762a3cb3ebca"
+    url = "https://gist.github.com/fafafrens/00b5e800948e00b595b4feabbf7dce16/raw/46d6b62cc40445a9e8f116f10cbd1bebf964b38b.tar.gz"

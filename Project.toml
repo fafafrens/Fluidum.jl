@@ -4,6 +4,7 @@ authors = ["Eduardo Grossi"]
 version = "1.0.0-DEV"
 
 [deps]
+Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
