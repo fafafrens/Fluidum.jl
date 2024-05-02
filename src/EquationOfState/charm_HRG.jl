@@ -52,7 +52,7 @@ end
 
 
 #read in resonaces
-function HadronResonaceGas(;name_file=string(artifacts"particle_lists","/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -92,7 +92,7 @@ end
 
 
 #read in resonances
-function HadronResonaceGasNew(;name_file=artifacts"particle_lists"*"/PDG2016Plus_massorder.dat",Maxmass=3.2,Minmass=1.8,condition=x->true)
+function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_massorder.dat",Maxmass=3.2,Minmass=1.8,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     ID          =convert.(Int64,data[:,1])
     Name =convert.(String,data[:,2])
@@ -129,7 +129,7 @@ end
 
 
 
-function readresonancelist(;name_file=string(artifacts"particle_lists","/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
