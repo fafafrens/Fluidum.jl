@@ -7,9 +7,3 @@ git-tree-sha1 = "701f869b6932dc4e2dc997a8db369bc6aaf4ce3f"
 
 
 
-[kernel]
-git-tree-sha1 = "3cac667810502c21c7270dfc87c5690bd0e5878c"
-
-    [[kernel.download]]
-    sha256 = "905cd380687e12ca41c7795b21903b45a835b93c00f42a7b07271c3ad4065c66"
-    url = "https://drive.google.com/file/d/1MCi51qO-e8CXlulEct5uVyLThx6tMz9G/view?usp=sharing"
