@@ -4,3 +4,12 @@ git-tree-sha1 = "701f869b6932dc4e2dc997a8db369bc6aaf4ce3f"
     [[particle_lists.download]]
     sha256 = "2dfb36bc8945f8e24ae67edb71ad8f7d687145df9d3a8d032f3db940c59a1060"
     url = "https://gist.github.com/fafafrens/90a3954aaf422a78f8432d15cf33b78f/raw/701f869b6932dc4e2dc997a8db369bc6aaf4ce3f.tar.gz"
+
+
+
+[kernel]
+git-tree-sha1 = "3cac667810502c21c7270dfc87c5690bd0e5878c"
+
+    [[kernel.download]]
+    sha256 = "d556693629abad58d2a2ef5dc541111afb3384260680ad3e76a184bf961bf819"
+    url = "https://drive.google.com/file/d/1MCi51qO-e8CXlulEct5uVyLThx6tMz9G/view?usp=sharing"
