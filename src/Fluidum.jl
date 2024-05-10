@@ -4,11 +4,27 @@ using ForwardDiff:Dual,value,partials
 using Bessels
 
 using DelimitedFiles: readdlm
-using StructArrays: StructArray
+using StructArrays
 using IntervalSets
 using MuladdMacro
 using StaticArrays
 using Artifacts 
+
+
+#pkg used by the fluid evolution. 
+using Interpolations
+using DifferentialEquations
+using Statistics
+using JLD2
+
+
+using LinearAlgebra
+using LoopVectorization
+using Surrogates
+using StatsBase
+
+using FastChebInterp
+
 
 const root_particle_lists=artifact"particle_lists"
 
@@ -18,6 +34,9 @@ const fmGeV= 1/0.1973261
 const invfmGeV= 1/fmGeV
 const invfmGeV3=(1/fmGeV)^3
 const fmGeV3=fmGeV^3
+
+
+
 
 
 include("EquationOfState/thermodynamic.jl")
@@ -33,6 +52,52 @@ include("EquationOfState/simpletransport.jl")
 include("EquationOfState/Analytic.jl")
 
 include("EquationOfState/heavyquark.jl")
+
+
+
+
+    
+
+
+include("fluidevo/detector_struct.jl")
+
+
+include("fluidevo/discretization.jl") 
+include("fluidevo/picewisefunction.jl") 
+include("fluidevo/discreteFields.jl")  
+
+include("fluidevo/particle_dictionary.jl")
+
+
+include("fluidevo/spectra_fastreso_dict_HQ.jl")
+include("fluidevo/spectra.jl")
+
+include("fluidevo/test_functions.jl")
+include("fluidevo/map_profile.jl")
+include("fluidevo/initial_fields.jl")
+
+
+const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
+RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
+ALICE1 =detector("ALICE1",     6.62 ,    7.00 ,        0.0463,	"Pb_Pb")
+)
+
+const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
+:RHIC =>detector(:RHIC ,7.,4.23,0.005968,:Au_Au),
+:ALICE1 =>detector(:ALICE1,     6.62 ,    7.00 ,        0.0463,	:Pb_Pb)
+)
+
+
+export detector_collection,detector_dict
+
+
+
+export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
+export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
+export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult
+export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
+
+
 
 """
 
