@@ -89,6 +89,8 @@ include("fluidevo/discretization.jl")
 include("fluidevo/picewisefunction.jl") 
 include("fluidevo/discreteFields.jl")  
 
+include("fluidevo/generating_kernels_3d.jl")
+#include("fluidevo/generating_kernels.jl")
 include("fluidevo/particle_dictionary.jl")
 
 
@@ -98,7 +100,7 @@ include("fluidevo/spectra.jl")
 include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
-include("fluidevo/generating_kernels_3d.jl")
+
 
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),

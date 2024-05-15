@@ -93,5 +93,5 @@ function dictionary()
     return merge(Tuple1, Tuple2, Tuple3)
 end 
 
-dic = dictionary();
-export dic
+#dic = dictionary();
+#export dic

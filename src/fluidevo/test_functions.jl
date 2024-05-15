@@ -1,6 +1,6 @@
-using SciMLBase #for ODEProblem
-using OrdinaryDiffEq #for ODEProblem
-*
+#using SciMLBase #for ODEProblem
+#using OrdinaryDiffEq #for ODEProblem
+
 """
     integral_cauchy(resultNofo,time,grid)
 
