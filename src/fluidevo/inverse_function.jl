@@ -1,4 +1,4 @@
-using SimpleNonlinearSolve, StaticArrays
+
 
 
 struct InverseFunction{N,F}
