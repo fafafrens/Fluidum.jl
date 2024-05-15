@@ -26,6 +26,27 @@ using StatsBase
 using FastChebInterp
 
 
+
+
+
+using TensorCast
+using SimpleNonlinearSolve
+
+using Bessels
+using QuadGK
+using NumericalIntegration
+
+using HCubature
+using UnPack
+
+
+
+
+
+
+
+
+
 const root_particle_lists=artifact"particle_lists"
 
 #const root_kernel_particles=artifact"kernel"
@@ -34,6 +55,7 @@ const fmGeV= 1/0.1973261
 const invfmGeV= 1/fmGeV
 const invfmGeV3=(1/fmGeV)^3
 const fmGeV3=fmGeV^3
+
 
 
 
@@ -60,6 +82,7 @@ include("EquationOfState/heavyquark.jl")
 
 
 include("fluidevo/detector_struct.jl")
+include("fluidevo/inverse_function.jl")
 
 
 include("fluidevo/discretization.jl") 
@@ -75,6 +98,7 @@ include("fluidevo/spectra.jl")
 include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
+include("fluidevo/generating_kernels_3d.jl")
 
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
