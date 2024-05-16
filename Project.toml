@@ -47,6 +47,7 @@ StaticArrays = "1"
 StatsBase = "0.34"
 Statistics = "1"
 StructArrays = "0.6"
+Surrogates = "6"
 UnPack = "1"
 julia = "1"
 
