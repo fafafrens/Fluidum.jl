@@ -37,6 +37,7 @@ IntervalSets = "0.7"
 MuladdMacro = "0.2"
 StaticArrays = "1"
 StructArrays = "0.6"
+TensorCast = "0.4"
 julia = "1"
 
 [extras]
