@@ -305,12 +305,4 @@ Bessels.besselk0(d::Dual{T,V,N}) where {T,V,N} = Dual{T}(Bessels.besselk0(value(
 
 Bessels.besselk1(d::Dual{T,V,N}) where {T,V,N} = Dual{T}(Bessels.besselk1(value(d)),-( Bessels.besselk0(value(d))+Bessels.besselk1(value(d))/value(d)) * partials(d))
 
-function edu()
-    print("hi")
-end
-
-function edu2()
-    print("hihi")
-end
-
 end
