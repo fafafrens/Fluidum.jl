@@ -101,7 +101,7 @@ include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
-
+include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
 RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
@@ -305,5 +305,12 @@ Bessels.besselk0(d::Dual{T,V,N}) where {T,V,N} = Dual{T}(Bessels.besselk0(value(
 
 Bessels.besselk1(d::Dual{T,V,N}) where {T,V,N} = Dual{T}(Bessels.besselk1(value(d)),-( Bessels.besselk0(value(d))+Bessels.besselk1(value(d))/value(d)) * partials(d))
 
+function edu()
+    print("hi")
+end
+
+function edu2()
+    print("hihi")
+end
 
 end
