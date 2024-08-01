@@ -103,6 +103,8 @@ include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
+include("../examples/wraps.jl")
+
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
 RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
 ALICE1 =detector("ALICE1",     6.62 ,    7.00 ,        0.0463,	"Pb_Pb")
@@ -297,7 +299,7 @@ export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_
 export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient 
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
-export Heavy_Quark, HQdiffusion, federica, QGPViscosity
+export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion
 
 # type piracy 
 

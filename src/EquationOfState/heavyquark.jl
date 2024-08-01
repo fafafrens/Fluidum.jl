@@ -61,7 +61,7 @@ end #T^3 = GeV^3
 
 end #T^2 = GeV^2
 
-function federica(T,fug,x::Heavy_Quark)
+function free_charm(T,fug,x::Heavy_Quark)
     m = x.mass
     b2 = besselkx(2,m/T)
     b1 = besselk1x(m/T)
