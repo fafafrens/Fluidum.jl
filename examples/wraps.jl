@@ -19,17 +19,17 @@ function fluidproperties(eos;ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,diff
 end
 
 #dump(fluidproperties(FluiduMEoS();diff=true))
-charm_eos = HadronResonaceGas()
+
 """
 function initial_conditions(eos;gridpoints=500,rmax=30,rdrop=8,norm=3,diff=false)
 returns DiscreteFields(disc,disc_fields,phi), containing the radial discretization, the fluid fields structure and the initialized fields
 - if diff==true, includes HQ diffusion 
 """
-function initial_conditions(cent1,cent2;x=artifact"ic_fluid",y=artifact"ncoll",list=charm_eos.particle_list,gridpoints=500,rmax=30,rdrop=8,norm=3,diff=false)
+function initial_conditions(cent1,cent2,x,y;list=charm_eos.particle_list,tau0=0.4,gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true,diff=false)
     if diff==false
-        initialize_fields(x, cent1, cent2, list; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true)
+        initialize_fields(x, cent1, cent2, list, tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     elseif diff==true
-        initialize_fields(x, y, cent1, cent2, list; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true)
+        initialize_fields(x, y, cent1, cent2, list, tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     end
     
 end
@@ -44,13 +44,13 @@ function runFluidum_heavy(eos,cent1,cent2,x::TabulatedTrento{A,B},y::TabulatedTr
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true
     #particle_list=[:D0, :Dplus, :Dstarplus, :Dsplus, :jpsi,:Lcplus, :Xic, :Omc ]
-    )
+    )  where {A,B}
     fluidproperties_nodiff=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
     #    fields = initialize_fields(x, cent1, cent2, list; tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     fluidproperties_diff=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
     fields = initialize_fields(x, y, cent1, cent2, list; tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     
-    disc,disc_fields,phi = @unpack fields
+    @unpack disc,disc_fields,phi = fields
     tspan = (tau0,maxtime)
     #oneshoot(disc_fields,matrxi1d_visc_HQ!,fluidproperties,phi,tspan)
     fo_surface_diff=freeze_out_routine(disc_fields,matrxi1d_visc_HQ!,fluidproperties_diff,phi,tspan,Tfo=Tfo)
@@ -63,12 +63,12 @@ function runFluidum_light(eos,cent1,cent2,x::TabulatedTrento{A,B};
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true
     #particle_list=[:D0, :Dplus, :Dstarplus, :Dsplus, :jpsi,:Lcplus, :Xic, :Omc ]
-    )
+    ) where {A,B}
     fluidproperties_nodiff=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
     #    fields = initialize_fields(x, cent1, cent2, list; tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     fields = initialize_fields(x, cent1, cent2, list; tau0 = tau0, gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, norm_coll=norm_coll, exp_tail = exp_tail)
     
-    disc,disc_fields,phi = @unpack fields
+    @unpack disc,disc_fields,phi = fields
     tspan = (tau0,maxtime)
     #oneshoot(disc_fields,matrxi1d_visc_HQ!,fluidproperties,phi,tspan)
     fo_surface_nodiff=freeze_out_routine(disc_fields,matrxi1d_visc!,fluidproperties_nodiff,phi,tspan,Tfo=Tfo)
@@ -80,7 +80,7 @@ function compute_observables_heavy(eos,cent1,cent2,x::TabulatedTrento{A,B},y::Ta
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true,
     particle_list=[:D0, :Dplus, :Dstarplus, :Dsplus, :jpsi,:Lcplus, :Xic, :Omc ],
-    pt_max=6,pt_min=0.)
+    pt_max=6,pt_min=0.) where {A,B}
 
     fo_surface_nodiff,fo_surface_diff=runFluidum_heavy(eos,cent1,cent2,x::TabulatedTrento{A,B},y::TabulatedTrento{A,B},
     ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
