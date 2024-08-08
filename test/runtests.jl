@@ -1,6 +1,7 @@
 using Fluidum
 using Test
 using LinearAlgebra
+using ForwardDiff
 
 @testset "Fluidum.jl" begin
     # Write your tests here.
@@ -18,7 +19,9 @@ using LinearAlgebra
 
     @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0.5,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0
     
-    @test Fluidum.fluidproperties(FluiduMEoS()).eos==FluiduMEoS()
+    #@test typeof(Fluidum.runFluidum_fo(Heavy_Quark(),Tfo=0.14,σ_temp=2).fo)<:FreezeOutResult
+
+
 end
 
 

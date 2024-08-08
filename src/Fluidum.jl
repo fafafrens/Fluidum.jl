@@ -2,7 +2,7 @@ module Fluidum
 
 using ForwardDiff:Dual,value,partials
 using Bessels
-
+using ForwardDiff
 using DelimitedFiles: readdlm
 using StructArrays
 using IntervalSets
@@ -32,7 +32,6 @@ using FastChebInterp
 using TensorCast
 using SimpleNonlinearSolve
 
-using Bessels
 using QuadGK
 using NumericalIntegration
 
@@ -103,7 +102,7 @@ include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
-include("../examples/wraps.jl")
+include("wraps.jl")
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
 RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
