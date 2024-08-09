@@ -52,6 +52,21 @@ function runFluidum(eos;
 
 end
 
+function fields_evolution(eos;
+    ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
+    tau0=0.4,maxtime=30,
+    gridpoints=500,rmax=30,
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1)
+    
+    fullevo=runFluidum(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
+    tau0=tau0,maxtime=maxtime,
+    gridpoints=gridpoints,rmax=rmax,
+    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
+    dump(Fields(fullevo))
+    return Fields(fullevo)
+    
+end
+
 struct Observables{S,T,U,V,M,K,A,B,C,D}
     particle::particle_attribute{S,T,U,V}
     yield_th::Float64
@@ -149,7 +164,7 @@ function save_observables(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/
 end
 end
 
-function get_filename(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/") where {S,T,U,V,M,K,A,B,C,D}
+function get_filename(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/",toplot=false) where {S,T,U,V,M,K,A,B,C,D}
     
     part = obj.particle.name
     if typeof(obj.fluid_properties.shear)<:ZeroViscosity
@@ -169,5 +184,10 @@ function get_filename(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/") w
     end
     Tfo = obj.Tfo
 
-    return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.txt"
+    if toplot == true
+        return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.pdf"
+    else
+        return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.txt"
+    end
 end
+
