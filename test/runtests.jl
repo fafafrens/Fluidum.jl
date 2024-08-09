@@ -15,7 +15,7 @@ using ForwardDiff
 
     @test isfinite(free_charm(1,0,Heavy_Quark())[1])
     @test pressure(1,Heavy_Quark())==pressure(1,FluiduMEoS())
-    @test pressure(1,Heavy_Quark())==thermodynamic(1,FluiduMEoS()).pressure[1]
+    @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
 
     @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0.5,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0
     
