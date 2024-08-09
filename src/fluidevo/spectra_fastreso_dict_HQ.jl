@@ -126,18 +126,17 @@ function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V}
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb = min.(rb,(rightbound,))
-    deg = part.degeneracy
     hcubature( b ->2.0*π *_pointwise_spectra(b[1],b[2],x,phi,part;decays)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
     
 end
 
-function _pointwise_spectra_internal(pt,m,alpha,x::A,phi::B) where {A<:SplineInterp,B<:SplineInterp}
+function _pointwise_spectra_internal(pt,m,alpha,x::A,phi::B;deg=1) where {A<:SplineInterp,B<:SplineInterp}
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha)
-    internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν)
+    internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν,deg=deg)
 end
-function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν)
+function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=1)
     fmGeV = 5.068
     mt=sqrt(m^2+pt^2)
     factor=1/(2*pi^2)*t*r
@@ -162,8 +161,9 @@ function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν)
     acc = 1/4*(i2min+2*i0+i2)
     #ν=-ν   #the correction has a minus sign in front of the 1/P_hq
     ν = 0 #commented on 23.10
-    n = thermodynamic(T,μ,eos.hadron_list).pressure
-    
+    #n = thermodynamic(T,μ,eos.hadron_list).pressure
+    n=1
+
     result= (r_factor*(k1*i0-i1*k1*pt*ν/n/T+mt*ν/n/T*ur/ut*i0*rcc)+
     t_factor*(k0*i1-pt*k0*ν/n/T*acc+mt*ν/n/T*ur/ut*i1*k1))*exp(μ)
     #result= (r_factor*(k1*i0)+t_factor*(k0*i1))*exp(μ)
@@ -172,9 +172,18 @@ function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν)
     #corr = (r_factor*(-i1*k1*pt*ν/n/T+mt*ν/n/T*ur/ut*i0*rcc))*exp(μ)
     #corr = (t_factor*(-pt*k0*ν/n/T*acc+mt*ν/n/T*ur/ut*i1*k1))*exp(μ)
     
-    return result*fmGeV^3
+    return result*fmGeV^3*deg
 end 
 
+function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100,deg=1) where {A<:SplineInterp,B<:SplineInterp}
+    x,phi=fo
+    lb=leftbounds(x)
+    rb=rightbounds(x)
+    buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
+    
+    [quadgk(alpha->_pointwise_spectra_internal(pt,m,alpha,x,phi,deg=deg),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ] 
+
+end
 
 #to be plotted
 #function spectra(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100)
@@ -189,13 +198,13 @@ end
 # end
 
 
-function multiplicity(m::Number,deg,fo::FreezeOutResult{A,B};rtol=sqrt(eps()),pt_min=0,pt_max = 10) where {A<:SplineInterp,B<:SplineInterp}
+function multiplicity(m::Number,fo::FreezeOutResult{A,B};rtol=sqrt(eps()),pt_min=0,pt_max = 10) where {A<:SplineInterp,B<:SplineInterp}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
 
     #hcubature refers to a high-dimensional integration routine provided by the HCubature.jl package. It is used for numerical integration over hypercubes in multiple dimensions.
-    hcubature( b ->2.0*π *deg*_pointwise_spectra_internal(b[1],m,b[2],x,phi)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
+    hcubature( b ->2.0*π *_pointwise_spectra_internal(b[1],m,b[2],x,phi)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
     
 end
 #WITH DISSIPATIVE CORRECTIONS
