@@ -57,20 +57,21 @@ function initialize_fields(x::TabulatedTrento{A,B}, y::TabulatedTrento{C,D}, cen
 return DiscreteFields(disc,disc_fields,phi)
 end
 
-function initialize_fields(x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer, list; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true) where {A,B,C,D}
+function initialize_fields(x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true) where {A,B,C,D}
 
     temperature_profile = Profiles(x,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = norm_coll, exp_tail = exp_tail)
     
     @show temperature_profile.(range(0,30,100))
     
-    oned_visc_hydro = Fluidum.viscous_1d()
+    oned_visc_hydro = Fluidum.HQ_viscous_1d()
 
 
 
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
-    set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
+    #set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
+  
 return DiscreteFields(disc,disc_fields,phi)
 end
 

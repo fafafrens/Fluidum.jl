@@ -49,14 +49,14 @@ function Profiles(x::TabulatedTrento{A,B}, y::TabulatedTrento{A,B}, cent1::Integ
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_temp)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile) #.+0.0001 
-    temperature_funct = LinearInterpolation(r, temperature_profile; extrapolation_bc=Flat())
+    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
     
     temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius, Ref(xmax))
-    temp_exp_funct = LinearInterpolation(radius, temp_exp; extrapolation_bc=Flat()) 
+    temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
     
     #ncoll profile
     r, ncoll_profile = get_profile(y, cent1, cent2; norm = norm_coll) #.+0.0001 
-    ncoll_funct = LinearInterpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
+    ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
     
     if exp_tail == true
         return temp_exp_funct, ncoll_funct
@@ -70,10 +70,10 @@ function Profiles(x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer; radiu
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_temp)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile) #.+0.0001 
-    temperature_funct = LinearInterpolation(r, temperature_profile; extrapolation_bc=Flat())
+    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
     
     temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius, Ref(xmax))
-    temp_exp_funct = LinearInterpolation(radius, temp_exp; extrapolation_bc=Flat()) 
+    temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
     
     
     if exp_tail == true
@@ -89,12 +89,12 @@ function Profiles_offset(x::TabulatedTrento{A,B}, y::TabulatedTrento{A,B}, cent1
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_temp)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile) #.+0.0001 
-    temperature_funct = LinearInterpolation(r, temperature_profile; extrapolation_bc=Flat())
+    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
     
     
     #ncoll profile
     r, ncoll_profile = get_profile(y, cent1, cent2; norm = norm_coll) #.+0.0001 
-    ncoll_funct = LinearInterpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
+    ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
     
     #return temp_exp_funct, ncoll_funct
     return temperature_funct, ncoll_funct    
@@ -105,7 +105,7 @@ function Profiles_offset(x::TabulatedTrento{A,B},  cent1::Integer, cent2::Intege
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_temp)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile) #.+0.0001 
-    temperature_funct = LinearInterpolation(r, temperature_profile; extrapolation_bc=Flat())
+    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
     
     
     return temperature_funct    
@@ -117,10 +117,10 @@ function map_initial_profile(temperature, x::TabulatedTrento{A,B}, cent1::Intege
     r, profile = get_profile(x, cent1, cent2; norm = norm) 
     
     #interpolate the temperature which is itself a function of the entropy 
-    temp_interpolated = LinearInterpolation(r, temperature; extrapolation_bc=Flat())
-    #temp_interpolated = LinearInterpolation(r, funct_to_interpolate; extrapolation_bc=Flat()) 
+    temp_interpolated = linear_interpolation(r, temperature; extrapolation_bc=Flat())
+    #temp_interpolated = linear_interpolation(r, funct_to_interpolate; extrapolation_bc=Flat()) 
     temp_exp = exponential_tail_pointlike.(Ref(temp_interpolated), r, Ref(xmax))  
-    return LinearInterpolation(r, temp_exp; extrapolation_bc=Flat())  
+    return linear_interpolation(r, temp_exp; extrapolation_bc=Flat())  
 end
 #vectorializing now:
 #exponential = exponential_tail_pointlike.((get_interpolate_profile(pallino2, 10, 20), ), vect, (xmax,))

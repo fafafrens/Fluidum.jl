@@ -7,8 +7,11 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
 
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
 
+    
+
     dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
         
+   
     etaVisc=viscosity(ϕ[1],dpt,params.shear)
     
     tauS=τ_shear(ϕ[1],dpt,params.shear)
@@ -24,22 +27,24 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     
     #n,dtn,dmn,dtmn = federica(ϕ[1],ϕ[6],params.eos)
     thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
-    n=thermo.pressure
+    n=thermo.pressure+0.0001
     dtn, dmn = thermo.pressure_derivative
     dmn+=0.0001
+    dtn+=0.0001
     #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
-    # @show n, dtn, dmn
-
+    
     Ds = diffusion(ϕ[1],n,params.diffusion)
     #@show ϕ[1]
     #@show t, X[1], ϕ[1] #X[1] is the radius: here we print the time, the radius, and the temperature
     tauDiff=τ_diffusion(ϕ[1],params.diffusion)
-    dmp = 0 #for now we don t have chemical potential
+    
+    dmp = 0 #for now we don t have chemical potential in the eos
     dtdmp = 0 
     dmdmp = 0
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
-    #(At,Ax, source)=one_d_viscous_HQ_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+    
+return 
     (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
 
         

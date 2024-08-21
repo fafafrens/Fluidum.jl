@@ -2,14 +2,21 @@ function gauss(x,norm;σ=1)
     return exp(-x^2/(2σ^2))*norm+0.1
 end
 
+function fermidirac(x,norm;σ=1)
+    return 1/(1+exp(σ*x))*norm+0.1
+end
+
+function trento_profile(x,norm;σ=1,filepath=pwd()*"/../examples/ic_data/only_shift_BKG_full_order_changed.txt",cent1=0,cent2=10)
+    return Profiles(TabulatedTrento(filepath),cent1,cent2,norm_temp=norm)(x)
+end
 
 function initial_conditions(;gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,profile=gauss)
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss, fug_profile=gauss)
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
-    phi=set_array((x)->profile(x,norm_temp;σ=σ_temp),:temperature,disc_fields); #temperature initialization
-    set_array!(phi,(x)->profile(x,norm_coll;σ=σ_fug),:mu,disc_fields); #fugacity initialization
+    phi=set_array((x)->temp_profile(x,norm_temp;σ=σ_temp),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fug_profile(x,norm_coll;σ=σ_fug),:mu,disc_fields); #fugacity initialization
 return DiscreteFields(disc,disc_fields,phi)
 end
 
@@ -20,13 +27,14 @@ function runFluidum_fo(eos;
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1)
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
     if DsT == 0
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
+        norm_coll=0.
     else
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
     end
-    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
+    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
     tspan = (tau0,maxtime)
     if fields.initial_field[1,1]<Tfo
         println("Error: Tfo = "*string(Tfo)*" MeV is larger than max temperature in the inital profile T0 = "*string(fields.initial_field[1,1]))
@@ -40,13 +48,14 @@ function runFluidum(eos;
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1)
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
     if DsT == 0
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
+        norm_coll=0.
     else
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
     end
-    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
+    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
     tspan = (tau0,maxtime)
     return oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan)
 
@@ -56,14 +65,16 @@ function fields_evolution(eos;
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1)
-    
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
+    if DsT == 0
+        norm_coll=0
+    end
     fullevo=runFluidum(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
-    dump(Fields(fullevo))
-    return Fields(fullevo)
+    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+    #dump(Fields(fullevo))
+    #return Fields(fullevo)
     
 end
 
@@ -103,13 +114,13 @@ function compute_observables(eos,part::particle_attribute{S,T,U,V};
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss,
     pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") where {S,T,U,V}
 
     fo, fluidproperties=runFluidum_fo(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
+    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
 
     obs = Observables(fo,part,fluidproperties, pt_min=pt_min,pt_max=pt_max,step=step,Tfo)
 
@@ -124,13 +135,13 @@ function compute_observables(eos,m::Float64;
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,
+    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss,
     pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") where {S,T,U,V}
 
     fo, fluidproperties=runFluidum_fo(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug)
+    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
 
     obs = Observables(fo,m,fluidproperties,Tfo, pt_min=pt_min,pt_max=pt_max,step=step)
 
