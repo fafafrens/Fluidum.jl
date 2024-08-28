@@ -139,12 +139,13 @@ function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     #@show m/T
     #@show T
   
-    b2 = besselk(2,m/T)
-    b1 = besselk(1,m/T)
-    b3 = b1+4/(m/T)*b2
-    b4 = b2 + 6/(m/T)*b3
+    b2 = besselkx(2,m/T)*exp(-m/T)
+    b1 = besselkx(1,m/T)*exp(-m/T)
+   
+    b3 = b1+4/(m/T)*b2  
+    b4 = b2 + 6/(m/T)*b3  
     b5 = b3+8/(m/T)*b4
-    
+   
     #b3 = besselk(3,m/T)
     #b4 = besselk(4,m/T)
     #b5 = besselk(5,m/T)

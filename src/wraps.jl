@@ -1,40 +1,151 @@
-function gauss(x,norm;σ=1)
-    return exp(-x^2/(2σ^2))*norm+0.1
+abstract type ProfilePars end
+
+struct StdPars <: ProfilePars
+    σ::Float64
+    norm::Float64
 end
 
-function fermidirac(x,norm;σ=1)
-    return 1/(1+exp(σ*x))*norm+0.1
+StdPars(;σ=1,norm=1) = StdPars(σ,norm)
+struct TrentoPars <: ProfilePars
+    cent1::Int64
+    cent2::Int64
+    norm::Float64
+    filepath::String
 end
 
-function trento_profile(x,norm;σ=1,filepath=pwd()*"/../examples/ic_data/only_shift_BKG_full_order_changed.txt",cent1=0,cent2=10)
-    return Profiles(TabulatedTrento(filepath),cent1,cent2,norm_temp=norm)(x)
+TrentoPars(;norm=1,filepath=pwd()*"/../examples/ic_data/only_shift_BKG_full_order_changed.txt",cent1=0,cent2=10) = TrentoPars(cent1,cent2,norm,filepath)
+
+struct InterpolPars <: ProfilePars
+    norm::Float64
+    filepath::String
 end
 
-function initial_conditions(;gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss, fug_profile=gauss)
+InterpolPars(;norm=1,filepath=pwd()*"/../examples/ic_data/tempBG502_0-10.txt") = InterpolPars(norm,filepath)
+
+struct FugacityPars <: ProfilePars
+    norm_coll::Float64 
+    σ_in::Float64
+    dσ_QQdy::Float64
+    rdrop::Float64  
+    n0::Float64
+end
+
+FugacityPars(;norm_coll=1, σ_in=70,dσ_QQdy=0.463,rdrop=4, n0=31.57) = FugacityPars(norm_coll,σ_in, dσ_QQdy, rdrop, n0)
+
+function gauss(x;pars=StdPars())
+    exp(-x^2/(2pars.σ^2))*pars.norm+0.1
+end
+
+function fermidirac(x;pars=StdPars())
+    return 1/(1+exp(pars.σ*x))*pars.norm+0.1
+end
+
+function trento_profile(x;pars=TrentoPars())
+    return Profiles(TabulatedTrento(pars.filepath),pars.cent1,pars.cent2,norm_temp=pars.norm)(x)
+end
+
+function temp_interpol(x;pars=InterpolPars())
+    file=readdlm(pars.filepath)
+    #TabulatedTrento(file[:,1], file[:,2:end])
+    pars.norm.*linear_interpolation(reverse(file[:,1]),reverse(file[:,2]); extrapolation_bc=Flat())(x).+0.0001
+end
+
+function ncoll(r,pars=FugacityPars())
+    #rdrop=4,n0 = 31.57)
+    #return 7*n0*(initial_temp(r)/initial_temp(0.0))^4/3 +0.001
+    if r<=pars.rdrop
+        return pars.n0
+    else 
+        return 0.0001 #fm-2 since n0 [fm-2]
+    end
+end
+
+function nhard(x,pars::FugacityPars,temp_pars::ProfilePars,temp_profile::Symbol,tau0)
+    temp(x)=profile_functions[temp_profile](x,pars=temp_pars)
+    pars.norm_coll*2/tau0/pars.σ_in*pars.dσ_QQdy*ncoll(0,pars)*(temp(x)/temp(0.))^4 +0.001
+end 
+
+function fugacity(x;pars=FugacityPars(),temp_profile::Symbol=:t_int,temp_pars=InterpolPars(),tau0=0.4,eos=HadronResonaceGas())
+    temp(x)=profile_functions[temp_profile](x,pars=temp_pars)
+    if x<=pars.rdrop
+        return log(nhard(x,pars,temp_pars,temp_profile,tau0)/(thermodynamic(temp(x),0.0,eos).pressure)).+ 0.0001
+        else return log(nhard(pars.rdrop,pars,temp_pars,temp_profile,tau0)/(thermodynamic(temp(pars.rdrop),0.0,eos).pressure)).+ 0.0001
+        end
+end 
+# Dictionary to map profile names to functions
+const profile_functions = Dict(
+    :gauss => gauss,
+    :fd => fermidirac,
+    :trento => trento_profile,
+    :t_int => temp_interpol,
+    :fug => fugacity
+)
+
+function check(profile)
+    if !haskey(profile_functions, profile)
+        error("Unknown profile: $profile")
+    end
+end
+
+function apply_profile(profile_name::Symbol, x; pars=nothing)
+    if !haskey(profile_functions, profile_name)
+        error("Unknown profile: $profile_name")
+    end
+
+    profile_func = profile_functions[profile_name]
+   
+    # Apply the profile function with parameters, using default if params is nothing
+    if params === nothing
+        return profile_func(x)
+    else
+        return profile_func(x; pars=pars)
+    end
+end
+
+function initial_conditions(;eos_HQ=HadronResonaceGas(),gridpoints=500,rmax=30,
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars(),
+    tau0=0.4)
+
+
+    check(temp_profile)
+    check(fug_profile)
+    
+    temp(x)=profile_functions[temp_profile](x,pars=temp_pars)
+    fug(x) = profile_functions[fug_profile](x,pars=fug_pars,temp_profile=temp_profile,temp_pars=temp_pars,tau0=tau0,eos=eos_HQ)
+    
+   
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
-    phi=set_array((x)->temp_profile(x,norm_temp;σ=σ_temp),:temperature,disc_fields); #temperature initialization
-    set_array!(phi,(x)->fug_profile(x,norm_coll;σ=σ_fug),:mu,disc_fields); #fugacity initialization
+    phi=set_array((x)->temp(x),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fug(x),:mu,disc_fields); #fugacity initialization
+    NQQ̄,err= quadgk(x->2*pi*x*tau0*thermodynamic(temp(x),fug(x),eos_HQ).pressure,0,rmax,rtol=0.00001)
+    @show NQQ̄
+    #@show phi
 return DiscreteFields(disc,disc_fields,phi)
 end
 
 #**************ic data la centralità
 #**************ic dato il percorso file
 
-function runFluidum_fo(eos;
+
+#give kwargs for a generic profile function as additional optional arguments 
+
+function runFluidum_fo(eos;eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
-    if DsT == 0
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars())
+    if iszero(DsT)
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
-        norm_coll=0.
     else
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
     end
-    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+
+    #@show thermodynamic(temp_profile(0,norm_temp,σ=σ_temp),0.0,eos_HQ).pressure
+    fields=initial_conditions(;eos_HQ=eos_HQ,gridpoints=gridpoints,rmax=rmax,
+    temp_profile=temp_profile, fug_profile=fug_profile, fug_pars=fug_pars, temp_pars=temp_pars,
+    tau0=tau0)
     tspan = (tau0,maxtime)
     if fields.initial_field[1,1]<Tfo
         println("Error: Tfo = "*string(Tfo)*" MeV is larger than max temperature in the inital profile T0 = "*string(fields.initial_field[1,1]))
@@ -43,38 +154,38 @@ function runFluidum_fo(eos;
     return (fo=freeze_out_routine(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo),fluidproperties=fluidproperties)
 end
 
-
-function runFluidum(eos;
+function runFluidum(eos;eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
-    tau0=0.4,maxtime=30,
+    tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars())
     if DsT == 0
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
-        norm_coll=0.
+       # norm_coll=0.
     else
         fluidproperties=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
     end
-    fields=initial_conditions(;gridpoints=gridpoints,rmax=rmax,norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+    fields=initial_conditions(;eos_HQ=eos_HQ,gridpoints=gridpoints,rmax=rmax,
+    temp_profile=temp_profile, fug_profile=fug_profile, fug_pars=fug_pars, temp_pars=temp_pars,
+    tau0=tau0)
     tspan = (tau0,maxtime)
     return oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan)
 
 end
 
-function fields_evolution(eos;
+function fields_evolution(eos;eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
-    tau0=0.4,maxtime=30,
+    tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss)
-    if DsT == 0
-        norm_coll=0
-    end
-    fullevo=runFluidum(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
-    tau0=tau0,maxtime=maxtime,
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars())
+    
+    fullevo=runFluidum(eos;eos_HQ=eos_HQ,
+    ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
+    tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+    temp_profile=temp_profile, fug_profile=fug_profile, fug_pars= fug_pars, temp_pars=temp_pars)
     #dump(Fields(fullevo))
-    #return Fields(fullevo)
+    return Fields(fullevo)
     
 end
 
@@ -114,13 +225,14 @@ function compute_observables(eos,part::particle_attribute{S,T,U,V};
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss,
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars(),
     pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") where {S,T,U,V}
 
-    fo, fluidproperties=runFluidum_fo(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
+    fo, fluidproperties=runFluidum(eos;eos_HQ=eos_HQ,
+    ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+    temp_profile=temp_profile, fug_profile=fug_profile, fug_pars= fug_pars, temp_pars=temp_pars)
 
     obs = Observables(fo,part,fluidproperties, pt_min=pt_min,pt_max=pt_max,step=step,Tfo)
 
@@ -131,17 +243,18 @@ function compute_observables(eos,part::particle_attribute{S,T,U,V};
     return obs
 end
 
-function compute_observables(eos,m::Float64;
+function compute_observables(eos,m::Float64;eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
-    norm_temp=0.5, σ_temp=1, norm_coll=-4, σ_fug=1,temp_profile=gauss,fug_profile=gauss,
-    pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") where {S,T,U,V}
-
-    fo, fluidproperties=runFluidum_fo(eos,ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
+    temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars(),
+    pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") 
+    
+    fo, fluidproperties=runFluidum_fo(eos;eos_HQ=eos_HQ,
+    ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
-    norm_temp=norm_temp, σ_temp=σ_temp, norm_coll=norm_coll, σ_fug=σ_fug,temp_profile=temp_profile,fug_profile=fug_profile)
+    temp_profile=temp_profile, fug_profile=fug_profile, fug_pars= fug_pars, temp_pars=temp_pars)
 
     obs = Observables(fo,m,fluidproperties,Tfo, pt_min=pt_min,pt_max=pt_max,step=step)
 
