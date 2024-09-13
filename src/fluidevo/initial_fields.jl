@@ -57,7 +57,7 @@ function initialize_fields(x::TabulatedTrento{A,B}, y::TabulatedTrento{C,D}, cen
 return DiscreteFields(disc,disc_fields,phi)
 end
 
-function initialize_fields(x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true) where {A,B,C,D}
+function initialize_fields(x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, exp_tail = true) where {A,B}
 
     temperature_profile = Profiles(x,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = norm_coll, exp_tail = exp_tail)
     
