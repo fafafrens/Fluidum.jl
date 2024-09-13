@@ -470,6 +470,7 @@ boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_par
             #end 
             #here we compute the flux
             upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
+            #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
             @inbounds @simd for n_field in SOneTo{N_field}()
                 dϕ[n_field] -=  Δ_iϕ[n_field]
             end 
@@ -486,17 +487,85 @@ end
 
 
 
-
-
-
-
-
 @inline function upwindflux!(diffusion,nabla,derivativeMatrix,temp ) 
     jgemvavx!(temp,derivativeMatrix ,diffusion)
 
     jgemvavx!(diffusion, derivativeMatrix,temp,1,1)
 
     jgemvavx!(diffusion,derivativeMatrix,nabla,1,-1/4)
+end
+
+function cheb_coeff(j;N=3,f=abs)
+    @assert isless(j,N)
+    arg1(k) = π*(k+0.5)/N
+    arg2(k,j) = π*j*(k+0.5)/N
+    sum = 0
+    [sum+=f(cos(arg1(k)))*cos(arg2(k,j)) for k in 0:N-1]
+    return 2/N*sum
+end
+
+
+function cheb_pol(n,x)
+    @assert isless(-1,n)
+    if n == 0
+        return one(x)
+    elseif n==1
+        return x
+    else
+        return 2*x*cheb_pol(n-1,x)-cheb_pol(n-2,x)
+    end
+end
+#2*T2*T(2k-2)-T(2k-4)
+
+function cheb_recursion!(T2k,T2,T2km2,T2km4)
+    mul!(T2k,T2,T2km2,2,0)
+    T2k .= T2k .- T2km4
+end
+
+@inline function abscoefficients(k)
+    (-1)^(k+1)/(2k-1)/(2k+1)*2
+end
+
+function cheb_flux!(diffusion,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
+   
+    mul!(T2,A,A)
+    T2 .= T2.*2 .- 1
+    mul!(T2km2,T2,diffusion)
+    @. T2km4 = diffusion
+    @. T2k = zero(T2km2)
+    
+    @. diffusion = T2km4 + abscoefficients(1)*T2km2
+    count = 2
+
+    while count<N
+        cheb_recursion!(T2k,T2,T2km2,T2km4)
+        @. diffusion = diffusion + abscoefficients(count)*T2km2
+        count+=1
+        T2km4 .= T2km2
+        T2km2 .= T2k
+    end
+    diffusion*=2/pi
+
+    return nothing
+end
+
+
+function cheb_approx(x;N=3, f= abs)
+    sum = zero(x)
+    [sum+=cheb_coeff(j,N=N,f=f)*cheb_pol(j,x) for j in 0:N-1]
+    return sum -one(x)*0.5*cheb_coeff(0,N=N,f=f)
+end
+
+
+@inline function upwindflux_Chebyschev!(diffusion,nabla,derivativeMatrix,temp ) 
+    @turbo for i ∈ eachindex(diffusion)
+        diffusioni = diffusion[i]
+        for j ∈ eachindex(diffusion)
+            diffusioni = -0.5*cheb_approx(derivativeMatrix[i,j]) * diffusion[j] + derivativeMatrix[i,j]*nabla[j]
+        end
+        diffusion[i] = diffusioni
+    end
+    
 end
 
 
