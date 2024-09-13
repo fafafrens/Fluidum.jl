@@ -2,7 +2,7 @@ using Fluidum
 using Test
 using LinearAlgebra
 using ForwardDiff
-
+#=
 @testset "equation of state" begin
     @test IdealQCD()==IdealQCD(3,2)
     @test isfinite(thermodynamic(1,IdealQCD()).pressure[1])
@@ -34,11 +34,43 @@ begin
     obs=Fluidum.compute_observables(eos,1.5,Tfo=0.156,save = true)
     @test isfile(Fluidum.get_filename(obs))
     @test typeof(obs.yield_th)<:Float64
-    Fluidum.plot_params(gui=true)
+end
+
+@testset "plots" begin
+    #Fluidum.plot_params(gui=true)
+    eos = Heavy_Quark()
+    obs=Fluidum.compute_observables(eos,1.5,Tfo=0.156,save = true)
+    println("ok...")
     @test isfile(Fluidum.get_filename(obs))
+    println("ok...")
     Fluidum.plot_spectra(obs,save=true)
+    println("ok...")
+    begin
+    result=Fluidum.runFluidum(eos,DsT=0,maxtime=5.)
+    Fluidum.plot_field(result,:temperature,tspan=(0.4,5.),save=true)
+    #Fluidum.plot_field(result,tspan=(0.4,5.),save=true)
+    println("ok...")
+    end
     #rm(Fluidum.get_filename(obs)) 
 end
+=#
+@testset "Cheb" begin
+    function abs_matrix(diff, A)
+        λ=eigen(A).values
+        vec = eigen(A).vectors
+        return vec*Diagonal(abs.(λ))*inv(vec)*diff
+    end
+    A = rand(2,2)
+    A = A/max(eigen(A).values...)
+    diff = rand(2)
+
+    B = copy(A)
+    diff2 = copy(diff)
+
+    Fluidum.cheb_flux!(diff,A,10)
+    @test isapprox(diff,abs_matrix(diff2,B),rtol=0.5)
+    
 end
+#end
 
 
