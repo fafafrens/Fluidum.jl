@@ -586,7 +586,7 @@ function cheb_flux!(diffusion,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=sim
     return nothing
 end
 
-function cheb_flux!(diffusion,nabla,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
+function cheb_upwinding_flux!(diffusion,nabla,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
     cheb_flux!(diffusion,A,N,T2,T2k,T2km2,T2km4)
     mul!(diffusion,derivativeMatrix,nabla,1,-1/2)
 end
@@ -657,7 +657,7 @@ end
             #end 
             #here we compute the flux
             #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
-            cheb_flux!(Δ_iϕ,∇_iϕ,A_i[dim],3,T2_mat,T2k_vec,T2km2_vec,T2km4_vec)
+            cheb_upwinding_flux!(Δ_iϕ,∇_iϕ,A_i[dim],3,T2_mat,T2k_vec,T2km2_vec,T2km4_vec)
             #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
             @inbounds @simd for n_field in SOneTo{N_field}()
                 dϕ[n_field] -=  Δ_iϕ[n_field]
