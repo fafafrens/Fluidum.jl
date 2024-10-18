@@ -32,6 +32,7 @@ end
 
 FugacityPars(;norm_coll=1, σ_in=70,dσ_QQdy=0.463,rdrop=4, n0=31.57) = FugacityPars(norm_coll,σ_in, dσ_QQdy, rdrop, n0)
 
+#chiamale tutte uguali ma con tipo di parametro di tipo diverso
 function gauss(x;pars=StdPars())
     exp(-x^2/(2pars.σ^2))*pars.norm+0.1
 end
@@ -50,7 +51,7 @@ function temp_interpol(x;pars=InterpolPars())
     pars.norm.*linear_interpolation(reverse(file[:,1]),reverse(file[:,2]); extrapolation_bc=Flat())(x).+0.0001
 end
 
-function ncoll(r,pars=FugacityPars())
+function ncoll(r,pars)
     #rdrop=4,n0 = 31.57)
     #return 7*n0*(initial_temp(r)/initial_temp(0.0))^4/3 +0.001
     if r<=pars.rdrop
@@ -113,7 +114,6 @@ function initial_conditions(;eos_HQ=HadronResonaceGas(),gridpoints=500,rmax=30,
     temp(x)=profile_functions[temp_profile](x,pars=temp_pars)
     fug(x) = profile_functions[fug_profile](x,pars=fug_pars,temp_profile=temp_profile,temp_pars=temp_pars,tau0=tau0,eos=eos_HQ)
     
-   
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
@@ -121,6 +121,7 @@ function initial_conditions(;eos_HQ=HadronResonaceGas(),gridpoints=500,rmax=30,
     set_array!(phi,(x)->fug(x),:mu,disc_fields); #fugacity initialization
     NQQ̄,err= quadgk(x->2*pi*x*tau0*thermodynamic(temp(x),fug(x),eos_HQ).pressure,0,rmax,rtol=0.00001)
     @show NQQ̄
+    
     #@show phi
 return DiscreteFields(disc,disc_fields,phi)
 end
@@ -156,7 +157,7 @@ end
 
 function runFluidum(eos;eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
-    tau0=0.4,Tfo=0.156,maxtime=30,
+    tau0=0.4,maxtime=30,
     gridpoints=500,rmax=30,
     temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars())
     if DsT == 0
@@ -181,7 +182,7 @@ function fields_evolution(eos;eos_HQ=HadronResonaceGas(),
     
     fullevo=runFluidum(eos;eos_HQ=eos_HQ,
     ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
-    tau0=tau0,Tfo=Tfo,maxtime=maxtime,
+    tau0=tau0,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
     temp_profile=temp_profile, fug_profile=fug_profile, fug_pars= fug_pars, temp_pars=temp_pars)
     #dump(Fields(fullevo))
@@ -201,9 +202,10 @@ struct Observables{S,T,U,V,M,K,A,B,C,D}
 end
 
 function Observables(fo::FreezeOutResult{M,N},part::particle_attribute{S,T,U,V},fluidproperties::FluidProperties{A,B,C,D},Tfo;
-    pt_min=0,pt_max=10.0,step=100) where {M,N,S,T,U,V,A,B,C,D}
-    spectra_th,err=spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=false)
-    spectra_tot,err=spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=true)
+    pt_min=0,pt_max=10.0,step=100,ccbar=0.7) where {M,N,S,T,U,V,A,B,C,D}
+    spectra_th=getindex.(spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=false,ccbar=ccbar)[:],1)
+    #@show spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=false,ccbar=ccbar)
+    spectra_tot=getindex.(spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=true,ccbar=ccbar)[:],1)
     yield_th, err=multiplicity(fo,part,decays=false)
     yield_tot, err=multiplicity(fo,part,decays=true)
     pt_bins = range(pt_min,pt_max,step) 
@@ -211,30 +213,31 @@ function Observables(fo::FreezeOutResult{M,N},part::particle_attribute{S,T,U,V},
 end
 
 function Observables(fo::FreezeOutResult{M,N},m::Float64,fluidproperties::FluidProperties{A,B,C,D},Tfo;
-    pt_min=0,pt_max=10.0,step=100,deg=1) where {M,N,A,B,C,D}
+    pt_min=0,pt_max=10.0,step=100,deg=1, charge = 1) where {M,N,A,B,C,D}
     spectra_th=getindex.(spectra_internal(m,fo,pt_max=pt_max,pt_min=pt_min,step=step,deg=deg)[:],1)
     spectra_tot=spectra_th
     yield_th, err=multiplicity(m,fo)
     yield_tot = yield_th
     pt_bins = range(pt_min,pt_max,step) 
-    part = particle_attribute(string(m),m,deg,nothing,nothing)
+    part = particle_attribute(string(m),m,deg,charge, nothing,nothing)
     return Observables(part,yield_th,yield_tot,pt_bins,spectra_th,spectra_tot,fluidproperties,Tfo)
 end
 
-function compute_observables(eos,part::particle_attribute{S,T,U,V};
+function compute_observables(eos,part::particle_attribute{S,T,U,V};eos_HQ=HadronResonaceGas(),
     ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5,
     tau0=0.4,Tfo=0.156,maxtime=30,
     gridpoints=500,rmax=30,
+    ccbar = 1.4,
     temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars(),
     pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") where {S,T,U,V}
 
-    fo, fluidproperties=runFluidum(eos;eos_HQ=eos_HQ,
+    fo, fluidproperties=runFluidum_fo(eos;eos_HQ=eos_HQ,
     ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
     gridpoints=gridpoints,rmax=rmax,
     temp_profile=temp_profile, fug_profile=fug_profile, fug_pars= fug_pars, temp_pars=temp_pars)
 
-    obs = Observables(fo,part,fluidproperties, pt_min=pt_min,pt_max=pt_max,step=step,Tfo)
+    obs = Observables(fo,part,fluidproperties, Tfo,pt_min=pt_min,pt_max=pt_max,step=step,ccbar = ccbar)
 
     if save==true
         save_observables(obs,path=savepath)
@@ -249,7 +252,7 @@ function compute_observables(eos,m::Float64;eos_HQ=HadronResonaceGas(),
     gridpoints=500,rmax=30,
     temp_profile::Symbol=:t_int, fug_profile::Symbol=:fug, fug_pars=FugacityPars(), temp_pars=InterpolPars(),
     pt_min=0,pt_max=10.0,step=100,save=false,savepath="./results/") 
-    
+
     fo, fluidproperties=runFluidum_fo(eos;eos_HQ=eos_HQ,
     ηs=ηs,Cs=Cs,ζs=ζs,Cζ=Cζ,DsT=DsT,M=M,
     tau0=tau0,Tfo=Tfo,maxtime=maxtime,
@@ -275,16 +278,16 @@ function save_observables(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/
 
     filename =  get_filename(obj,path=path)
     @show filename
-    if isfile(filename)
-        println("file already exists")
-        return nothing
-    else
+    #if isfile(filename)
+    #    println("file already exists")
+    #    return nothing
+    #else
     open(filename, "w") do io 
         write(io, "# int_yield_th: "*string(obj.yield_th)*", int_yield_tot: "*string(obj.yield_tot)*"\n")
         write(io, "# pt\t th\t tot\t \n")
         writedlm(io, [obj.pt_bins obj.spectra_th obj.spectra_tot])
         close(io)
-    end
+    #end
 end
 end
 
@@ -313,5 +316,9 @@ function get_filename(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/",to
     else
         return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.txt"
     end
+end
+
+function read_data(file)
+    readdlm(file)
 end
 

@@ -18,48 +18,50 @@
     ν=0 #per ora mettiamo kernel di diffusione = 0
     n=1.0
     #n = thermodynamic(T,μ,eos.hadron_list).pressure
-    
+    #μ=0
     
     result= (r_factor*(K1eq+K1diff*ν/T/n)+t_factor*(K2eq+K2diff*ν/T/n))*exp(μ)
-     
     return result*fmGeV^3
 end
 
 
-@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V};decays, ccbar = 2.76) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V};decays, ccbar = 1.4) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+    
     fact = besseli(1, ccbar/2)/besseli(0, ccbar/2)
-
+    fact = 1
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha) #prendono gli argomenti da phi, che li prende da fo che viene calcolato altrove
-    @show ur 
     if (ur > 5) 
         #@show ur 
         @warn string("Radial velocity out of fastreso limits")       
     end 
-    
     m = part.mass
-    if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* ha degenerazione 3 perche ha total angular momentum = 3. Per tutti gli altri ho spin 0 e non va preso in considerazione 
-        deg = 3
-    else deg = 1
+    deg = part.degeneracy
+    charge = part.charge
+
+    if charge == 2 
+        fact = 1 
     end
-    if part.name == "jp3096zer"
-        fact = 1
-        μ = 2μ #J/Psi ha μ = 2 perche ha 2 charm (sto facendo fugacity^2) 
-    end 
+    
     if(decays==true)
-        kernel = part.total_kernel_ext
+        kernel = kernels(part.total_kernel_path)
+        #kernel = kernels_diff(part.total_kernel_path)
     else 
-        kernel = part.thermal_kernel_ext
+        kernel = kernels(part.thermal_kernel_path)
+        #kernel = kernels_diff(part.thermal_kernel_path)
     end
-    K1eq=kernel.K1eq(T,pt,ur)
-    K2eq=kernel.K2eq(T,pt,ur)
-    K1diff=kernel.K1diff(T,pt,ur)
-    K2diff=kernel.K2diff(T,pt,ur)
-    cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,μ,ν,K1eq,K2eq,K1diff,K2diff)*deg*fact
+
+    K1eq=kernel.K1eq(pt,ur)
+    K2eq=kernel.K2eq(pt,ur)
+    #K1diff=kernel.K1diff(T,pt,ur)
+    #K2diff=kernel.K2diff(T,pt,ur)
+    K1diff=0
+    K2diff=0
+    cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,charge*20.57*0,ν,K1eq,K2eq,K1diff,K2diff)*deg*fact
 end
 #spectra in a single pt point
-function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true,ccbar = 2.76) where {C<:Number,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true,ccbar = 1.4) where {C<:Number,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
@@ -276,23 +278,23 @@ end
     else 
         kernel = part.thermal_kernel_ext
     end
-    K1eq=kernel.K1eq(T,pt,ur)
+    #=K1eq=kernel.K1eq(T,pt,ur)
     K2eq=kernel.K2eq(T,pt,ur)
     K1piphi=kernel.K1piphi(T,pt,ur)
     K2piphi=kernel.K2piphi(T,pt,ur)
     K1pieta=kernel.K1pieta(T,pt,ur)
     K2pieta=kernel.K2pieta(T,pt,ur)
     K1bulk=kernel.K1bulk(T,pt,ur)
-    K2bulk=kernel.K2bulk(T,pt,ur)
+    K2bulk=kernel.K2bulk(T,pt,ur)=#
     #print("fixed temperature")
-    # K1eq=kernel.K1eq(pt,ur)
-    # K2eq=kernel.K2eq(pt,ur)
-    # K1piphi=kernel.K1piphi(pt,ur)
-    # K2piphi=kernel.K2piphi(pt,ur)
-    # K1pieta=kernel.K1pieta(pt,ur)
-    # K2pieta=kernel.K2pieta(pt,ur)
-    # K1bulk=kernel.K1bulk(pt,ur)
-    # K2bulk=kernel.K2bulk(pt,ur)
+    K1eq=kernel.K1eq(pt,ur)
+    K2eq=kernel.K2eq(pt,ur)
+    K1piphi=kernel.K1piphi(pt,ur)
+    K2piphi=kernel.K2piphi(pt,ur)
+    K1pieta=kernel.K1pieta(pt,ur)
+    K2pieta=kernel.K2pieta(pt,ur)
+    K1bulk=kernel.K1bulk(pt,ur)
+    K2bulk=kernel.K2bulk(pt,ur)
     
     cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,K1eq,K2eq,K1piphi,K2piphi,K1pieta,K2pieta,K1bulk,K2bulk,fluidpropery)
 end

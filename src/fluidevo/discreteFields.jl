@@ -242,9 +242,9 @@ end
 Collect the information of the field and the space-doiscretization in one data type. 
 """
 function DiscreteFileds(fields::Fields{N_field,space_dimension,S}
-,discretization::CartesianDiscretization{space_dimension,Sizes,Lengths,DXS,M},type::Type{T},N_copies::Int=4) where {N_field,space_dimension,S,Sizes,Lengths,DXS,M,T}
-if N_copies<4 
-    N_copies=4
+,discretization::CartesianDiscretization{space_dimension,Sizes,Lengths,DXS,M},type::Type{T},N_copies::Int=6) where {N_field,space_dimension,S,Sizes,Lengths,DXS,M,T}
+if N_copies<6 
+    N_copies=6
 end 
 
 Sizes_ghosted=Sizes.+2
@@ -518,22 +518,59 @@ end
 #2*T2*T(2k-2)-T(2k-4)
 
 function cheb_recursion!(T2k,T2,T2km2,T2km4)
-    mul!(T2k,T2,T2km2,2,0)
-    T2k .= T2k .- T2km4
+    mul!(T2km4,T2,T2km2,2,-1)
+    T2k .=  T2km4
 end
 
 @inline function abscoefficients(k)
     (-1)^(k+1)/(2k-1)/(2k+1)*2
 end
 
+@inline """
+    mulladd_identiy!(dest::AbstractMatrix,in::AbstractMatrix,a,b)
+
+Compute dest=in*a +b*I inplace 
+"""
+function mulladd_identiy!(dest::AbstractMatrix,in::AbstractMatrix,a,b)
+    
+    @inbounds for i in CartesianIndices(in)
+        result=in[i]*a 
+        if i[1]==i[2]
+            result=result+b
+        end
+        dest[i]=result 
+    end 
+end
+
+@inline """
+    mulladd_identiy!(dest::AbstractMatrix,in::AbstractMatrix,a,b)
+
+Compute in=in*a +b*I inplace 
+"""
+function mulladd_identiy!(in::AbstractMatrix,a,b)
+    
+    @inbounds for i in CartesianIndices(in)
+        result=in[i]*a 
+        if i[1]==i[2]
+            result=result+b
+        end
+        in[i]=result 
+    end 
+end
+
+
 function cheb_flux!(diffusion,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
    
     mul!(T2,A,A)
-    T2 .= T2.*2 .- 1
-    mul!(T2km2,T2,diffusion)
-    @. T2km4 = diffusion
-    @. T2k = zero(T2km2)
+    mulladd_identiy!(T2,2*one(eltype(A)),-one(eltype(A)))
+    #T2 .= T2.*2 .- one(T2)
     
+    mul!(T2km2,T2,diffusion)
+    
+    T2km4 .= diffusion
+    
+    fill!(T2k,zero(eltype(diffusion)))
+
     @. diffusion = T2km4 + abscoefficients(1)*T2km2
     count = 2
 
@@ -544,10 +581,101 @@ function cheb_flux!(diffusion,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=sim
         T2km4 .= T2km2
         T2km2 .= T2k
     end
-    diffusion*=2/pi
+    diffusion .= 2/pi .*diffusion
 
     return nothing
 end
+
+function cheb_upwinding_flux!(diffusion,nabla,A,N,phi,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
+    cheb_flux!(diffusion,A./maximum(append!(phi[2,:]./sqrt.(1 .+phi[2,:].^2),1)),N,T2,T2k,T2km2,T2km4)
+    diffusion .= diffusion*maximum(append!(phi[2,:]./sqrt.(1 .+phi[2,:].^2),1))
+    mul!(diffusion,A,nabla,1,-1/2)
+end
+
+@inbounds function chebupwinding(dphi,phi,t,discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
+    #this is the discretization
+    #@show t
+    X=discrete_fields.discretization
+    #then we have the index structure 
+    idx=discrete_fields.index_structure
+    # the interior 
+    Interior=idx.interior
+    # this are the unit vector (1,0,0,...)
+    e_i=idx.unit_inidices_space
+    #parity stuff 
+    left_parity=discrete_fields.left_parity
+    right_parity=discrete_fields.right_parity
+    periodicity=discrete_fields.periodicity
+    #chace matrices where to write the intermidiate results
+    cache=discrete_fields.cache
+    #this is a ntuple of matrices Ndim
+    @inbounds A_i= cache.matrix[1]
+    #this is just a vector that is need it for the source term 
+    @inbounds Source= cache.vector[1][1]
+    @inbounds nabla= cache.vector[2]
+    @inbounds delta= cache.vector[3]
+
+    #cache for intermidiate calculation 
+    #@inbounds temp= cache.vector[4][1]
+    @inbounds T2_mat=cache.matrix[2][1]
+    @inbounds T2k_vec=cache.vector[4][1]
+    @inbounds T2km2_vec=cache.vector[5][1]
+    @inbounds T2km4_vec=cache.vector[6][1]
+
+    #now let do some computation regaring the grid 
+    deltax=Δx(X)
+    inv_deltax=1 ./deltax
+    #inv_deltax_2=inv_deltax *inv_deltax
+    onehalf= one(T)/2
+    two=2*one(T)
+
+    #Loop over all the interior point I is a space iteration (x,y,z,....) the first index is not iterate
+    @inbounds @simd for I in Interior
+        # now is a N_field vector here i do not allocate nothing  
+        ϕ=@views phi[:,I]
+        dϕ=@views dphi[:,I]
+        #here we compute all the matrices (matrices,Source,phi,t,x,params) 
+        matrix_equation!(A_i,Source,ϕ,t,X[I],params)
+        #now that we have the matrices in A_i as a tuple we loop over the dimension 
+        @. dϕ =  - Source
+        
+        @inbounds @simd for dim in SOneTo{space_dimension}()
+            #for each dimension i shift the index in the plus and minus dimension
+            versor= e_i[dim]
+            plus_index=I +versor
+            minus_index=I -versor
+            ϕ_plus = @views phi[:,plus_index]
+            ϕ_minus= @views phi[:,minus_index]
+            ∇_iϕ=nabla[dim]
+            Δ_iϕ=delta[dim]
+            # here we compute the derivative 
+            invdx=inv_deltax[dim]
+            @. ∇_iϕ = (ϕ_plus - ϕ_minus) * invdx * onehalf
+            @. Δ_iϕ = (ϕ_plus + ϕ_minus -two *ϕ) * invdx
+            #for n_field in SOneTo(N_field) 
+            #∇_iϕ[n_field] = (ϕ_plus[n_field] - ϕ_minus[n_field]) * invdx * onehalf
+            #Δ_iϕ[n_field] = (ϕ_plus[n_field] + ϕ_minus[n_field] -two *ϕ[n_field]) * invdx
+            #end 
+            #here we compute the flux
+            #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
+            cheb_upwinding_flux!(Δ_iϕ,∇_iϕ,A_i[dim],10,phi,T2_mat,T2k_vec,T2km2_vec,T2km4_vec)
+            #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
+            @inbounds @simd for n_field in SOneTo{N_field}()
+                dϕ[n_field] -=  Δ_iϕ[n_field]
+            end 
+        end  
+
+    end
+
+    #before returning we  we apply the boundary_condition to the array are already decided 
+    boundary_condition!(dphi,idx,left_parity, right_parity, periodicity)
+
+    return nothing
+end
+
+
+
+
 
 
 function cheb_approx(x;N=3, f= abs)
@@ -608,6 +736,7 @@ function problem(two_ideal_hydro_discrete::DiscreteFileds{T, total_dimensions, s
     
     two_ideal_hydro_discrete=convert_field(NewT,two_ideal_hydro_discrete)
         ODEProblem((du,u,p,t)->basicupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
+        #ODEProblem((du,u,p,t)->chebupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
 end
 
 function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan,args...;kwargs...)
@@ -615,7 +744,9 @@ function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspa
     solve(prob,args...;kwargs...)
 end
 
-
+#@time solution1 = solve(problem,AutoTsit5(Rodas4(autodiff=false)), reltol = 1e-15)#,dtmax=0.01*(tspan[2]-tspan[1]))
+#dtmax dtmin in oneshoot as kwargs
+#noborok
 
 function isosurface(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
     ideal_matrix_equation_2d!,cs,phi,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}

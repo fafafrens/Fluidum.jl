@@ -67,7 +67,8 @@ end
     B = copy(A)
     diff2 = copy(diff)
 
-    Fluidum.cheb_flux!(diff,A,10)
+    Fluidum.cheb_flux!(diff,A,15)
+    @show diff, abs_matrix(diff2,B)
     @test isapprox(diff,abs_matrix(diff2,B),rtol=0.5)
     
 end

@@ -1,0 +1,20 @@
+# Name           Mass       Gamma    deg    Spin    Isospin    I3     Nq      Ns    Naq      Nas       Nc        Nac      MC
+
+# non-strange B-mesons
+B5279plu       5.27934     0.0     1       0       0.5     0.5     1       0       0       0          1        0   5279
+
+
+B5324plu       5.32471     0.0     3       0       0.5     0.5     1       0       0       0          1        0   5324
+
+# strange B-mesons
+Bs5366zer       5.36692     0.0     1       0      0     0.     0       1       0       0          0        1   53660
+
+# hidden B-mesons
+
+Ups9460zer       9.46030    0.0     3      0       0    -0.     0       0       0       0          1        1   -9460
+
+Ups10000zer       10.02326    0.0     3      0       0    -0.     0       0       0       0          1        1   -10000
+
+
+
+

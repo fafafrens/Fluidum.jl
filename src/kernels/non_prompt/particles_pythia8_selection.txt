@@ -1,0 +1,4 @@
+#name                     Mass  Gamma    deg   Spin Isospin     I3     Nq     Ns    Naq    Nas     Nc    Nac         MC 
+D0                    1.86486   0.00      1      0    0.5   -0.5      0      0      1      0      1      0        421
+D_s+                  1.96849   0.00      1      0      0      0      0      0      0      1      1      0        431
+Jpsi                 3.09692   0.00      3      1      0      0      0      0      0      0      1      1        443

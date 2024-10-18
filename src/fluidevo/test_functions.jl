@@ -10,6 +10,8 @@
     Returns values of the conserved charge at t = time
 
 """
+particle_list=pwd()*"/../src/kernels/particles_beauty_pythia8_list.txt"
+
 function integral_cauchy(resultNofo,time,grid,eos)
     mu(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[6,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     t(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[1,2:lastindex(grid)-1]; extrapolation_bc=Flat())
@@ -17,11 +19,11 @@ function integral_cauchy(resultNofo,time,grid,eos)
     u(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[2,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     ut(time,x) = sqrt(1+u(time)(x)*u(time)(x)) 
     nt(time,x) = u(time)(x)*nu(time)(x)/ut(time,x)
-    density(time,x) = thermodynamic(t(time)(x),mu(time)(x),eos.hadron_list).pressure
+    density(time,x) = thermodynamic(t(time)(x),mu(time)(x),eos.hadron_list; ccbar = 1.4).pressure
+    #@show quadgk(x->density(time,x),0,30)
+    #density(time,x)=free_charm(t(time)(x),mu(time)(x),Heavy_Quark(mass=4.75,hadron_list=HadronResonaceGas(name_file=particle_list,Maxmass=11.,Minmass=4.0)))[1]
     
-    #density(time,x)=federica(t(time)(x),mu(time)(x),Heavy_Quark())[1]
-    
-    return quadgk(x->2*pi*x*time*(density(time,x)* ut(time,x) +nt(time,x)),0,grid[end-1][1],rtol=0.00001)
+    return quadgk(x->2*pi*x*time*(density(time,x)* ut(time,x) +nt(time,x)),grid[2][1],grid[end-1][1],rtol=0.00001)
 
 end
 
@@ -41,7 +43,6 @@ function test_integral_cauchy(resultNofo,grid,tspan,eos;dt=0.5)
     end
     return current
 end
-
 """
     fo_integrand(alpha,x,phi)
     

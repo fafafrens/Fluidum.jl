@@ -1,45 +1,34 @@
 module Fluidum
 
-using ForwardDiff:Dual,value,partials
+using Artifacts
 using Bessels
-using ForwardDiff
-using DelimitedFiles: readdlm
 using DelimitedFiles
-using StructArrays
-using IntervalSets
-using MuladdMacro
-using StaticArrays
-using Artifacts 
-
-
-#pkg used by the fluid evolution. 
-using Interpolations
+using DelimitedFiles: readdlm
 using DifferentialEquations
-using Statistics
+using FastChebInterp
+using ForwardDiff
+using ForwardDiff: Dual, partials, value
+using HCubature
+using Interpolations
+using IntervalSets
 using JLD2
-
-
+using LaTeXStrings
 using LinearAlgebra
 using LoopVectorization
-using Surrogates
-using StatsBase
-
-using FastChebInterp
-
-
-
-
-
-using TensorCast
-using SimpleNonlinearSolve
-
-using QuadGK
+using MuladdMacro
 using NumericalIntegration
-
-using HCubature
+using Plots
+using QuadGK
+using SimpleNonlinearSolve
+using StaticArrays
+using Statistics
+using StatsBase
+using StructArrays
+using Surrogates
+using TensorCast
 using UnPack
 
-using PyPlot
+using DataFrames
 
 
 
@@ -90,9 +79,9 @@ include("fluidevo/discretization.jl")
 include("fluidevo/picewisefunction.jl") 
 include("fluidevo/discreteFields.jl")  
 
-include("fluidevo/generating_kernels_3d.jl")
-#include("fluidevo/generating_kernels.jl")
-include("fluidevo/particle_dictionary.jl")
+#include("fluidevo/generating_kernels_3d.jl")
+include("fluidevo/generating_kernels_fast.jl")
+#include("fluidevo/particle_dictionary.jl")
 
 
 include("fluidevo/spectra_fastreso_dict_HQ.jl")
@@ -106,6 +95,8 @@ include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
 include("wraps.jl")
 include("plotting_routines.jl")
+
+include("fluidevo/test_functions.jl")
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
 RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),

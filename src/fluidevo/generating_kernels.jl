@@ -3,6 +3,8 @@ using JLD2
 using DelimitedFiles: readdlm
 using StructArrays: StructArray
 
+const beauty_kernel_path = "C:\\Users\\feder\\.julia\\dev\\Fluidum\\src\\kernels\\beauty_reso_dubla_Kj\\"
+const light_kernel_path = "C:\\Users\\feder\\.julia\\dev\\Fluidum\\src\\kernels\\FastReso_kernels\\"
 struct particle{S,T,U}
     name::S
     mass::T
@@ -40,15 +42,15 @@ struct kernel_equilibrium{T}
     K2eq::T
 end
 
-function LightFlavours(;name_file=string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/particles.data"),Maxmass=0.939,Minmass=0.13,condition=x->true)
+function LightFlavours(;name_file=string("C:\\Users\\feder\\.julia\\dev\\Fluidum\\src\\kernels\\FastReso_kernels/light.txt"),Maxmass=0.939,Minmass=0.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
     spin     =convert.(Float64,data[:,4])
     thermal_kernel_path=[] #inizializza un array vuoto 
-    [push!(thermal_kernel_path,string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/"*names[i]*"_thermal_T0.1445_Kj.out")) for i in eachindex(names)] #tanti path quanti sono i names
+    [push!(thermal_kernel_path,string(light_kernel_path*names[i]*"_thermal_1565.dat")) for i in eachindex(names)] #tanti path quanti sono i names
     total_kernel_path=[]
-    [push!(total_kernel_path,string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/"*names[i]*"_total_T0.1445_Kj.out")) for i in eachindex(names)]
+    [push!(total_kernel_path,string(light_kernel_path*names[i]*"_total_1565.dat")) for i in eachindex(names)]
     
     return StructArray(particle.(
         names,
@@ -60,7 +62,9 @@ function LightFlavours(;name_file=string(@__DIR__,"/Kernels_only_01445/FastReso_
 
 end
 
-function OpenCharm(;name_file=string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/particles.data"),Maxmass=0.939,Minmass=0.13,condition=x->true)
+
+
+function Beauty(;name_file=string("C:\\Users\\feder\\.julia\\dev\\Fluidum\\src\\kernels\\beauty_reso_dubla_Kj\\OpenBeautyParticleList_corrJS.txt"),Maxmass=5.,Minmass=11.,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -68,9 +72,9 @@ function OpenCharm(;name_file=string(@__DIR__,"/Kernels_folder/FastReso_OC_kerne
     degeneracy=convert.(Float64,data[:,4])
 
     thermal_kernel_path=[]
-    [push!(thermal_kernel_path,string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/"*names[i]*"_thermal_T0.1565_Kj.out")) for i in eachindex(names)]
+    [push!(thermal_kernel_path,string(beauty_kernel_path*names[i]*"_thermal_T0.1565_Kj.out")) for i in eachindex(names)]
     total_kernel_path=[]
-    [push!(total_kernel_path,string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/"*names[i]*"_total_T0.1565_Kj.out")) for i in eachindex(names)]
+    [push!(total_kernel_path,string(beauty_kernel_path*names[i]*"_total_T0.1565_Kj.out")) for i in eachindex(names)]
     
     return StructArray(particle.(
         names,
@@ -80,140 +84,99 @@ function OpenCharm(;name_file=string(@__DIR__,"/Kernels_folder/FastReso_OC_kerne
         total_kernel_path
        ))
 end
-
-function HiddenCharm(;name_file=string(@__DIR__,"/Kernels_folder/FastReso_HC_kernels/particles.data"),Maxmass=0.939,Minmass=0.13,condition=x->true)
-    data     =readdlm(name_file,comment_char='#',comments=true)
-    names    =convert.(String,data[:,1])
-    mass     =convert.(Float64,data[:,2])
-
-    degeneracy=convert.(Float64,data[:,4])
-
-    thermal_kernel_path=[]
-    [push!(thermal_kernel_path,string(@__DIR__,"/Kernels_folder/FastReso_HC_kernels/jp3096zer_thermal_T0.1565_Kj.out")) for i in eachindex(names)]
-    total_kernel_path=[]
-    [push!(total_kernel_path,string(@__DIR__,"/Kernels_folder/FastReso_HC_kernels/jp3096zer_total_T0.1565_Kj.out")) for i in eachindex(names)]
-    
-    return StructArray(particle.(
-        names,
-        mass,
-        degeneracy,
-        thermal_kernel_path,
-        total_kernel_path
-       ))
-end
-
 """"
 returns kernel structure for protons, pions, and kaons. Each object in the structure is an int. func. of (pt,ur)
 """
 
 function save_thermal_kernels()
+    
+    ext = [] #svuoto l array
+    B5279plu,B5324plu,Bs5366zer,Ups9460zer,Ups10000zer = Beauty()
+
+    for i in 1:5 
+    part = [B5279plu,B5324plu,Bs5366zer,Ups9460zer,Ups10000zer][i]
+    a = readdlm(part.thermal_kernel_path, Float64,skipstart=1)
+    #same for all
+    pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2]))))
+    ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2]))))
+    ur=ur_list[1,:]
+    pt=pt_list[:,1]
+    itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ]
+    push!(ext,extrapolate.(itp, Ref(Flat())) )
+    end
+    
+    B5279plu_thermal=kernels(ext[1]...)
+    B5324plu_thermal=kernels(ext[2]...)
+    Bs5366zer_thermal=kernels(ext[3]...)
+    Ups9460zer_thermal=kernels(ext[4]...)
+    Ups10000zer_thermal=kernels(ext[5]...)
+    
+        #@save "savedfunction.jld" ext
+    @save beauty_kernel_path*"B5279plu_thermal.jld" B5279plu_thermal
+    @save beauty_kernel_path*"B5324plu_thermal.jld" B5324plu_thermal
+    @save beauty_kernel_path*"Bs5366zer_thermal.jld" Bs5366zer_thermal
+    @save beauty_kernel_path*"Ups9460zer_thermal.jld" Ups9460zer_thermal
+    @save beauty_kernel_path*"Ups10000zer_thermal.jld" Ups10000zer_thermal
+
     ext = []
     protons,kaons,pions = LightFlavours()
     a = readdlm(protons.thermal_kernel_path, Float64,skipstart=1)
     #same for all
-    pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2])))) #riformatto in modo che pt sia una matrice con colonne tutte uguali e righe con pt 
-    ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2])))) #riformatto in modo che ur sia una matrice con righe tutte uguali e righe con ur 
+    pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2]))))
+    ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2]))))
 
     ur=ur_list[1,:]
     pt=pt_list[:,1]
 
-    itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] #interpolazione di tutte le colonne da 3 in poi, tramite iterpolazione lineare
-    push!(ext,extrapolate.(itp, Ref(Flat())) ) #primo elemento pushato in ext: sara ext[1]. Estrapolazione con una valore costante dappertutto (Ref(Flat)) Per fare l estrapolazione ci serve una funzione quindi prima ho dovuto interpolare
+    itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
+    push!(ext,extrapolate.(itp, Ref(Flat())) )
     a = readdlm(kaons.thermal_kernel_path, Float64,skipstart=1)
     itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    push!(ext,extrapolate.(itp, Ref(Flat())) ) #secondo elemento pushato in ext: sara ext[1]
+    push!(ext,extrapolate.(itp, Ref(Flat())) )
     a = readdlm(pions.thermal_kernel_path, Float64,skipstart=1)
     itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
     push!(ext,extrapolate.(itp, Ref(Flat())) )
 
-    protons_thermal=kernels(ext[1]...) #... indica che sto eseguendo un "unpaking": sto prendendo tutti gli elementi di ext[1], e li sto usando per riempire kernels 
-    print("the type: ", typeof(ext[1]))
-    #print("k1 eq: ",K1eq.kernels)
-    #print("k1 eq: ", K1eq(pt,ur))
+    protons_thermal=kernels(ext[1]...)
     kaons_thermal=kernels(ext[2]...)
     pions_thermal=kernels(ext[3]...)
     #@save "savedfunction.jld" ext
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/proton_thermal.jld") protons_thermal
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/kaon_thermal.jld") kaons_thermal
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/pion_thermal.jld") pions_thermal
-    #return (protons=kernels(ext[1]...),kaons=kernels(ext[2]...),pions=kernels(ext[3]...))
-    
-    
-    # ext = [] #svuoto l array
-    # D0,Dplus,Dstar0,Dstarplus,Dsplus,Lcplus,Omc,Xic = OpenCharm()
-    # a = readdlm(D0.thermal_kernel_path, Float64,skipstart=1)
-    # #same for all
-    # pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2]))))
-    # ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2]))))
-
-    # ur=ur_list[1,:]
-    # pt=pt_list[:,1]
-
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Dplus.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Dstar0.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Dstarplus.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Dsplus.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Lcplus.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Omc.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    # a = readdlm(Xic.thermal_kernel_path, Float64,skipstart=1)
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-
-
-    # D0_thermal=kernels_diff(ext[1]...)
-    # Dplus_thermal=kernels_diff(ext[2]...)
-    # Dstar0_thermal=kernels_diff(ext[3]...)
-    # Dstarplus_thermal=kernels_diff(ext[4]...)
-    # Dsplus_thermal=kernels_diff(ext[5]...)
-    # Lcplus_thermal=kernels_diff(ext[6]...)
-    # Omc_thermal=kernels_diff(ext[7]...)
-    # Xic_thermal=kernels_diff(ext[8]...)
-    
-    # #@save "savedfunction.jld" ext
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/D0_thermal.jld") D0_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Dplus_thermal.jld") Dplus_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Dstar0_thermal.jld") Dstar0_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Dstarplus_thermal.jld") Dstarplus_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Dsplus_thermal.jld") Dsplus_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Lcplus_thermal.jld") Lcplus_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Omc_thermal.jld") Omc_thermal
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_OC_kernels/Xic_thermal.jld") Xic_thermal
-    
-
-    # ext = []
-    # Jpsi = HiddenCharm()[1]
-    # a = readdlm(Jpsi.thermal_kernel_path, Float64,skipstart=1)
-    # #same for all
-    # pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2]))))
-    # ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2]))))
-
-    # ur=ur_list[1,:]
-    # pt=pt_list[:,1]
-
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ] 
-    # push!(ext,extrapolate.(itp, Ref(Flat())) )
-    
-    # Jpsi_thermal=kernels_diff(ext[1]...)
-    # @save string(@__DIR__,"/Kernels_folder/FastReso_HC_kernels/Jpsi_thermal.jld") Jpsi_thermal
+    @save light_kernel_path*"proton_thermal.jld" protons_thermal
+    @save light_kernel_path*"kaon_thermal.jld" kaons_thermal
+    @save light_kernel_path*"pion_thermal.jld" pions_thermal
 end
 #save_thermal_kernels()
 
 function save_total_kernels()
+    ext = [] #svuoto l array
+    B5279plu,B5324plu,Bs5366zer,Ups9460zer,Ups10000zer = Beauty()
+
+    for i in 1:5 
+    part = [B5279plu,B5324plu,Bs5366zer,Ups9460zer,Ups10000zer][i]
+    a = readdlm(part.total_kernel_path, Float64,skipstart=1)
+    #same for all
+    pt_list=reshape(a[:,1],(length(unique(a[:,1])),length(unique(a[:,2]))))
+    ur_list=reshape(a[:,2],(length(unique(a[:,1])),length(unique(a[:,2]))))
+    ur=ur_list[1,:]
+    pt=pt_list[:,1]
+    itp=[interpolate((pt,ur),reshape(a[:,n],(length(pt),length(ur))),Gridded(Linear()) ) for n in 3:size(a)[2] ]
+    push!(ext,extrapolate.(itp, Ref(Flat())) )
+    end
+    
+    B5279plu_total=kernels(ext[1]...)
+    B5324plu_total=kernels(ext[2]...)
+    Bs5366zer_total=kernels(ext[3]...)
+    Ups9460zer_total=kernels(ext[4]...)
+    Ups10000zer_total=kernels(ext[5]...)
+    
+        #@save "savedfunction.jld" ext
+    @save beauty_kernel_path*"B5279plu_total.jld" B5279plu_total
+    @save beauty_kernel_path*"B5324plu_total.jld" B5324plu_total
+    @save beauty_kernel_path*"Bs5366zer_total.jld" Bs5366zer_total
+    @save beauty_kernel_path*"Ups9460zer_total.jld" Ups9460zer_total
+    @save beauty_kernel_path*"Ups10000zer_total.jld" Ups10000zer_total
+   
+
     ext = []
     protons,kaons,pions = LightFlavours()
     a = readdlm(protons.total_kernel_path, Float64,skipstart=1)
@@ -237,9 +200,9 @@ function save_total_kernels()
     kaons_total=kernels(ext[2]...)
     pions_total=kernels(ext[3]...)
     #@save "savedfunction.jld" ext
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/proton_total.jld") protons_total
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/kaon_total.jld") kaons_total
-    @save string(@__DIR__,"/Kernels_only_01445/FastReso_kernels/pion_total.jld") pions_total
+    @save light_kernel_path*"proton_total.jld" protons_total
+    @save light_kernel_path*"kaon_total.jld" kaons_total
+    @save light_kernel_path*"pion_total.jld" pions_total
     #return (protons=kernels(ext[1]...),kaons=kernels(ext[2]...),pions=kernels(ext[3]...))
     
     # ext = []
