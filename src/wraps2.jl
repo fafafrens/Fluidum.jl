@@ -3,18 +3,7 @@
 
 abstract type AbstractInitialCondition end
 
-
-function temperature(position,ini::T) where {T<:AbstractInitialCondition}
-    throw("temperature not defined for the type $T")
-end
-
-function density(position,ini::T) where {T<:AbstractInitialCondition}
-    throw("density not defined for the type $T")
-end
-
-
-#types of params set
-
+#structures
 struct Gaussian_Intial_Condition{T,S} <:AbstractInitialCondition
     σ::T
     mean::S
@@ -24,10 +13,38 @@ struct Trento_Intial_Condition{T} <:AbstractInitialCondition
     norm::T
 end 
 
+struct Step_Intial_Condition{T,S} <:AbstractInitialCondition
+    norm::T
+    r0::S
+end 
+
+struct pQCD_Initial_Condition{T,S,U} <: AbstractInitialCondition
+    norm_coll::T
+    σ_in::S
+    dσ_QQdy::U
+end
+
+#defaults
+
+charm_pQCD(;norm_coll=1, σ_in=70,dσ_QQdy=0.463) = pQCD_Initial_Condition(norm_coll, σ_in, dσ_QQdy)
+beauty_pQCD(;norm_coll=1, σ_in=70,dσ_QQdy=0.0296) = pQCD_Initial_Condition(norm_coll, σ_in, dσ_QQdy)
+
+charm_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),Diffusion(DsT,M))
+beauty_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=4.8)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),Diffusion(DsT,M))
+charm_viscous_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.,M=1.5)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
+beauty_viscous_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.0,M=4.8)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
+
+#methods
+
+function temperature(position,ini::T) where {T<:AbstractInitialCondition}
+    throw("temperature not defined for the type $T")
+end
+
 
 function temperature(position,ini::T) where {T<:Gaussian_Intial_Condition}
     exp(-(position-ini.mean)^2/2/ini.σ)
 end
+
 
 function temperature(position,ini::T) where {T<:Trento_Intial_Condition}
     file = SMatrix{128,2}([
@@ -164,31 +181,79 @@ function temperature(position,ini::T) where {T<:Trento_Intial_Condition}
     ini.norm*linear_interpolation(reverse(file[:,1]),reverse(file[:,2]); extrapolation_bc=Flat())(position).+0.0001
 end
 
-struct Step_Intial_Condition{T,S} <:AbstractInitialCondition
-    norm::T
-    r0::S
-end 
-
-struct pQCD_Initial_Condition{T,S,U,V,W} <: AbstractInitialCondition
-    norm_coll::T
-    σ_in::S
-    dσ_QQdy::U
-end
 
 function ncoll(position,ini::T) where {T<:AbstractInitialCondition}
     throw("ncoll not defined for the type $T")
 end
 
 function ncoll(position,ini::T) where {T<:Step_Intial_Condition}
-    
     if position<=ini.r0
         return ini.norm
     else 
         return 0.0001 #fm-2 since n0 [fm-2]
     end
+    #you can also put them uniform
 end
 
-function nhard(position,ini1::T,ini2::U,ini3::V) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
-    ini2.norm_coll*2/tau0/ini2.σ_in*ini2.dσ_QQdy*ncoll(0,ini1)*(temperature(position,ini3)/temperature(0,ini3))^4 +0.001
+function dNdxdy(position,ini1::T,ini2::U) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition}
+    2*ini2.dσ_QQdy/ini2.σ_in*ncoll(position,ini1)
+end
+
+function dNdxdy(position,ini1::T,ini2::U) where {T<:AbstractInitialCondition,U<:AbstractInitialCondition}
+    throw("dNdxdy not defined for the type $T,$U")
+end
+
+function dNdy(ini1::T,ini2::U;rmin=0.,rmax=30) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition}
+    quadgk(position->2π*position*dNdxdy(position,ini1,ini2),rmin,rmax)
+end
+
+function nhard(position,tau0,ini1::T,ini2::U,ini3::V) where {T<:AbstractInitialCondition,U<:AbstractInitialCondition,V<:AbstractInitialCondition}
+    throw("nhard not defined for the type $T,$U,$V")
 end 
+
+function nhard(position,tau0,ini1::T,ini2::U,ini3::V) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+    ini2.norm_coll/tau0*dNdxdy(position,ini1,ini2)*(temperature(position,ini3)/temperature(0,ini3))^4 +0.001
+    #set dNdxdy(0,ini1,ini2) if you want uniform ncoll and radial dependence given only by entropy profile
+end 
+
+function fugacity(position,ini::T) where {T<:AbstractInitialCondition}
+    throw("fugacity not defined for the type $T")
+end
+
+function fugacity(position,tau0,ini1::T,ini2::U,ini3::V,eos) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+    if position<=ini1.r0
+        return log(nhard(position,tau0,ini1,ini2,ini3)/(thermodynamic(temperature(position,ini3),0.0,eos).pressure)).+ 0.0001
+        else return log(nhard(ini1.r0,tau0,ini1,ini2,ini3)/(thermodynamic(temperature(ini1.r0,ini3),0.0,eos).pressure)).+ 0.0001
+        end
+end 
+
+function set_initial_conditions(ini1::T,ini2::U,ini3::V,eos_HQ,tau0;gridpoints=500,rmax=30) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+    disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+    oned_visc_hydro = Fluidum.HQ_viscous_1d()
+    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    phi=set_array((x)->temperature(x,ini3),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fugacity(x,tau0,ini1,ini2,ini3,eos_HQ),:mu,disc_fields); #fugacity initialization
+    NQQ̄,err= quadgk(x->2*pi*x*tau0*thermodynamic(Fluidum.temperature(x,ini3),Fluidum.fugacity(x,tau0,ini1,ini2,ini3,Fluidum.HadronResonaceGas()),eos_HQ).pressure,0,rmax,rtol=0.00001)
+    @show NQQ̄
+    #@show phi
+return DiscreteFields(disc,disc_fields,phi)
+end
+
+function runFluidum_fo(ini1::T,ini2::U,ini3::V,fluidproperties::S,eos_HQ;
+    Tfo=0.156,maxtime=30, gridpoints=500,rmax=30) where {S<:FluidProperties,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+    fields=set_initial_conditions(ini1,ini2,ini3,eos_HQ,tau0;gridpoints=gridpoints,rmax=rmax)
+    tspan = (tau0,maxtime)
+    if fields.initial_field[1,1]<Tfo
+        throw("Tfo = "*string(Tfo)*" MeV is larger than max temperature in the inital profile T0 = "*string(fields.initial_field[1,1]))
+    end
+    return (freeze_out_routine(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo),fluidproperties)
+end
+
+function runFluidum(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{A,B,C,D},eos_HQ;
+    maxtime=30, gridpoints=500,rmax=30) where {A,B,C,D,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+    fields=set_initial_conditions(ini1,ini2,ini3,eos_HQ,tau0;gridpoints=gridpoints,rmax=rmax)
+    tspan = (tau0,maxtime)
+    return (oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan),fluidproperties)
+
+end
 
