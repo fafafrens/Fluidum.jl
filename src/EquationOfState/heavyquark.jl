@@ -106,10 +106,19 @@ end
 end
 
 
+@inline function bulk_viscosity(T,entropy,y::ZeroBulkViscosity)  
+    zero(promote_type(typeof(T)))
+end
+
+@inline function τ_bulk(T,entropy,y::ZeroBulkViscosity)  
+    one(promote_type(typeof(T)))
+end
+
 @inline function bulk_viscosity(T,entropy,y::SimpleBulkViscosity{N}) where {N}
     y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*entropy
  end
- @inline function τ_bulk(T,entropy,dtdtp,y::SimpleBulkViscosity{N}) where {N}
+
+@inline function τ_bulk(T,entropy,dtdtp,y::SimpleBulkViscosity{N}) where {N}
      cs2= entropy/(T*dtdtp)
      bulk_viscosity(T,entropy,y)/(T*entropy*y.Cζ)*1/(1/3-cs2)^2+0.1
  end
@@ -128,6 +137,17 @@ end
     #one(promote_type(typeof(T),typeof(entropy)))
 end
 
+
+@inline function viscosity(T,entropy,y::ZeroViscosity) 
+    #entropy GeV^3
+    zero(promote_type(typeof(T),typeof(entropy)))
+ end
+
+
+ 
+@inline function τ_shear(T,entropy,y::ZeroViscosity) 
+   one(promote_type(typeof(T),typeof(entropy)))
+end
 function diffusion(T,n,x::HQdiffusion{M}) where {M}
     density = n #fm-^3
     #κ = x.DsT/T*density/fmGeV #fm^-2
@@ -160,6 +180,14 @@ function τ_diffusion(T,x::ZeroDiffusion)
     return 1.0
 end
 
+function τ_diffusion(T,n, x::ZeroDiffusion) 
+    return 1.0
+end
+
 function diffusion(T,n,x::ZeroDiffusion) 
+    return 0.0
+end
+
+function diffusion(T,x::ZeroDiffusion) 
     return 0.0
 end

@@ -25,8 +25,6 @@ end
  end
 
 
-
-
 @inline function τ_shear(T,μ,x::Thermodynamic{N,2,3},y::SimpleShearViscosity{N}) where {N}
     viscosity(T,μ,x,y)/((T*x.pressure_derivative[1]+μ*x.pressure_derivative[2])*y.Cs)
 end

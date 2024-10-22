@@ -24,13 +24,24 @@ struct pQCD_Initial_Condition{T,S,U} <: AbstractInitialCondition
     dσ_QQdy::U
 end
 
+struct Observables{S,T,U,V,M,K,A,B,C,D}
+    particle::particle_attribute{S,T,U,V}
+    yield_th::Float64
+    yield_tot::Float64
+    pt_bins::M
+    spectra_th::K
+    spectra_tot::K
+    fluid_properties::FluidProperties{A,B,C,D}
+    Tfo::Float64
+end
+
 #defaults
 
 charm_pQCD(;norm_coll=1, σ_in=70,dσ_QQdy=0.463) = pQCD_Initial_Condition(norm_coll, σ_in, dσ_QQdy)
 beauty_pQCD(;norm_coll=1, σ_in=70,dσ_QQdy=0.0296) = pQCD_Initial_Condition(norm_coll, σ_in, dσ_QQdy)
 
-charm_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),Diffusion(DsT,M))
-beauty_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=4.8)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),Diffusion(DsT,M))
+charm_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=1.5)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
+beauty_viscous_diff_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.2,M=4.8)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),HQdiffusion(DsT,M))
 charm_viscous_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.,M=1.5)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
 beauty_viscous_fluidproperties(;eos=FluiduMEoS(),ηs=0.2,Cs=0.2,ζs=0.02,Cζ=15.0,DsT=0.0,M=4.8)=Fluidum.FluidProperties(eos,QGPViscosity(ηs,Cs),SimpleBulkViscosity(ζs,Cζ),ZeroDiffusion())
 
@@ -44,7 +55,6 @@ end
 function temperature(position,ini::T) where {T<:Gaussian_Intial_Condition}
     exp(-(position-ini.mean)^2/2/ini.σ)
 end
-
 
 function temperature(position,ini::T) where {T<:Trento_Intial_Condition}
     file = SMatrix{128,2}([
@@ -239,21 +249,85 @@ function set_initial_conditions(ini1::T,ini2::U,ini3::V,eos_HQ,tau0;gridpoints=5
 return DiscreteFields(disc,disc_fields,phi)
 end
 
-function runFluidum_fo(ini1::T,ini2::U,ini3::V,fluidproperties::S,eos_HQ;
-    Tfo=0.156,maxtime=30, gridpoints=500,rmax=30) where {S<:FluidProperties,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
+function runFluidum_fo(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{A,B,C,D},eos_HQ,tau0;
+    Tfo=0.156,maxtime=30, gridpoints=500,rmax=30) where {A,B,C,D,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
     fields=set_initial_conditions(ini1,ini2,ini3,eos_HQ,tau0;gridpoints=gridpoints,rmax=rmax)
     tspan = (tau0,maxtime)
     if fields.initial_field[1,1]<Tfo
         throw("Tfo = "*string(Tfo)*" MeV is larger than max temperature in the inital profile T0 = "*string(fields.initial_field[1,1]))
     end
-    return (freeze_out_routine(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo),fluidproperties)
+    return freeze_out_routine(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo)
 end
 
-function runFluidum(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{A,B,C,D},eos_HQ;
+function runFluidum(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{A,B,C,D},eos_HQ,tau0;
     maxtime=30, gridpoints=500,rmax=30) where {A,B,C,D,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
     fields=set_initial_conditions(ini1,ini2,ini3,eos_HQ,tau0;gridpoints=gridpoints,rmax=rmax)
     tspan = (tau0,maxtime)
-    return (oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan),fluidproperties)
+    return oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan)
 
 end
+
+function Observables(fo::FreezeOutResult{M,N},part::particle_attribute{S,T,U,V},fluidproperties::FluidProperties{A,B,C,D},Tfo;
+    pt_min=0,pt_max=10.0,step=100) where {M,N,S,T,U,V,A,B,C,D}
+    spectra_th,err=spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=false)
+    spectra_tot,err=spectra(fo,part,pt_max=pt_max,pt_min=pt_min,step=step,decays=true)
+    yield_th, err=multiplicity(fo,part,decays=false)
+    yield_tot, err=multiplicity(fo,part,decays=true)
+    pt_bins = range(pt_min,pt_max,step) 
+    return Observables(part,yield_th,yield_tot,pt_bins,spectra_th,spectra_tot,fluidproperties,Tfo)
+end
+
+function Observables(fo::FreezeOutResult{M,N},m::Float64,fluidproperties::FluidProperties{A,B,C,D},Tfo;
+    pt_min=0,pt_max=10.0,step=100,deg=1) where {M,N,A,B,C,D}
+    spectra_th=getindex.(spectra_internal(m,fo,pt_max=pt_max,pt_min=pt_min,step=step,deg=deg)[:],1)
+    spectra_tot=spectra_th
+    yield_th, err=multiplicity(m,fo)
+    yield_tot = yield_th
+    pt_bins = range(pt_min,pt_max,step) 
+    part = particle_attribute(string(m),m,deg,nothing,nothing)
+    return Observables(part,yield_th,yield_tot,pt_bins,spectra_th,spectra_tot,fluidproperties,Tfo)
+end
+
+function save_observables(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/",overwrite=false) where {S,T,U,V,M,K,A,B,C,D}
+    if isdir(path)
+    else mkdir(path)
+    end
+
+    filename =  get_filename(obj,path=path)
+    @show filename
+    if isfile(filename)
+        println("file already exists\n")
+        if overwrite
+            println("overwriting...\n")
+        else
+            return nothing
+        end
+    else
+    open(filename, "w") do io 
+        write(io, "# int_yield_th: "*string(obj.yield_th)*", int_yield_tot: "*string(obj.yield_tot)*"\n")
+        write(io, "# pt\t th\t tot\t \n")
+        writedlm(io, [obj.pt_bins obj.spectra_th obj.spectra_tot])
+        close(io)
+    end
+end
+
+#overwrite flag
+end
+
+function get_filename(obj::Observables{S,T,U,V,M,K,A,B,C,D};path="./results/",toplot=false) where {S,T,U,V,M,K,A,B,C,D}
+    
+    part = obj.particle.name
+    ηs = obj.fluid_properties.shear.ηs
+    ζs = obj.fluid_properties.bulk.ζs
+    DsT = obj.fluid_properties.diffusion.DsT
+   
+    Tfo = obj.Tfo
+
+    if toplot == true
+        return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.pdf"
+    else
+        return path*string(part)*"_Tfo_"*string(Tfo)*"_ηs_"*string(ηs)*"_ζs_"*string(ζs)*"_DsT_"*string(DsT)*"_observables.txt"
+    end
+end
+
 

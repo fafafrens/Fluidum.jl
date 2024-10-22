@@ -104,7 +104,6 @@ include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
-include("wraps.jl")
 include("wraps2.jl")
 include("plotting_routines.jl")
 
@@ -300,7 +299,7 @@ end
 export thermodynamic,pressure, pressure_derivative , TwoDPicewiseEquationOfState ,OneDPicewiseEquationOfState, energy_density
 export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_diffusion
 export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
-export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient 
+export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
 export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion
 

@@ -18,25 +18,35 @@ using QuadGK
     @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
     @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01   
 end
-
-@testset "evolution" begin
-    eos = Heavy_Quark()
+=#
+@testset "fluid_properties" begin
+    eos = FluiduMEoS()
     @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
-    @test typeof(Fluidum.runFluidum_fo(eos,fug_pars=Fluidum.FugacityPars(rdrop=8),DsT=0.24,maxtime=20.).fo)<:FreezeOutResult
-    @test typeof(Fluidum.initialize_fields(Fluidum.TabulatedTrento(pwd()*"/../examples/ic_data/only_shift_BKG_full_order_changed.txt"),0,10).initial_field)<:Matrix{Float64}
-    @test typeof(Fluidum.runFluidum(eos,DsT=0,maxtime=5.)(1)[1,:])<:Vector
-    @test isfinite(Fluidum.runFluidum(eos,maxtime=2.)(2)[1,1])
+    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    dpt = pressure_derivative(1.0,Val(1),params.eos)
+    @test Fluidum.viscosity(1.0,dpt,params.shear)!=0
+    params=Fluidum.FluidProperties(eos,ZeroViscosity(),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    @test Fluidum.viscosity(1.0,dpt,params.shear)==0
+    params=Fluidum.FluidProperties(eos,ZeroViscosity(),ZeroBulkViscosity(),HQdiffusion(0.2,1.5))
+    @test Fluidum.bulk_viscosity(1.0,dpt,params.bulk)==0
+    @test τ_bulk(1.0,dpt,params.bulk)==1
+    params=Fluidum.FluidProperties(eos,ZeroViscosity(),ZeroBulkViscosity(),ZeroDiffusion())
+    @test Fluidum.diffusion(1.0,dpt,params.diffusion)==0
 end
 
 
 @testset "observables" begin 
-begin
     eos = Heavy_Quark()
-    obs=Fluidum.compute_observables(eos,1.5,Tfo=0.156,save = true)
+    eos_HQ = HadronResonaceGas()
+    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    fo = Fluidum.runFluidum_fo(Fluidum.Step_Intial_Condition(31.57,4),Fluidum.pQCD_Initial_Condition(1,70.,0.463),Fluidum.Trento_Intial_Condition(1),params,eos_HQ,0.4)
+    obs = Fluidum.Observables(fo,0.200,params,0.156)
+    Fluidum.save_observables(obs)
     @test isfile(Fluidum.get_filename(obs))
+    rm(Fluidum.get_filename(obs))
     @test typeof(obs.yield_th)<:Float64
 end
-
+#=
 @testset "plots" begin
     #Fluidum.plot_params(gui=true)
     eos = Heavy_Quark()

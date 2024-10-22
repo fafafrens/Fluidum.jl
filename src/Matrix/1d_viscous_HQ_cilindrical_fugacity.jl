@@ -4,32 +4,13 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     
     #@show t, ϕ
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
-
-    
-
     dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
         
-    if params.shear.ηs == 0 #zero bulk case
-        tauS=1
-        etaVisc=0
-    
-    else #non 
     etaVisc=viscosity(ϕ[1],dpt,params.shear)
-    
     tauS=τ_shear(ϕ[1],dpt,params.shear)
-    end
-    
-    if params.bulk.ζs == 0 #zero bulk case
-        tauB=1
-        zeta=0
-    
-    else #non zero bulk case    
     tauB=τ_bulk(ϕ[1],dpt,dptt,params.bulk)
     zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
-    end
-    #end
     
-    #n,dtn,dmn,dtmn = federica(ϕ[1],ϕ[6],params.eos)
     thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
     n=thermo.pressure
     dtn, dmn = thermo.pressure_derivative
@@ -38,8 +19,6 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
     
     Ds = diffusion(ϕ[1],n,params.diffusion)
-    #@show ϕ[1]
-    #@show t, X[1], ϕ[1] #X[1] is the radius: here we print the time, the radius, and the temperature
     tauDiff=τ_diffusion(ϕ[1],params.diffusion)
     #@show t
     dmp = 0 #for now we don t have chemical potential in the eos
