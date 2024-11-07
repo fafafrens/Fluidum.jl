@@ -11,6 +11,11 @@ using MuladdMacro
 using StaticArrays
 using Artifacts 
 
+#pkg used for intial conditions
+using Shell
+using HDF5
+using SciPy
+using Dierckx
 
 #pkg used by the fluid evolution. 
 using Interpolations
@@ -85,6 +90,7 @@ include("EquationOfState/heavyquark.jl")
 include("fluidevo/detector_struct.jl")
 include("fluidevo/inverse_function.jl")
 
+include("fluidevo/trento_IC.jl")
 
 include("fluidevo/discretization.jl") 
 include("fluidevo/picewisefunction.jl") 

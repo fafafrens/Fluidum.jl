@@ -35,6 +35,15 @@ struct Observables{S,T,U,V,M,K,A,B,C,D}
     Tfo::Float64
 end
 
+struct Trento_Entropy_Intial_Condition{T,S,V} <:AbstractInitialCondition
+    norm::T
+    cent1::S
+    cent2::S
+    file::V
+end
+
+
+
 #defaults
 
 charm_pQCD(;norm_coll=1, σ_in=70,dσ_QQdy=0.463) = pQCD_Initial_Condition(norm_coll, σ_in, dσ_QQdy)
@@ -54,6 +63,10 @@ end
 
 function temperature(position,ini::T) where {T<:Gaussian_Intial_Condition}
     exp(-(position-ini.mean)^2/2/ini.σ)
+end
+
+function temperature(position, ini::T) where {T<:Trento_Entropy_Intial_Condition}
+    ini.norm*Profiles(TabulatedTrento(ini.file), ini.cent1, ini.cent2,xmax=15)(position)
 end
 
 function temperature(position,ini::T) where {T<:Trento_Intial_Condition}

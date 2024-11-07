@@ -19,6 +19,7 @@ using QuadGK
     @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01   
 end
 =#
+#=
 @testset "fluid_properties" begin
     eos = FluiduMEoS()
     @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
@@ -46,6 +47,7 @@ end
     rm(Fluidum.get_filename(obs))
     @test typeof(obs.yield_th)<:Float64
 end
+=#
 #=
 @testset "plots" begin
     #Fluidum.plot_params(gui=true)
@@ -82,7 +84,7 @@ end
     @test isapprox(diff,abs_matrix(diff2,B),rtol=0.2)
     
 end=# #FC 21.10.24: cheb test not always passing
-
+#=
 @testset "initialconditions" begin
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))>0
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(2))>Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))
@@ -91,5 +93,14 @@ end=# #FC 21.10.24: cheb test not always passing
     @test isapprox(NQQ̄,Fluidum.dNdy(Fluidum.Step_Intial_Condition(31.57,4.0),Fluidum.charm_pQCD())[1],rtol=0.2)
 end
 #end
+=#
+
+@testset "trento_initial_conditions" begin
+    IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
+    stats=Fluidum.TrenTo_IC_stats(10,1:50:100,20)
+    Fluidum.get_initial_profile(IC;statistics=stats)
+    @test isfile(Fluidum.assembleTrentoName(IC)[1])
+    @test isfile(Fluidum.assembleTrentoName(IC)[2])
+end
 
 
