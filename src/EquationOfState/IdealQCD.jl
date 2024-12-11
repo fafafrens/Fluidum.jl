@@ -45,6 +45,11 @@ end
    ( 1/2 *x.a1 *T^2 +2/4*x.a2 *μ^2 )*fmGeV3
 end
 
+@inline @fastmath function pressure_derivative(T,μ,::Val{3},::Val{0},x::IdealQCD ) 
+    
+    ( *x.a1 *T )*fmGeV3
+end
+
 
 
 @inline @fastmath function pressure_derivative(T,::Val{2},x::IdealQCD ) 
@@ -74,3 +79,5 @@ function thermodynamic(T::N,mu::S,x::IdealQCD) where {N,S}
     (pressure_derivative(T,mu,Val{1}(),Val{0}(),x),pressure_derivative(T,mu,Val{0}(),Val{1}(),x)), 
     (pressure_derivative(T,mu,Val{2}(),Val{0}(),x),pressure_derivative(T,mu,Val{1}(),Val{1}(),x),pressure_derivative(T,mu,Val{0}(),Val{2}(),x) ))
 end
+
+
