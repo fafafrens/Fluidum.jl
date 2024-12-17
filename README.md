@@ -10,7 +10,7 @@ Pkg.add(url = "https://github.com/fafafrens/Fluidum.jl")
 After this one can use the package simply by using 
 ```julia
 using Fluidum
-```julia
+```
 ## Example
 A simple example of running heavy quark simulations 
 
