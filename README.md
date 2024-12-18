@@ -13,6 +13,10 @@ using Fluidum
 ```
 ## Example
 A simple example of running heavy quark simulations 
+(actually is not simple at all since it is not understandable: what Observable does?
+what runFluidum ? 
+Why we need 2 equations of state ? 
+)
 
 ```julia
 using Fluidum
