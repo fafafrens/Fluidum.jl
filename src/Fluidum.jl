@@ -12,10 +12,7 @@ using StaticArrays
 using Artifacts 
 
 #pkg used for intial conditions
-using Shell
-using HDF5
-using SciPy
-using Dierckx
+
 
 #pkg used by the fluid evolution. 
 using Interpolations
@@ -32,14 +29,12 @@ using StatsBase
 using FastChebInterp
 
 
-
-
-
 using TensorCast
+using NumericalIntegration
 using SimpleNonlinearSolve
 
 using QuadGK
-using NumericalIntegration
+
 
 using HCubature
 using UnPack
@@ -82,15 +77,10 @@ include("EquationOfState/Analytic.jl")
 include("EquationOfState/heavyquark.jl")
 
 
-
-
-    
-
-
 include("fluidevo/detector_struct.jl")
 include("fluidevo/inverse_function.jl")
 
-include("fluidevo/trento_IC.jl")
+
 
 include("fluidevo/discretization.jl") 
 include("fluidevo/picewisefunction.jl") 
@@ -125,8 +115,6 @@ const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
 
 
 export detector_collection,detector_dict
-
-
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
 export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
