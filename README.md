@@ -52,7 +52,7 @@ tspan = (0.2,1000)
 #evolve until freeze-out temperature Tfo
 freeze_out_routine(disc_fields,Fluidum.matrxi1d_visc!,params,phi,tspan;Tfo=0.1565)
 ```
-#Example 2+1 dimension 
+##Example 2+1 dimension 
 Instead you can also solve in 2 dimension 
 ```julia
 using Fluidum
