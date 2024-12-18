@@ -39,7 +39,7 @@ using QuadGK
 using HCubature
 using UnPack
 
-using PyPlot
+#using PyPlot
 
 
 
@@ -101,7 +101,7 @@ include("fluidevo/initial_fields.jl")
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 
 include("wraps2.jl")
-include("plotting_routines.jl")
+#include("plotting_routines.jl")
 
 const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
 RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),

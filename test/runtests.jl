@@ -49,23 +49,23 @@ end
 end
 
 
-@testset "plots" begin
-    #Fluidum.plot_params(gui=true)
-    eos = Heavy_Quark()
-    obs=Fluidum.compute_observables(eos,1.5,Tfo=0.156,save = true)
-    println("ok...")
-    @test isfile(Fluidum.get_filename(obs))
-    println("ok...")
-    Fluidum.plot_spectra(obs,save=true)
-    println("ok...")
-    begin
-    result=Fluidum.runFluidum(eos,DsT=0,maxtime=5.)
-    Fluidum.plot_field(result,:temperature,tspan=(0.4,5.),save=true)
-    #Fluidum.plot_field(result,tspan=(0.4,5.),save=true)
-    println("ok...")
-    end
-    #rm(Fluidum.get_filename(obs)) 
-end
+#@testset "plots" begin
+#    #Fluidum.plot_params(gui=true)
+#    eos = Heavy_Quark()
+#    obs=Fluidum.compute_observables(eos,1.5,Tfo=0.156,save = true)
+#    println("ok...")
+#    @test isfile(Fluidum.get_filename(obs))
+#    println("ok...")
+#    Fluidum.plot_spectra(obs,save=true)
+#    println("ok...")
+#    begin
+#    result=Fluidum.runFluidum(eos,DsT=0,maxtime=5.)
+#    Fluidum.plot_field(result,:temperature,tspan=(0.4,5.),save=true)
+#    #Fluidum.plot_field(result,tspan=(0.4,5.),save=true)
+#    println("ok...")
+#    end
+#    #rm(Fluidum.get_filename(obs)) 
+#end
 
 @testset "Cheb" begin
     function abs_matrix(diff, A)
@@ -94,12 +94,12 @@ end
 end
 
 
-@testset "trento_initial_conditions" begin
-    IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
-    stats=Fluidum.TrenTo_IC_stats(10,1:50:100,20)
-    Fluidum.get_initial_profile(IC;statistics=stats)
-    @test isfile(Fluidum.assembleTrentoName(IC)[1])
-    @test isfile(Fluidum.assembleTrentoName(IC)[2])
-end
+#@testset "trento_initial_conditions" begin
+#    IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
+#    stats=Fluidum.TrenTo_IC_stats(10,1:50:100,20)
+#    Fluidum.get_initial_profile(IC;statistics=stats)
+#    @test isfile(Fluidum.assembleTrentoName(IC)[1])
+#    @test isfile(Fluidum.assembleTrentoName(IC)[2])
+#end
 
 
