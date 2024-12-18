@@ -101,3 +101,6 @@ using Plots
 plot(phi[1,:,25])
 plot!(res[end][1,:,25])
 ```
+
+## Citing 
+When using Fluidum.jl for research, teaching or similar, please cite our work, see [CITATION.bib](CITATION.bib).
