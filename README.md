@@ -11,6 +11,7 @@ After this one can use the package simply by using
 ```julia
 using Fluidum
 ```
+
 ## Example 1+1 dimension
 A simple example of running heavy quark simulations 
 (actually is not simple at all since it is not understandable: what Observable does?
@@ -53,7 +54,7 @@ tspan = (0.2,1000)
 freeze_out_routine(disc_fields,Fluidum.matrxi1d_visc!,params,phi,tspan;Tfo=0.1565)
 ```
 
-##Example 2+1 dimension 
+## Example 2+1 dimension 
 Instead you can also solve in 2 dimension 
 ```julia
 using Fluidum
