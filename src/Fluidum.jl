@@ -98,7 +98,8 @@ include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
-include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
+#include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_viscous_cilindrical.jl")
 
 include("wraps2.jl")
 #include("plotting_routines.jl")
