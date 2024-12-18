@@ -3,7 +3,7 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using QuadGK
-#=
+
 @testset "equation of state" begin
     @test IdealQCD()==IdealQCD(3,2)
     @test isfinite(thermodynamic(1,IdealQCD()).pressure[1])
@@ -18,8 +18,8 @@ using QuadGK
     @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
     @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01   
 end
-=#
-#=
+
+
 @testset "fluid_properties" begin
     eos = FluiduMEoS()
     @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
@@ -47,8 +47,8 @@ end
     rm(Fluidum.get_filename(obs))
     @test typeof(obs.yield_th)<:Float64
 end
-=#
-#=
+
+
 @testset "plots" begin
     #Fluidum.plot_params(gui=true)
     eos = Heavy_Quark()
@@ -66,8 +66,8 @@ end
     end
     #rm(Fluidum.get_filename(obs)) 
 end
-=#
-#=@testset "Cheb" begin
+
+@testset "Cheb" begin
     function abs_matrix(diff, A)
         λ=eigen(A).values
         vec = eigen(A).vectors
@@ -83,8 +83,8 @@ end
     Fluidum.cheb_flux!(diff,A,15)
     @test isapprox(diff,abs_matrix(diff2,B),rtol=0.2)
     
-end=# #FC 21.10.24: cheb test not always passing
-#=
+end
+
 @testset "initialconditions" begin
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))>0
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(2))>Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))
@@ -92,8 +92,7 @@ end=# #FC 21.10.24: cheb test not always passing
     NQQ̄,err= quadgk(x->2*pi*x*0.4*thermodynamic(Fluidum.temperature(x,Fluidum.Trento_Intial_Condition(1)),Fluidum.fugacity(x,0.4,Fluidum.Step_Intial_Condition(31.57,4),Fluidum.pQCD_Initial_Condition(1,70.,0.463),Fluidum.Trento_Intial_Condition(1),Fluidum.HadronResonaceGas()),Fluidum.HadronResonaceGas()).pressure,0,30,rtol=0.00001)
     @test isapprox(NQQ̄,Fluidum.dNdy(Fluidum.Step_Intial_Condition(31.57,4.0),Fluidum.charm_pQCD())[1],rtol=0.2)
 end
-#end
-=#
+
 
 @testset "trento_initial_conditions" begin
     IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
