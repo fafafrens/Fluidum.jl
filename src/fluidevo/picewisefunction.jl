@@ -97,7 +97,7 @@ function SplineInterp(fun,tuple)
 
     A = [fun(i) for i in iter ]
 
-    itp = interpolate(A, BSpline(Cubic(Line(OnGrid()))))
+    itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
     
     sitp = scale(itp, ranges...)
 
