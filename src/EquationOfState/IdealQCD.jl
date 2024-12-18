@@ -47,7 +47,7 @@ end
 
 @inline @fastmath function pressure_derivative(T,μ,::Val{3},::Val{0},x::IdealQCD ) 
     
-    ( *x.a1 *T )*fmGeV3
+    ( x.a1 *T )*fmGeV3
 end
 
 
