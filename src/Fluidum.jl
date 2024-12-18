@@ -100,6 +100,8 @@ include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
+include("Matrix/2d_viscous.jl")
+
 
 include("wraps2.jl")
 #include("plotting_routines.jl")
