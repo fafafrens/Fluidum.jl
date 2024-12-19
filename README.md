@@ -80,7 +80,7 @@ twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
 
  #we define some random intial condition 
 function temperature(r)
-       0.4/(exp(r/7)+1 )+0.00001
+       0.4/(exp(r/7)+1 )+0.01
 end
 #we set the array corresponding to the temperature 
 phi=set_array((x,y)->temperature(hypot(x,y)),:temperature,twod_visc_hydro_discrete);
