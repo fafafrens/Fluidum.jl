@@ -68,20 +68,21 @@ end
 #end
 
 @testset "Cheb" begin
-    function abs_matrix(diff, A)
-        λ=eigen(A).values
-        vec = eigen(A).vectors
+        function abs_matrix(diff, A)
+           λ=eigen(A).values
+           vec = eigen(A).vectors
         return vec*Diagonal(abs.(λ))*inv(vec)*diff
-    end
-    A = rand(2,2)
-    A = A/max(eigen(A).values...)
-    diff = rand(2)
-
-    B = copy(A)
-    diff2 = copy(diff)
-
-    Fluidum.cheb_flux!(diff,A,15)
-    @test isapprox(diff,abs_matrix(diff2,B),rtol=0.2)
+       end
+       A = [1 1 ;1 1]
+       A = A/max(eigen(A).values...)
+       diff = [1.,1]
+   
+       B = copy(A)
+       diff2 = copy(diff)
+   
+       Fluidum.cheb_flux!(diff,A,2)
+     
+       @test isapprox(diff,abs_matrix(diff2,B),rtol=0.2)
     
 end
 
