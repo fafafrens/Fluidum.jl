@@ -16,7 +16,8 @@ using Artifacts
 
 #pkg used by the fluid evolution. 
 using Interpolations
-using DifferentialEquations
+#using DifferentialEquations
+using OrdinaryDiffEq
 using Statistics
 using JLD2
 
