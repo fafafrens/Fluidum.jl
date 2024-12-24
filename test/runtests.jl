@@ -3,6 +3,7 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using QuadGK
+using DifferentialEquations
 
 @testset "equation of state" begin
     @test IdealQCD()==IdealQCD(3,2)
