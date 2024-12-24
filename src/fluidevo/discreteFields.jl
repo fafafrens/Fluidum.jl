@@ -739,7 +739,7 @@ end
 
 function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan,args...;kwargs...)
     prob=problem(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan)
-    solve(prob,args...;kwargs...)
+    solve(prob,Tsit5(),args...;kwargs...)
 end
 
 
