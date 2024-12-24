@@ -94,7 +94,7 @@ tspan=(0.4,20)
 
 
 # this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan,Tsit5())
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
 
 #plot the solution 
 using Plots
