@@ -94,6 +94,47 @@ end
     @test isapprox(NQQ̄,Fluidum.dNdy(Fluidum.Step_Intial_Condition(31.57,4.0),Fluidum.charm_pQCD())[1],rtol=0.2)
 end
 
+@testset "2d viscous " begin
+
+    fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
+
+# the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
+twod_visc_hydro=Fields(
+NDField((:ghost,:ghost),(:ghost,:ghost),:temperature),
+NDField((:ghost,:ghost),(:ghost,:ghost),:ux),
+NDField((:ghost,:ghost),(:ghost,:ghost),:uy),
+NDField((:ghost,:ghost),(:ghost,:ghost),:piyy),
+NDField((:ghost,:ghost),(:ghost,:ghost),:pizz),
+NDField((:ghost,:ghost),(:ghost,:ghost),:pixy),
+NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
+)
+
+#we define a 2 cartesian grid form -25 to 25 50 point each dimension 
+discretization=CartesianDiscretization(Fluidum.SymmetricInterval(50,25.),Fluidum.SymmetricInterval(50,25.))
+
+# we prepare the field with the discretization
+twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
+
+ #we define some random intial condition 
+function temperature(r)
+       0.4(1+0.3rand())/(exp(abs(r)-10)+1 )+0.01
+end
+#we set the array corresponding to the temperature 
+phi=set_array((x,y)->temperature(hypot(x,y)),:temperature,twod_visc_hydro_discrete);
+
+
+#this is the time span 
+tspan=(0.4,20)
+
+
+# this create the ODEProblem  and feed it diffenential equations 
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
+
+#plot the solution 
+
+    result=res(20)
+    @test all(isfinte.(result))
+end 
 
 #@testset "trento_initial_conditions" begin
 #    IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
