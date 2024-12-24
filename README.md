@@ -61,7 +61,7 @@ using Fluidum
 #set up the fluid poroperties 
 fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
 
-# the convention here are T, ux, uy, \[Pi]yy, \[Pi]zz, \[Pi]xy, \[Pi]B this has to match with the matrix 
+# the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
 twod_visc_hydro=Fields(
 NDField((:ghost,:ghost),(:ghost,:ghost),:temperature),
 NDField((:ghost,:ghost),(:ghost,:ghost),:ux),
