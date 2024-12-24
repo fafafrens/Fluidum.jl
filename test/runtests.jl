@@ -134,7 +134,7 @@ res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,ts
 #plot the solution 
 
     result=res(20)
-    @test all(isfinte.(result))
+    @test all(isfinite.(result))
 end 
 
 #@testset "trento_initial_conditions" begin
