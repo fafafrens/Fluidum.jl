@@ -3,7 +3,7 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using QuadGK
-using DifferentialEquations
+
 
 @testset "equation of state" begin
     @test IdealQCD()==IdealQCD(3,2)
@@ -129,7 +129,7 @@ tspan=(0.4,20)
 
 
 # this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan,Tsit5())
 
 #plot the solution 
 
