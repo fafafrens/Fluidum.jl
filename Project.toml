@@ -1,8 +1,12 @@
+name = "Fluidum"
+uuid = "a881c433-3e17-400b-981d-9b1f368d4109"
+authors = ["Eduardo Grossi"]
+version = "1.0.0-DEV"
+
 [deps]
 Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 Bessels = "0e736298-9ec6-45e8-9647-e4fc86a2fe38"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
-DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 FastChebInterp = "cf66c380-9a80-432c-aff8-4f9c79c0bdde"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
@@ -23,3 +27,34 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 Surrogates = "6fc51010-71bc-11e9-0e15-a3fcc6593c49"
 TensorCast = "02d47bb6-7ce6-556a-be16-bb1710789e2b"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
+[compat]
+Artifacts = "1"
+Bessels = "0.2"
+DelimitedFiles = "1"
+FastChebInterp = "1"
+ForwardDiff = "0.10"
+HCubature = "1"
+Interpolations = "0"
+IntervalSets = "0.7"
+JLD2 = "0.4, 0.5"
+LinearAlgebra = "1"
+LoopVectorization = "0.12"
+MuladdMacro = "0.2"
+NumericalIntegration = "0"
+OrdinaryDiffEq = "6"
+QuadGK = "2"
+SimpleNonlinearSolve = "1, 2"
+StaticArrays = "1"
+Statistics = "1"
+StatsBase = "0.34"
+StructArrays = "0.6, 0.7"
+Surrogates = "6"
+TensorCast = "0.4"
+UnPack = "1"
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+[targets]
+test = ["Test"]
