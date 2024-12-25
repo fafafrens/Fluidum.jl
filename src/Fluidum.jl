@@ -3,6 +3,7 @@ module Fluidum
 using ForwardDiff:Dual,value,partials
 using Bessels
 using ForwardDiff
+using DifferentiationInterface
 using DelimitedFiles: readdlm
 using DelimitedFiles
 using StructArrays

@@ -3,7 +3,6 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using QuadGK
-import Pkg; Pkg.add("DifferentiationInterface")
 using DifferentiationInterface
 
 
