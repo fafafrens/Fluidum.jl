@@ -126,11 +126,9 @@ Base.:-(b::B) where {B<:EquationOfState}=OppositeEquationOfState{B}(b)
 
  pressure(T,wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure
 
- pressure_derivative(T,::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_derivative[1]
- pressure_derivative(T,::Val{2},wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_hessian[1]
- 
-
-
+pressure_derivative(T,::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_derivative[1]
+pressure_derivative(T,::Val{2},wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_hessian[1]
+pressure_derivative(T,::Val{3},wal::N) where {N<:EquationOfState}= thermodynamic_perturbation(T,wal).pressure_third[1]
 entropy(T,wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_derivative[1]
 
 
@@ -264,7 +262,6 @@ end
 
     TwoDPicewiseEquationOfState(eos1,(int1,int2),eos2,(int3,int4)) 
  end
-
 
 
 

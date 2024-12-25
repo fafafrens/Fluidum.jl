@@ -28,65 +28,6 @@ function FluiduMEoS()
     FluiduMEoS(a1,a2,a3,a4,b1,b2,b3,b4,c,d)
 end
 
-#FluiduMEoS()=FluiduMEoS(-15.526548963383643,18.6159584620131, -10.731808109698516,2.7413302179949346,-3.3147904483107595, 5.310983721567554, -4.653922019495976 ,1.8600649533271152,-1.0465330501411811, 0.09551531822245873)
-
-
-@inline @fastmath function pressure(T,x::FluiduMEoS)
-    ((exp((-0.01*^(x.d,2) - 0.1*^(x.c,2)*T)/^(T,2))*(0.0005624486560000001*x.a4 
-    + T*(0.003652264*x.a3 + T*(0.023716000000000004*x.a2 + 0.154*x.a1*T + 
-    5.208957878352717*^(T,2)))))/(0.0005624486560000001*x.b4 + 
-    0.003652264*x.b3*T + 0.023716*x.b2*^(T,2) + 0.154*x.b1*^(T,3) + ^(T,4))*^(T,4) ) *fmGeV3
-end
-
-
-
-
-@inline function pressure_derivative(T,::Val{1},x::FluiduMEoS)
-
-    ((-1.2653939625448257e-6*exp((-0.01*^(x.d,2) - 0.1*^(x.c,2)*T)/^(T,2))*(-633936.5739133607*^(T,2)*(0.014609056000000004*x.b4 + T*(0.071148*x.b3 + T*(0.30800000000000005*x.b2 + 
-    1*x.b1*T)))*(0.0001079771941211913*x.a4 + T*(0.0007011506111765668*x.a3 + T*(0.004552926046601084*x.a2 + 0.02956445484805898*x.a1*T + 1*^(T,2)))) 
-    + 121701.22867529064*^(T,2)*(0.014609056000000004*x.a4 + T*(0.071148*x.a3+ T*(0.30800000000000005*x.a2 + 1*x.a1*T)))*(0.0005624486560000001*x.b4 + 
-    T*(0.003652264*x.b3 + T*(0.023716000000000004*x.b2 + 0.154*x.b1*T + 1*^(T,2)))) - 1.6465885036710668e7*^(T,2)*(0.0001079771941211913*x.a4 
-    + T*(0.0007011506111765668*x.a3 + T*(0.004552926046601084*x.a2 + 0.02956445484805898*x.a1*T + 1*^(T,2))))*(0.0005624486560000001*x.b4 + 
-    T*(0.003652264*x.b3 + T*(0.023716000000000004*x.b2 + 0.154*x.b1*T +1*^(T,2)))) - 82329.42518355335*(1*^(x.d,2) + 
-    5*^(x.c,2)*T)*(0.0001079771941211913*x.a4 + T*(0.0007011506111765668*x.a3+ T*(0.004552926046601084*x.a2 + 0.02956445484805898*x.a1*T + 
-    1*^(T,2))))*(0.0005624486560000001*x.b4 + T*(0.003652264*x.b3 + T*(0.023716000000000004*x.b2 + 0.154*x.b1*T + 1*^(T,2))))))/(^(1 + 
-    (0.0005624486560000001*x.b4)/^(T,4) + (0.003652264*x.b3)/^(T,3) + (0.023716*x.b2)/^(T,2) + (0.154*x.b1)/T,2)*^(T,7)))*fmGeV3
-
-end
-
-#pressure_derivative(T,::Val{1},x::FluidProperties )=pressure_derivative(T,Val(1),x.equation_of_state)
-
-@inline function pressure_derivative(T,::Val{2},x::FluiduMEoS)
-    
-    ((exp((-0.01*^(x.d,2) - 0.1*^(x.c,2)*T)/^(T,2))*(-32*(2*x.b4 +     T*(11.36363636363636*x.b3 + T*(63.24843987181649*x.b2 + 
-    342.2534625098294*x.b1*T + 1777.9400649861268*^(T,2))))   *(1*x.b4 +     T*(6.493506493506493*x.b3 + T*(42.165626581210994*x.b2 + 
-    273.80277000786356*x.b1*T + 1777.940064986127*^(T,2))))*(^(T,2)*(1*x.a4    + T*(4.870129870129869*x.a3 + T*(21.082813290605497*x.a2 + 
-    68.45069250196589*x.a1*T))) - 46.30607454374214*(1*^(x.d,2) +     5*^(x.c,2)*T)*(0.0001079771941211913*x.a4 + T*(0.0007011506111765668*x.a3 
-    + T*(0.004552926046601084*x.a2 + 0.02956445484805898*x.a1*T +     1*^(T,2))))) +     3.5130428054668146e11*^(T,2)*(0.0001079771941211913*x.a4 +     T*(0.0007011506111765668*x.a3 + T*(0.004552926046601084*x.a2 + 
-    0.02956445484805898*x.a1*T + 1*^(T,2))))*(1.476292956302297e-6*^(x.b4,2)     + x.b4*T*(0.000016433687825257478*x.b3 + T*(0.00008670371011702403*x.b2 + 
-    0.0004186492829493334*x.b1*T + 0.0016873459680000003*^(T,2))) +     ^(T,2)*(0.000046686613139936006*^(x.b3,2) +     x.b3*T*(0.0005052663759733334*x.b2 + (0.0025310189520000004*x.b1 +     0.010956792000000002*T)*T) + ^(T,2)*(0.0014061216400000005*^(x.b2,2) + 
-    x.b2*(0.014609056000000002*x.b1 + 0.06719533333333334*T)*T +     ^(T,2)*(0.03952666666666667*^(x.b1,2) + 0.385*x.b1*T + 1*^(T,2))))) +     (20*^(1*x.b4 + T*(6.493506493506493*x.b3 + T*(42.165626581210994*x.b2 +     273.80277000786356*x.b1*T +     1777.940064986127*^(T,2))),2)*(-2.7380277000786357*^(T,2)*(0.2*^(x.d,2) 
-    + 1*^(x.c,2)*T)*(0.014609056000000004*x.a4 + T*(0.071148*x.a3 +     T*(0.30800000000000005*x.a2 + 1*x.a1*T))) + ^(T,4)*(1*x.a4 +     T*(3.8961038961038956*x.a3 + T*(12.649687974363298*x.a2 +     27.380277000786357*x.a1*T))) - 2.815071769561368*(^(T,2)*(1*^(x.d,2) + 
-    3.3333333333333335*^(x.c,2)*T) - 0.006666666666666667*^(1*^(x.d,2) +     5*^(x.c,2)*T,2))*(0.0010656921903157896*x.a4 +     T*(0.006920079157894737*x.a3 + T*(0.044935578947368424*x.a2 +     0.29178947368421054*x.a1*T +     9.869604401089358*^(T,2))))))/^(T,2)))/^(1*x.b4 +     6.493506493506493*x.b3*T + 42.165626581210994*x.b2*^(T,2) + 
-    273.80277000786356*x.b1*^(T,3) + 1777.940064986127*^(T,4),3))*fmGeV3
-
-end
-
-@inline function thermodynamic2(T,x::FluiduMEoS)
-
-
-    #Thermodynamic{T,2,3}(pressure(T,Mu,x),
-    Thermodynamic(pressure(T,x),
-        (pressure_derivative(T,Val{1}(),x),)
-        ,
-        (
-         pressure_derivative(T,Val{2}(),x), )
-    )
-
-end 
-
-#pressure_derivative(T,::Val{2},x::FluidProperties )=pressure_derivative(T,Val(2),x.equation_of_state)
 
 
 
@@ -103,6 +44,23 @@ end
     (fun,@muladd(-154*invt2*fun1) ,@muladd(308*invt3*fun1+(23716)*fun2*invt3*invt))
 end
 
+@inline @fastmath function den_pert(t,b1,b2,b3,b4)
+    invt=1/t
+    x=154*invt
+    
+    invt2=invt*invt
+    invt3=invt*invt2
+    invt4=invt*invt3
+    fun=@evalpoly(x,1,b1,b2,b3,b4)
+    fun1=@evalpoly(x,b1,2*b2,3*b3,4*b4)
+    fun2=@evalpoly(x,2*b2,6*b3,12*b4)
+    fun3=@evalpoly(x,6*b3,24*b4)
+    
+    (fun,@muladd(-154*invt2*fun1) ,@muladd(308*invt3*fun1+(23716)*fun2*invt3*invt),
+    @muladd(-924*invt4*fun1-142_296*invt4*invt*fun2-3_652_264*invt4*invt2*fun3 )
+    )
+end
+
 @inline @fastmath function num(t,a1,a2,a3,a4)
     
     invt=1/t
@@ -114,6 +72,24 @@ end
     fun1=@evalpoly(x,a1,2*a2,3*a3,4*a4)
     fun2=@evalpoly(x,2*a2,6*a3,12*a4)
     (fun,@muladd(-154*invt2*fun1) ,@muladd(308*invt3*fun1+(23716)*fun2*invt3*invt))
+end
+
+@inline @fastmath function num_pert(t,a1,a2,a3,a4)
+    
+    invt=1/t
+    x=154*invt
+    invt2=invt*invt
+    invt3=invt*invt2
+    invt4=invt*invt3
+    # ((95*pi^2)/180)=5.208957878352717
+    fun=@evalpoly(x,5.208957878352717,a1,a2,a3,a4)
+    fun1=@evalpoly(x,a1,2*a2,3*a3,4*a4)
+    fun2=@evalpoly(x,2*a2,6*a3,12*a4)
+    fun3=@evalpoly(x,6*a3,24*a4)
+    
+    (fun,@muladd(-154*invt2*fun1) ,@muladd(308*invt3*fun1+(23716)*fun2*invt3*invt),
+    @muladd(-924*invt4*fun1-142_296*invt4*invt*fun2-3_652_264*invt4*invt2*fun3 )
+    )
 end
 
 #Exp[-c^2/(t/100)-d^2/((t)/100)^2]
@@ -133,7 +109,7 @@ end
     
     der=fac1*tinypol
     der2=muladd(tinypol,der ,fac1*(2*d1))
-    #fac1*((c1+2*d1*x)^2 +(2*d1))
+
 
 
     (fac1,@muladd(-100*invt2*der) ,@muladd(200*invt3*der+(10_000)*der2*invt3*invt))
@@ -141,14 +117,33 @@ end
 
 end
 
+@inline @fastmath function exponent_pert(t,c,d)
+    
+    c1=-c^2 
+    d1=-d^2 
+    invt=1/t
+    x=100*invt
+    invt2=invt*invt
+    invt3=invt*invt2
+    invt4=invt3*invt
+    fac1=exp(muladd(d1,x,c1)*x)
+    #fac1=exp(c1*x+d1*(x)*x) 
+    tinypol=muladd(x,2*d1,c1)
+    
+    der=fac1*tinypol
+    der2=muladd(tinypol,der ,fac1*(2*d1))
+    @muladd der3=6*d1*der+tinypol*tinypol*der
+    #fac1*((c1+2*d1*x)^2 +(2*d1))
 
 
+    (fac1,@muladd(-100*invt2*der) ,@muladd(200*invt3*der+(10_000)*der2*invt3*invt),
+    @muladd(-600*invt4*der-60_000*invt4*invt*der2-1_000_000*invt4*invt2*der3))
+    #(fac1,der,der2)
 
-
-
+end
 
 @inline @fastmath function thermodynamic(T,x::FluiduMEoS)
-
+    
     t=T*1000
     (d,d1,d2)=den(t,x.b1,x.b2,x.b3,x.b4)
     (n,n1,n2)=num(t,x.a1,x.a2,x.a3,x.a4)
@@ -160,12 +155,42 @@ end
     @muladd fun1=(d*n*e1+e*(d*n1-n*d1))*invd2*fmGeV3
 
     @muladd fun2=(d*(2*e1*(-n*d1+d*n1)+d*n*e2)+e*(n*(2*d1*d1-d*d2)+d*(-2*d1*n1+d*n2)))*invd3*fmGeV3
+    #@muladd fun3= (d*((6*d1*d1*e1 - 3*d*d2*e1 - 3*d*d1*e2 + d*d*e3)*n + 3*d*(-2*d1*e1*n1 + d*e2*n1 + d*e1*n2)) + e*(-((6*d1*d1*d1 - 6*d*d1*d2 + d*d*d3)*n) + d*(6*d1*d1*n1 - 3*d*d2*n1 - 3*d*d1*n2 + d*d*n3)))*invd4
     T2=T*T
     T3=T2*T
     zero_d=T3*T*fun
     @muladd one_d=T3*(4*fun+1_000*T*fun1)
     @muladd two_d=T2*(12*fun+T*(8_000*fun1+1_000_000*T*fun2))
 
+    #@mullad three_d= T*(24*fun +36*t*fun1 +12*t*t*fun2+t*t*t*fun3)
+    
     Thermodynamic(zero_d,(one_d,),(two_d,))
+
+end
+
+@inline @fastmath function thermodynamic_perturbation(T,x::FluiduMEoS)
+    
+    t=T*1000
+    (d,d1,d2,d3)=den_pert(t,x.b1,x.b2,x.b3,x.b4)
+    (n,n1,n2,n3)=num_pert(t,x.a1,x.a2,x.a3,x.a4)
+    (e,e1,e2,e3)=exponent_pert(t,x.c,x.d)
+    invd=1/d
+    invd2=invd*invd
+    invd3=invd2*invd
+    invd4=invd3*invd
+    @muladd fun=e*n*invd*fmGeV3
+    @muladd fun1=(d*n*e1+e*(d*n1-n*d1))*invd2*fmGeV3
+
+    @muladd fun2=(d*(2*e1*(-n*d1+d*n1)+d*n*e2)+e*(n*(2*d1*d1-d*d2)+d*(-2*d1*n1+d*n2)))*invd3*fmGeV3
+    @muladd fun3= (d*((6*d1*d1*e1 - 3*d*d2*e1 - 3*d*d1*e2 + d*d*e3)*n + 3*d*(-2*d1*e1*n1 + d*e2*n1 + d*e1*n2)) + e*(-((6*d1*d1*d1 - 6*d*d1*d2 + d*d*d3)*n) + d*(6*d1*d1*n1 - 3*d*d2*n1 - 3*d*d1*n2 + d*d*n3)))*invd4*fmGeV3
+    
+    T2=T*T
+    T3=T2*T
+    zero_d=T3*T*fun
+    @muladd one_d=T3*(4*fun+t*fun1)
+    @muladd two_d=T2*(12*fun+t*(8*fun1+t*fun2))
+    @muladd three_d=T*(24*fun+36*t*fun1+12*t*t*fun2+t*t*t*fun3)
+    
+    ThermodynamicPerturbation(zero_d,(one_d,),(two_d,),(three_d,))
 
 end

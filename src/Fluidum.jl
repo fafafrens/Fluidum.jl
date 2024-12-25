@@ -64,6 +64,7 @@ const fmGeV3=fmGeV^3
 
 
 include("EquationOfState/thermodynamic.jl")
+include("EquationOfState/thermodynamic_perturbation.jl")
 include("EquationOfState/EquationofStatetype.jl")
 include("EquationOfState/TransportCoefficienttype.jl")
 
