@@ -3,6 +3,7 @@ using Test
 using LinearAlgebra
 using ForwardDiff
 using QuadGK
+using DifferentiationInterface
 
 
 @testset "equation of state" begin
@@ -18,6 +19,9 @@ using QuadGK
     @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(pressure(1,FluiduMEoS()), sigdigits=10)
     @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
     @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01   
+
+    eos=FluiduMEoS()
+    @test  isapprox(DifferentiationInterface.derivative(x->Fluidum.pressure_derivative(x,Val(2),eos),AutoForwardDiff(),0.2),Fluidum.pressure_derivative(0.2,Val(3),eos))
 end
 
 
