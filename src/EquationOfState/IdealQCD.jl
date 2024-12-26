@@ -82,7 +82,7 @@ thermodynamic(T::N,x::IdealQCD{S}) where {N,S} = Thermodynamic{promote_type(N,S)
     
 
     
-    ThermodynamicPerturbation(pressure(T,x),(pressure_derivative(T,Val{1}(),x),),(pressure_derivative(T,Val{2}(),x),) ,(pressure_derivative(T,Val{3}(),x)))
+    ThermodynamicPerturbation(pressure(T,x),(pressure_derivative(T,Val{1}(),x),),(pressure_derivative(T,Val{2}(),x),) ,(pressure_derivative(T,Val{3}(),x),))
 
 end
 
