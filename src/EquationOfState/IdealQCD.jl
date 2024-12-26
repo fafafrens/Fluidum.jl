@@ -51,10 +51,14 @@ end
 end
 
 
-
 @inline @fastmath function pressure_derivative(T,::Val{2},x::IdealQCD ) 
     
     1/2 *x.a1 *T^2 *fmGeV3
+end
+
+@inline @fastmath function pressure_derivative(T,::Val{3},x::IdealQCD ) 
+    
+     x.a1 *T *fmGeV3
 end
 
 @inline @fastmath function pressure_derivative(T,μ,::Val{0},::Val{1},x::IdealQCD ) 
@@ -73,6 +77,17 @@ end
 
 
 thermodynamic(T::N,x::IdealQCD{S}) where {N,S} = Thermodynamic{promote_type(N,S),1,1}(pressure(T,x),(pressure_derivative(T,Val{1}(),x),),(pressure_derivative(T,Val{2}(),x),) ) 
+
+@inline @fastmath function thermodynamic_perturbation(T,x::IdealQCD{<:Number})
+    
+
+    
+    ThermodynamicPerturbation(pressure(T,x),(pressure_derivative(T,Val{1}(),x),),(pressure_derivative(T,Val{2}(),x),) ,(pressure_derivative(T,Val{3}(),x)))
+
+end
+
+
+
 
 function thermodynamic(T::N,mu::S,x::IdealQCD) where {N,S}
     Thermodynamic{promote_type(N,S),2,3}(pressure(T,mu,x),

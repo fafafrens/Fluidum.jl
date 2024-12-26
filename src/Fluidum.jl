@@ -44,12 +44,6 @@ using UnPack
 #using PyPlot
 
 
-
-
-
-
-
-
 const root_particle_lists=artifact"particle_lists"
 
 #const root_kernel_particles=artifact"kernel"
