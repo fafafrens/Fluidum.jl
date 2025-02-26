@@ -36,7 +36,7 @@ end
 
 function exponential_tail_pointlike(function_profile,x,xmax; offset = 0.015)
     a = ForwardDiff.derivative(function_profile, xmax) / function_profile(xmax)
-    b = log(function_profile(xmax))
+    b = log(function_profile(xmax)- offset) 
     if x-xmax < 0
         return function_profile(x)
     else  
@@ -96,32 +96,8 @@ function Profiles_offset(x::TabulatedTrento{A,B}, y::TabulatedTrento{A,B}, cent1
     r, ncoll_profile = get_profile(y, cent1, cent2; norm = norm_coll) #.+0.0001 
     ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
     
-    #return temp_exp_funct, ncoll_funct
     return temperature_funct, ncoll_funct    
 end
 
-function Profiles_offset(x::TabulatedTrento{A,B},  cent1::Integer, cent2::Integer; radius = range(0,30,100), norm_temp = 1, norm_coll = 1, xmax = 8) where {A,B}
-    #temperature profile
-    r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_temp)
-    
-    temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile) #.+0.0001 
-    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
-    
-    
-    return temperature_funct    
-end
 
 
-#not used
-function map_initial_profile(temperature, x::TabulatedTrento{A,B}, cent1::Integer, cent2::Integer; norm = 1, xmax = 8) where {A,B}
-    r, profile = get_profile(x, cent1, cent2; norm = norm) 
-    
-    #interpolate the temperature which is itself a function of the entropy 
-    temp_interpolated = linear_interpolation(r, temperature; extrapolation_bc=Flat())
-    #temp_interpolated = linear_interpolation(r, funct_to_interpolate; extrapolation_bc=Flat()) 
-    temp_exp = exponential_tail_pointlike.(Ref(temp_interpolated), r, Ref(xmax))  
-    return linear_interpolation(r, temp_exp; extrapolation_bc=Flat())  
-end
-#vectorializing now:
-#exponential = exponential_tail_pointlike.((get_interpolate_profile(pallino2, 10, 20), ), vect, (xmax,))
-#exponential = exponential_tail_pointlike.(Ref(get_interpolate_profile(pallino2, 10, 20)), vect, Ref(xmax))

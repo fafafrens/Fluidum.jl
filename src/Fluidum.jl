@@ -45,7 +45,6 @@ using UnPack
 
 
 const root_particle_lists=artifact"particle_lists"
-
 #const root_kernel_particles=artifact"kernel"
 
 const fmGeV= 1/0.1973261 
@@ -117,7 +116,7 @@ const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
 export detector_collection,detector_dict
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
-export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
+export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult
 export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
 
@@ -291,11 +290,11 @@ function SimpleShearViscosity
 end
 
 export thermodynamic,pressure, pressure_derivative , TwoDPicewiseEquationOfState ,OneDPicewiseEquationOfState, energy_density
-export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_diffusion
+export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_diffusion,τ_diffusion_hadron
 export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
-export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion
+export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion, normalization
 
 # type piracy 
 

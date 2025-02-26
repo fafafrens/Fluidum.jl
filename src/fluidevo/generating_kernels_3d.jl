@@ -27,7 +27,7 @@ end
 function get_kernels(Tmin,Tmax,dT;type = "thermal", file_path=pwd()*"/src/FastReso_OC_kernels/", MC = false)
     particle_name=readdlm(file_path*"particles.data",comment_char='#',comments=true)[:,1]
     particle_MC=readdlm(file_path*"particles.data",comment_char='#',comments=true)[:,13]
-    @show particle_MC
+    
 
     Trange = collect(Int64,Tmin:dT:Tmax)
     kernel_dict = Dict()
@@ -86,12 +86,14 @@ end
    
 
 function save_all_particles(;Tmin=1400,Tmax=1420,dT=10, type = "thermal")
-    save_kernels(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_kernels/", MC = true)
-    #save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_OC_kernels/")
-    #save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_HC_kernels/")
+    kernel_path = string(@__DIR__,"/Kernels_folder/") #personal path to the kernels folder
+    
+    save_kernels(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_kernels/"), MC = true)
+    save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_OC_kernels/"))
+    save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_HC_kernels/"))
 end 
 
 #uncomment only to save new kernels
-#save_all_particles(Tmin=1400,Tmax=1420,dT=10,type = "thermal")
-#save_all_particles(Tmin=1400,Tmax=1420,dT=10,type = "total")
+#save_all_particles(Tmin=1500,Tmax=1560,dT=10,type = "thermal")
+#save_all_particles(Tmin=1500,Tmax=1560,dT=10,type = "total")
 
