@@ -77,6 +77,18 @@ end
     one(promote_type(typeof(T)))
 end
 
+@inline function τ_shear(T,μ,x::ThermodynamicPerturbation{N,1,1,1},y::ZeroViscosity) where {N}
+    #entropy=x.pressure_derivative[1]
+    one(promote_type(typeof(T),typeof(μ)))
+    
+    #viscosity(T,x,y)/((T*x.pressure_derivative[1])*y.Cs)
+end
+
+@inline function τ_shear(T,x::ThermodynamicPerturbation{N,1,1,1},y::ZeroViscosity) where {N}
+    #entropy=x.pressure_derivative[1]
+    one(promote_type(typeof(T)))
+end
+
 
 struct SimpleDiffusionCoefficient{T}<:Diffusion
     κ::T
