@@ -296,7 +296,7 @@ export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, Hadr
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
 export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion
-
+export InverseFuction 
 # type piracy 
 
 Bessels.besselk0(d::Dual{T,V,N}) where {T,V,N} = Dual{T}(Bessels.besselk0(value(d)), -Bessels.besselk1(value(d)) * partials(d))
