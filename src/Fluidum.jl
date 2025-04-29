@@ -37,7 +37,6 @@ using SimpleNonlinearSolve
 
 using QuadGK
 
-
 using HCubature
 using UnPack
 
@@ -46,16 +45,13 @@ using UnPack
 
 const root_particle_lists=artifact"particle_lists"
 
+
 #const root_kernel_particles=artifact"kernel"
 
 const fmGeV= 1/0.1973261 
 const invfmGeV= 1/fmGeV
 const invfmGeV3=(1/fmGeV)^3
 const fmGeV3=fmGeV^3
-
-
-
-
 
 
 include("EquationOfState/thermodynamic.jl")
@@ -113,10 +109,12 @@ const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
 :ALICE1 =>detector(:ALICE1,     6.62 ,    7.00 ,        0.0463,	:Pb_Pb)
 )
 
-
+ 
 export detector_collection,detector_dict
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
+export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
+export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult
 export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult
 export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters

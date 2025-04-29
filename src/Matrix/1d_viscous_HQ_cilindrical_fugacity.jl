@@ -20,7 +20,10 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     
     Ds = diffusion(ϕ[1],n,params.diffusion)
     tauDiff=τ_diffusion(ϕ[1],params.diffusion)
-    #@show t
+
+    #κ = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
+    #tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
+    
     dmp = 0 #for now we don t have chemical potential in the eos
     dtdmp = 0 
     dmdmp = 0
@@ -28,6 +31,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 
     #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+    #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
     (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
         
     Ainv= inv(At)
@@ -128,6 +132,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
             
             ,dmn*sqrt(1 + ^(u[2],2))
             
+            #,κ*u[2]*sqrt(1 + ^(u[2],2))
             ,Ds*n*u[2]*sqrt(1 + ^(u[2],2))
             
             ,0
@@ -229,6 +234,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
             
             ,dmn*u[2]
             
+            #,κ*(1 + ^(u[2],2))
             ,Ds*n*(1 + ^(u[2],2))
             
             ,0

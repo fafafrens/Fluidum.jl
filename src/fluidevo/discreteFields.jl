@@ -588,7 +588,7 @@ end
 
 function cheb_upwinding_flux!(diffusion,nabla,A,N,T2=similar(A),T2k=similar(diffusion),T2km2=similar(diffusion),T2km4=similar(diffusion))
     cheb_flux!(diffusion,A,N,T2,T2k,T2km2,T2km4)
-    mul!(diffusion,derivativeMatrix,nabla,1,-1/2)
+    mul!(diffusion,A,nabla,1,-1/2)
 end
 
 @inbounds function chebupwinding(dphi,phi,t,discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
@@ -657,7 +657,7 @@ end
             #end 
             #here we compute the flux
             #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
-            cheb_upwinding_flux!(Δ_iϕ,∇_iϕ,A_i[dim],3,T2_mat,T2k_vec,T2km2_vec,T2km4_vec)
+            cheb_upwinding_flux!(Δ_iϕ,∇_iϕ,A_i[dim],5,T2_mat,T2k_vec,T2km2_vec,T2km4_vec)
             #upwindflux!(Δ_iϕ,∇_iϕ,A_i[dim],temp)
             @inbounds @simd for n_field in SOneTo{N_field}()
                 dϕ[n_field] -=  Δ_iϕ[n_field]
@@ -734,12 +734,14 @@ function problem(two_ideal_hydro_discrete::DiscreteFileds{T, total_dimensions, s
     NewT=eltype(init)
     
     two_ideal_hydro_discrete=convert_field(NewT,two_ideal_hydro_discrete)
-        ODEProblem((du,u,p,t)->basicupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
+        
+    ODEProblem((du,u,p,t)->basicupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
+    #ODEProblem((du,u,p,t)->chebupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
 end
 
 function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan,args...;kwargs...)
     prob=problem(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan)
-    solve(prob,Tsit5(),args...;kwargs...)
+    solve(prob,Tsit5(),args...;kwargs..., dtmax = 0.01)
 end
 
 

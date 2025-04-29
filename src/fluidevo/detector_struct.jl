@@ -4,8 +4,8 @@
 struct detector{S, T}
     name::S #name of the detector
     r::T #nuclear radius
-    σ_in::T #inelastic cross section
-    dσ_QQdy::T #heavy quark cross section
+    σ_in::T #pp inelastic cross section
+    dσ_QQdy::T #heavy quark cross section from FONLL
     nucl::S #colliding nuclei
 end
 

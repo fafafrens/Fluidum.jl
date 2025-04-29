@@ -13,9 +13,6 @@ Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState
     c::T  = -1.0465330501411811
     d::T  = 0.09551531822245873
     hadron_list::HadronResonaceGas{S}=HadronResonaceGas() #campo hadron_list, di tipo HadronResonanceGas{S}, 
-    #a cui viene assegnato come valore HadronResonaceGas() (vedi charm_HRG.jl)
-    #hadron_list field is an instance (istanza) of HadronResonaceGas with a specific type S
-    #particle_list::HadronResonaceGas{S}=HadronResonaceGas() #campo hadron_list, di tipo HadronResonanceGas, 
     
 end
 
@@ -27,7 +24,6 @@ end
     0.003652264*x.b3*T + 0.023716*x.b2*^(T,2) + 0.154*x.b1*^(T,3) + ^(T,4))*^(T,4)*fmGeV^3
 end #T^4 = GeV^4
 
-#@inline pressure(T,x::FluidProperties)=pressure(T,x.equation_of_state)
 
 @inline function pressure_derivative(T,::Val{1},x::Heavy_Quark) 
 
@@ -65,8 +61,6 @@ function free_charm(T,fug,x::Heavy_Quark)
     m = x.mass
     b2 = besselkx(2,m/T)
     b1 = besselk1x(m/T)
-    #b2 = besselk(2,m/T)
-    #b1 = besselk(1,m/T)
     b3 = b1+4/(m/T)*b2
 
     ex = exp(fug-m/T)
@@ -79,6 +73,19 @@ function free_charm(T,fug,x::Heavy_Quark)
     return (density,densityDerT,densityDerμ,densityDerTDerμ )
 end
 
+function free_hadron(m,deg,q,T,μ)
+    b2 = besselkx(2,m/T) #besselkx(2,m/T) = K2(m/T) * exp(m/T)
+    b1 = besselk1x(m/T)
+    b3 = b1+4/(m/T)*b2
+
+    ex = exp(q*μ - m/T)  
+    density = deg*(T /(2 *π^2)*m^2* ex* b2)* fmGeV3; #fm-3
+    densityDerT = deg*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T))* fmGeV3 ; #(*fm^-3/GeV*)
+    densityDerμ= deg*(m^2* T /(2 *π^2)* ex* b2)* fmGeV3+0.0001; #(*fm^-3/GeV*)
+    densityDerTDerμ =deg*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T))* fmGeV3 ;
+    
+    return (density,densityDerT,densityDerμ,densityDerTDerμ)
+end
 
 
 struct HQdiffusion{M}<:Diffusion
@@ -148,16 +155,34 @@ end
 @inline function τ_shear(T,entropy,y::ZeroViscosity) 
    one(promote_type(typeof(T),typeof(entropy)))
 end
+
+function normalization(T,μ,x::Heavy_Quark)
+    norm = 0
+    for i in x.hadron_list.particle_list
+        m = i.Mass
+        deg = i.Degeneracy
+        q = i.Nc + i.Nac
+        n = free_hadron(m,deg,q,T,μ)[1]
+        norm += q^2*n
+    end 
+    return norm;    
+end
+
+
 function diffusion(T,n,x::HQdiffusion{M}) where {M}
     density = n #fm-^3
     #κ = x.DsT/T*density/fmGeV #fm^-2
-    κ = x.DsT/T/fmGeV
+    Ds = x.DsT/T/fmGeV
 end
+
+function diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
+    κ = y.DsT/T*normalization(T,μ,x)/fmGeV
+end
+
+
 
 function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     m = x.mass
-    #@show m/T
-    #@show T
   
     b2 = besselkx(2,m/T)*exp(-m/T)
     b1 = besselkx(1,m/T)*exp(-m/T)
@@ -165,14 +190,26 @@ function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     b3 = b1+4/(m/T)*b2  
     b4 = b2 + 6/(m/T)*b3  
     b5 = b3+8/(m/T)*b4
-   
-    #b3 = besselk(3,m/T)
-    #b4 = besselk(4,m/T)
-    #b5 = besselk(5,m/T)
-   
-    #[1/GeV]*fm GeV/0.2 = [fm]/fmGeV
+
   return ((2*π*x.DsT) *m^3/T^3/(96*π*T)*(2*b1 - 3*b3 +b5)/b2)/fmGeV; #
   
+end
+
+
+function τ_diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
+    tauq = 0
+    for i in x.hadron_list.particle_list
+        m = i.Mass
+        q = i.Nc + i.Nac
+        b2 = besselkx(2,m/T)*exp(-m/T)
+        b1 = besselk1x(m/T)*exp(-m/T)
+        b3 = b1+4/(m/T)*b2  
+        b4 = b2 + 6/(m/T)*b3  
+        b5 = b3+8/(m/T)*b4
+        ex = exp(q*μ)
+        tauq += ((2*π*y.DsT)/(192*π^3*T^3)*q^2*m^5*ex*(2*b1 - 3*b3 +b5))*(fmGeV^2); 
+    end   
+  return tauq/normalization(T,μ,x); #
 end
 
 
@@ -184,10 +221,28 @@ function τ_diffusion(T,n, x::ZeroDiffusion)
     return 1.0
 end
 
+function τ_diffusion_hadron(T,μ,x::Heavy_Quark,y::ZeroDiffusion) 
+    return 1.0
+end
+
+function τ_diffusion_hadron(T,n,μ,x::Heavy_Quark,y::ZeroDiffusion) 
+    return 1.0
+end
+
+
 function diffusion(T,n,x::ZeroDiffusion) 
     return 0.0
 end
 
 function diffusion(T,x::ZeroDiffusion) 
+    return 0.0
+end
+
+
+function diffusion_hadron(T,n,μ,x::Heavy_Quark,y::ZeroDiffusion) 
+    return 0.0
+end
+
+function diffusion_hadron(T,μ,x::Heavy_Quark,y::ZeroDiffusion) 
     return 0.0
 end

@@ -13,7 +13,6 @@ end
 
 function load_kernel(file_path,name;type="thermal")
     return load(file_path*name*"_"*type*".jld"; typemap=Dict("Main.kernels_diff" => kernels_diff))["interp_kernel"]
-    #return load(file_path*name*"_"*type*".jld"; typemap=Dict("Main.kernels_diff" => kernels_diff))["interp_kernel"]
 end
 
 
@@ -26,17 +25,6 @@ function get_LF_Attributes(;file_path=pwd()*"/src/FastReso_kernels/")
     thermal_kernel_path=[]
     total_kernel_path=[]
     
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/proton_thermal.jld"
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/kaon_thermal.jld"
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/pion_thermal.jld"
-
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/proton_total.jld"
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/kaon_total.jld"
-    # @load "C:\\Data\\Università\\Germania\\Tesi_mag\\solver\\src\\FieldsEvolution\\src\\Kernels_Folder/FastReso_kernels/pion_total.jld" 
-
-    # push!(thermal_kernel_path,protons_thermal,kaons_thermal,pions_thermal)
-    
-    # push!(total_kernel_path,protons_total,kaons_total,pions_total)  
     for name in names 
         thermal = load(file_path*name*"_thermal.jld"; typemap=Dict("Main.kernels" => kernels))["interp_kernel"]
         total = load(file_path*name*"_total.jld"; typemap=Dict("Main.kernels" => kernels))["interp_kernel"]
@@ -79,9 +67,10 @@ function get_diff_Attributes(;file_path=pwd()*"/src/FastReso_OC_kernels/",Maxmas
 end
     
 function dictionary()
-    LF = get_LF_Attributes(;file_path="$(@__DIR__)/Kernels_folder/FastReso_kernels/")
-    OC = get_diff_Attributes(;file_path="$(@__DIR__)/Kernels_folder/FastReso_OC_kernels/")
-    HC = get_diff_Attributes(;file_path="$(@__DIR__)/Kernels_folder/FastReso_HC_kernels/")[1]
+    path= kernel_folder
+    LF = get_LF_Attributes(;file_path=string(path,"FastReso_kernels/"))
+    OC = get_diff_Attributes(;file_path=string(path,"FastReso_OC_kernels/"))
+    HC = get_diff_Attributes(;file_path=string(path,"FastReso_HC_kernels/"))[1]
     Key_Tuple_LF=(:proton,:kaon,:pion)
     Key_Tuple_OC=(:D0,:Dplus,:Dstar0,:Dstarplus,:Dsplus)#,:Lcplus#,:Xic,:Omc)
     Key_Tuple_HC=(:Jpsi)
@@ -95,3 +84,6 @@ end
 
 #dic = dictionary();
 #export dic
+
+
+

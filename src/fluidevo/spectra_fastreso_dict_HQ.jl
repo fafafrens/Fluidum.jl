@@ -1,6 +1,5 @@
 
-
-@inline function cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,μ,ν,K1eq,K2eq,K1diff,K2diff)
+@inline function cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,norm,K1eq,K2eq,K1diff,K2diff; delta_f = false)
     
 
     fmGeV = 5.068
@@ -10,43 +9,46 @@
     r_factor=-factor* dra
     t_factor=factor* dta
     
-    #Kdiff sono i kernel dati dalla corrente di diffusione 
-    #K1diff=0.0  
-    #K2diff=0.0
+    result = (r_factor.*(K1eq.+K1diff*ν*q./norm)+t_factor*(K2eq.+K2diff*ν*q./norm)).*exp(μ)
     
-    #n = federica(T,μ,Heavy_Quark())[1]
-    ν=0 #per ora mettiamo kernel di diffusione = 0
-    n=1.0
-    #n = thermodynamic(T,μ,eos.hadron_list).pressure
-    
-    
-    result= (r_factor*(K1eq+K1diff*ν/T/n)+t_factor*(K2eq+K2diff*ν/T/n))*exp(μ)
-     
+    if delta_f == false
+        ν = 0
+        n = 1
+       result = (r_factor*(K1eq+K1diff*ν/(T*n))+t_factor*(K2eq+K2diff*ν/(T*n)))*exp(μ)    
+    end
+       
     return result*fmGeV^3
 end
 
 
-@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V};decays, ccbar = 2.76) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V};decays, ccbar = 2.76, delta_f = false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+    
     fact = besseli(1, ccbar/2)/besseli(0, ccbar/2)
 
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha) #prendono gli argomenti da phi, che li prende da fo che viene calcolato altrove
-    @show ur 
+    
+    eos = Heavy_Quark()
+    norm = normalization(T,μ,eos)
+    
+    
     if (ur > 5) 
-        #@show ur 
         @warn string("Radial velocity out of fastreso limits")       
     end 
     
-    m = part.mass
+    q = 1
     if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* ha degenerazione 3 perche ha total angular momentum = 3. Per tutti gli altri ho spin 0 e non va preso in considerazione 
         deg = 3
     else deg = 1
     end
+
     if part.name == "jp3096zer"
         fact = 1
-        μ = 2μ #J/Psi ha μ = 2 perche ha 2 charm (sto facendo fugacity^2) 
+        q = 2
     end 
+    μ = q*μ 
+
     if(decays==true)
         kernel = part.total_kernel_ext
     else 
@@ -56,29 +58,43 @@ end
     K2eq=kernel.K2eq(T,pt,ur)
     K1diff=kernel.K1diff(T,pt,ur)
     K2diff=kernel.K2diff(T,pt,ur)
-    cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,μ,ν,K1eq,K2eq,K1diff,K2diff)*deg*fact
+    cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,norm,K1eq,K2eq,K1diff,K2diff;delta_f=delta_f)*deg*fact
 end
+
 #spectra in a single pt point
 function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true,ccbar = 2.76) where {C<:Number,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
-    x,phi=fo
+    x,phi=fo   
     lb=leftbounds(x)
     rb=rightbounds(x)
 
     #numerical integration of function of alpha, from the lb of alpha to the rb of alpha (over all the fo surface)
-    #returns a pair (integral, error)
-    quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar),lb...,rb...,rtol=rtol)
+    quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar,delta_f),lb...,rb...,rtol=rtol)
 
 end
 
 #spectra points between max, min with given step (even spacing)
-function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true,rightbound=(100,),ccbar = 2.76) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true,rightbound=(100,),ccbar = 2.76,delta_f=false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
+    
+    #T = [fo.fields.a[i][1] for i in 1:100]
+    #μ = [fo.fields.a[i][6] for i in 1:100]
+
+    #eos = Heavy_Quark()
+    #norm = normalization.(T,μ,Ref(eos))
+    #@show T
+    #@show typeof(T)
+    #norm = 1
+    
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb=min.(rb,rightbound)
     buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
     
-    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar),lb...,rb...;segbuf=buff,rtol=rtol) for pt in range(pt_min,pt_max,step) ] 
+    if delta_f == true print("delta_f applied \n")  
+    else print("delta_f not applied \n")
+    end 
+
+    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar,delta_f),lb...,rb...;segbuf=buff,rtol=rtol) for pt in range(pt_min,pt_max,step) ] 
 
 end
 
@@ -121,12 +137,12 @@ function multiplicity(pt,spectra)
 end
 
 
-function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true, rightbound=100,pt_min=0.,pt_max=10.0) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true, delta_f = false, rightbound=100,pt_min=0.,pt_max=10.0) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb = min.(rb,(rightbound,))
-    hcubature( b ->2.0*π *_pointwise_spectra(b[1],b[2],x,phi,part;decays)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
+    hcubature( b ->2.0*π *_pointwise_spectra(b[1],b[2],x,phi,part;decays,delta_f)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
     
 end
 
@@ -185,17 +201,6 @@ function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.
 
 end
 
-#to be plotted
-#function spectra(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100)
-# function spectra(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100) where {A<:SplineInterp,B<:SplineInterp}
-#     x,phi=fo
-#     lb=leftbounds(x)
-#     rb=rightbounds(x)
-#     buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
-
-#     [quadgk(alpha->3*_pointwise_spectra_internal(pt,m,alpha,x,phi),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ] 
-
-# end
 
 
 function multiplicity(m::Number,fo::FreezeOutResult{A,B};rtol=sqrt(eps()),pt_min=0,pt_max = 10) where {A<:SplineInterp,B<:SplineInterp}
@@ -220,9 +225,6 @@ function prefactors(T,pi_phi,pi_eta,pi_b,fluidpropery)
     #dtp=1.68
     dtdtp=pressure_derivative(T,Val{2}(),fluidpropery.eos)
     
-    #zero bulk case
-    #tauB=τ_bulk(T,fluidpropery.bulk)
-    #zeta=bulk_viscosity(T,fluidpropery.bulk)
     
     #non-zero bulk case
     tauB=τ_bulk(T,dtp,dtdtp,fluidpropery.bulk)
@@ -260,7 +262,7 @@ end
 end
 
 #used for lf 
-@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V},fluidpropery;decays) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V},fluidpropery::FluidProperties{C,D,E,F};decays) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V,C,D,E,F}
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b=phi(alpha)
