@@ -25,7 +25,7 @@ jobs:
         version:
           - '1.11'
           - '1.10'
-          - 'nightly'
+          - '1.12'
         os:
           - ubuntu-latest
         arch:
