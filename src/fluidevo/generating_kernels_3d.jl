@@ -86,9 +86,11 @@ end
    
 
 function save_all_particles(;Tmin=1400,Tmax=1420,dT=10, type = "thermal")
-    save_kernels(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_kernels/", MC = true)
-    #save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_OC_kernels/")
-    #save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT, type = type, file_path="$(@__DIR__)/Kernels_folder/FastReso_HC_kernels/")
+    kernel_path = kernel_folder #personal path to the kernels folder
+    
+    save_kernels(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_kernels/"), MC = true)
+    save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_OC_kernels/"))
+    save_kernels_diff(;Tmin=Tmin,Tmax=Tmax,dT=dT,type = type, file_path=string(kernel_path,"/FastReso_HC_kernels/"))
 end 
 
 #uncomment only to save new kernels

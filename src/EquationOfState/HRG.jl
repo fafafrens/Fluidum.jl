@@ -240,7 +240,7 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L})  where {L}
         end
     end
 
-    return Thermodynamic(pressure,(p10,p01),(p20,p11,p02))
+    return Thermodynamic(pressure*fmGeV3,(p10*fmGeV3,p01*fmGeV3),(p20*fmGeV3,p11*fmGeV3,p02*fmGeV3))
 end
 
 #prova=HadronResonaceGas(Maxmass=2.1)
@@ -324,5 +324,5 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
             
         end
     end
-    return Thermodynamic(pressure,(p10,p01),(p20,p11,p02))
+    return Thermodynamic(pressure*fmGeV3,(p10*fmGeV3,p01*fmGeV3),(p20*fmGeV3,p11*fmGeV3,p02*fmGeV3))
 end

@@ -130,7 +130,13 @@ pressure_derivative(T,::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic
 pressure_derivative(T,::Val{2},wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_hessian[1]
 pressure_derivative(T,::Val{3},wal::N) where {N<:EquationOfState}= thermodynamic_perturbation(T,wal).pressure_third[1]
 entropy(T,wal::N) where {N<:EquationOfState}= thermodynamic(T,wal).pressure_derivative[1]
+function energy_density(T,wal::N) where {N<:EquationOfState}
+    therm=thermodynamic(T,wal)
+    pr=therm.pressure
+    entrop=therm.pressure_derivative[1]
 
+    T*entrop-pr
+end 
 
 
 
