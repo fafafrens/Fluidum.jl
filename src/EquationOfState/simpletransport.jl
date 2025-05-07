@@ -68,7 +68,11 @@ end
     
     #viscosity(T,x,y)/((T*x.pressure_derivative[1])*y.Cs)
 end
-
+@inline function τ_shear_dervative(T,x::ThermodynamicPerturbation{N,1,1,1},y::ZeroViscosity) where {N}
+    #entropy=x.pressure_derivative[1]
+    zero(promote_type(typeof(T),N))
+    #viscosity(T,x,y)/((T*x.pressure_derivative[1])*y.Cs)
+end
 @inline function τ_shear(T,μ,x::Thermodynamic{N,2,3},y::ZeroViscosity)  where {N}
     one(promote_type(typeof(T),typeof(μ)))
 end
