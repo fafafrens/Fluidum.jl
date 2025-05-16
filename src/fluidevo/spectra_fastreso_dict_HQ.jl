@@ -1,5 +1,5 @@
 
-@inline function cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,norm,K1eq,K2eq,K1diff,K2diff; delta_f = false)
+@inline function cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff; delta_f = false)
     
 
     fmGeV = 5.068
@@ -8,15 +8,18 @@
     
     r_factor=-factor* dra
     t_factor=factor* dta
+       
+    if delta_f == true
+         eos = Heavy_Quark()
+        norm = normalization(T,μ,eos)
+        result = (r_factor.*(K1eq.+K1diff*ν*q./norm)+t_factor*(K2eq.+K2diff*ν*q./norm)).*exp(μ)    
     
-    result = (r_factor.*(K1eq.+K1diff*ν*q./norm)+t_factor*(K2eq.+K2diff*ν*q./norm)).*exp(μ)
-    
-    if delta_f == false
+    else 
         ν = 0
         n = 1
        result = (r_factor*(K1eq+K1diff*ν/(T*n))+t_factor*(K2eq+K2diff*ν/(T*n)))*exp(μ)    
-    end
-       
+    end 
+
     return result*fmGeV^3
 end
 
@@ -27,10 +30,7 @@ end
 
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
-    T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha) #prendono gli argomenti da phi, che li prende da fo che viene calcolato altrove
-    
-    eos = Heavy_Quark()
-    norm = normalization(T,μ,eos)
+    T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha) 
     
     
     if (ur > 5) 
@@ -38,7 +38,7 @@ end
     end 
     
     q = 1
-    if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* ha degenerazione 3 perche ha total angular momentum = 3. Per tutti gli altri ho spin 0 e non va preso in considerazione 
+    if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* has degeneracy 3 since total angular momentum = 3.  
         deg = 3
     else deg = 1
     end
@@ -58,7 +58,7 @@ end
     K2eq=kernel.K2eq(T,pt,ur)
     K1diff=kernel.K1diff(T,pt,ur)
     K2diff=kernel.K2diff(T,pt,ur)
-    cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,norm,K1eq,K2eq,K1diff,K2diff;delta_f=delta_f)*deg*fact
+    cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff;delta_f=delta_f)*deg*fact
 end
 
 #spectra in a single pt point
@@ -79,11 +79,6 @@ function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};pt_m
     #T = [fo.fields.a[i][1] for i in 1:100]
     #μ = [fo.fields.a[i][6] for i in 1:100]
 
-    #eos = Heavy_Quark()
-    #norm = normalization.(T,μ,Ref(eos))
-    #@show T
-    #@show typeof(T)
-    #norm = 1
     
     lb=leftbounds(x)
     rb=rightbounds(x)
@@ -150,7 +145,7 @@ function _pointwise_spectra_internal(pt,m,alpha,x::A,phi::B;deg=1) where {A<:Spl
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha)
-    internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν,deg=deg)
+    internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=deg)
 end
 function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=1)
     fmGeV = 5.068

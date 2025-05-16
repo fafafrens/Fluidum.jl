@@ -1,8 +1,6 @@
-
-#struttura con due tipi di variabili, T e S
 Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState 
-    mass::T = 1.5 #campo (field) massa, di tipo T
-    a1::T  = -15.526548963383643 #campo (field) a1, di tipo T
+    mass::T = 1.5 
+    a1::T  = -15.526548963383643 
     a2::T  = 18.6159584620131
     b1::T  = -3.3147904483107595
     b2::T  = 5.310983721567554 
@@ -12,7 +10,7 @@ Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState
     b3::T  = -4.653922019495976 
     c::T  = -1.0465330501411811
     d::T  = 0.09551531822245873
-    hadron_list::HadronResonaceGas{S}=HadronResonaceGas() #campo hadron_list, di tipo HadronResonanceGas{S}, 
+    hadron_list::HadronResonaceGas{S}=HadronResonaceGas()  
     
 end
 
@@ -104,22 +102,6 @@ end
 
 
 
-@inline function bulk_viscosity(T,y::ZeroBulkViscosity)  
-    zero(promote_type(typeof(T)))
-end
-
-@inline function τ_bulk(T,y::ZeroBulkViscosity)  
-    one(promote_type(typeof(T)))
-end
-
-
-@inline function bulk_viscosity(T,entropy,y::ZeroBulkViscosity)  
-    zero(promote_type(typeof(T)))
-end
-
-@inline function τ_bulk(T,entropy,y::ZeroBulkViscosity)  
-    one(promote_type(typeof(T)))
-end
 
 @inline function bulk_viscosity(T,entropy,y::SimpleBulkViscosity{N}) where {N}
     y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*entropy
@@ -129,19 +111,38 @@ end
      cs2= entropy/(T*dtdtp)
      bulk_viscosity(T,entropy,y)/(T*entropy*y.Cζ)*1/(1/3-cs2)^2+0.1
  end
- 
+
+
+ @inline function bulk_viscosity(T,y::ZeroBulkViscosity)  
+    zero(promote_type(typeof(T)))
+end
+
+@inline function bulk_viscosity(T,entropy,y::ZeroBulkViscosity)  
+    zero(promote_type(typeof(T)))
+end
+
+@inline function τ_bulk(T,y::ZeroBulkViscosity)  
+    one(promote_type(typeof(T)))
+end
+
+@inline function τ_bulk(T,entropy,y::ZeroBulkViscosity)  
+    one(promote_type(typeof(T)))
+end
+
+@inline function τ_bulk(T,entropy,dtdtp,y::ZeroBulkViscosity)  
+    one(promote_type(typeof(T)))
+end 
+
 
 @inline function viscosity(T,entropy,y::QGPViscosity{N}) where {N}
     #entropy GeV^3
     y.ηs*entropy*invfmGeV
-    #zero(promote_type(typeof(T),typeof(entropy)))
  end
 
 
  
 @inline function τ_shear(T,entropy,y::QGPViscosity{N}) where {N}
     viscosity(T,entropy,y)/((T*entropy)*y.Cs)
-    #one(promote_type(typeof(T),typeof(entropy)))
 end
 
 
@@ -155,6 +156,8 @@ end
 @inline function τ_shear(T,entropy,y::ZeroViscosity) 
    one(promote_type(typeof(T),typeof(entropy)))
 end
+
+
 
 function normalization(T,μ,x::Heavy_Quark)
     norm = 0

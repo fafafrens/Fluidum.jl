@@ -27,8 +27,7 @@ end
 function get_kernels(Tmin,Tmax,dT;type = "thermal", file_path=pwd()*"/src/FastReso_OC_kernels/", MC = false)
     particle_name=readdlm(file_path*"particles.data",comment_char='#',comments=true)[:,1]
     particle_MC=readdlm(file_path*"particles.data",comment_char='#',comments=true)[:,13]
-    @show particle_MC
-
+    
     Trange = collect(Int64,Tmin:dT:Tmax)
     kernel_dict = Dict()
     for (name, MC_code) in zip(particle_name, particle_MC)
