@@ -26,33 +26,34 @@ end
     )
 end 
 
-function fug(T, nhard_profile, r, eos; rdrop = 12)       
+function fug(T, nhard_profile, r, eos; rdrop = 12, m = 1.5)       
     if r<=rdrop
-        return  log(nhard_profile(r)/(thermodynamic(T(r),0.0,eos).pressure))
+        return log(nhard_profile(r)/(thermodynamic(T(r),0.0,eos).pressure))
         else return log(nhard_profile(rdrop)/(thermodynamic(T(rdrop),0.0,eos).pressure))
     end            
 end
 
-function fug_fs(T, ncoll_profile, x, y, eos; rdrop = 12,tau0, m = 1.5)       
-    if sqrt(x^2+y^2)<=rdrop
-        return log(density(ncoll_profile,x,y; tau0, m))/(thermodynamic(T(sqrt(x^2+y^2)),0.0,eos).pressure)
-        else return log(density(ncoll_profile,rdrop/sqrt(2),rdrop/sqrt(2); tau0, m)/(thermodynamic(T(rdrop),0.0,eos).pressure))
-    end            
+
+
+
+function fug_fs(T, ncoll_profile, r, eos;dσ_QQdy, tau0, m = 1.5)       
+    return log(density_polar(T, ncoll_profile,r;dσ_QQdy, tau0, m)/(thermodynamic(T,0.0,eos).pressure))            
 end
 
-function nux(T,ncoll_profile, fonll_profile,x,y; tau0, dσ_QQdy)
-    ncoll_shift(px,py) = ncoll_fs(ncoll_profile,x,y,px,py;tau0=tau0) 
-    fonll_interp(px,py) = fonll(fonll_profile,px,py; m = 1.5)
-    eq_interp(px,py) = dσ_eq(T, sqrt(px^2+py^2);dσ_QQdy = dσ_QQdy)
-
-    fonll_integral = hcubature(p->(p[1]*ncoll_shift(p[1],p[2])*fonll_interp(p[1],p[2])), rtol=0.001, [-20/sqrt(2), -20/sqrt(2)], [20/sqrt(2), 20/sqrt(2)])[1]
-    eq_integral = hcubature(p->(p[1]*ncoll_shift(p[1],p[2])*eq_interp(p[1],p[2])), rtol=0.001, [-20/sqrt(2), -20/sqrt(2)], [20/sqrt(2), 20/sqrt(2)])[1]
-    nux = 1/(2*dσ_QQdy)*(fonll_integral - eq_integral) 
-    return nux
+function fug_fs_rdrop(T, ncoll_profile, r, eos;rdrop = 13, dσ_QQdy, tau0, m = 1.5)       
+    if r <= rdrop 
+        return fug_fs.(T(r), Ref(ncoll_profile), r, Ref(eos);dσ_QQdy,tau0,m=1.5)   
+    else 
+        ncoll_rdrop = x -> ncoll_profile(rdrop) 
+        return fug_fs(T(rdrop), ncoll_rdrop, rdrop, eos;dσ_QQdy,tau0,m=1.5)
+         
+    end        
 end
 
-function nur_polar(T,ncoll_profile, fonll_profile,r; tau0 = 0.4, dσ_QQdy) 
-    nux_(x,y) = nux(T,ncoll_profile, fonll_profile,x,y; tau0 = tau0, dσ_QQdy = dσ_QQdy) 
+
+
+function nur_polar(T,ncoll_profile, fonll_profile,r; tau0, dσ_QQdy, m = 1.5) 
+    nux_(x,y) = nux(T,ncoll_profile, fonll_profile,x,y; tau0, dσ_QQdy, m) 
     nur_polar = nux_(r,0) 
     return nur_polar
 end
@@ -61,34 +62,38 @@ end
 """
 Initialize the temperature, the fugacity, and the diffusion current 
 """
-function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, z::TabulatedData{E,F}, cent1::Integer, cent2::Integer, list; gridpoints=500, rmax=30, norm_temp=1, tau0 = 0.4, dσ_QQdy = 1, exp_tail = true,rdrop = 12) where {A,B,C,D,E,F}
-    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = 2/tau0*dσ_QQdy, exp_tail = exp_tail)
+function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, z::TabulatedData{E,F}, cent1::Integer, cent2::Integer, list; gridpoints=500, rmax=30, norm_temp=1, tau0 = 0.4, dσ_QQdy = 1, exp_tail = true,rdrop = 12, offset, m=1.5) where {A,B,C,D,E,F}
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = 2/tau0*dσ_QQdy, exp_tail, offset)
     
     #@show temperature_profile.(range(0,rmax,gridpoints))
+    #@show nhard_profile.(range(0,rmax,gridpoints))
     
     ccbar = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=0.00001)[1]
     @show ccbar
 
     eos=HadronResonaceGas_ccbar(list, ccbar)
-    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos;rdrop)   
+    fugacity_initial(r) = fug(temperature_profile, nhard_profile, r, eos;rdrop)   
         
-    ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos).pressure,0,rmax,rtol=0.00001) #integrazione per ottenere il numero totale di charm
+    ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity_initial(x),eos).pressure,0,rmax,rtol=0.00001) #integrazione per ottenere il numero totale di charm
     @show ccbar_thermo
-    
+       
     fonll_profile = Profiles(z;norm_ = 1e-10, exp_tail = false)
     
-    nur_profile(r) = nur_polar.(temperature_profile(r),Ref(nhard_profile), Ref(fonll_profile),r; tau0, dσ_QQdy)
+    nur_profile(r) = nur_polar.(temperature_profile(r),Ref(nhard_profile), Ref(fonll_profile),r; tau0, dσ_QQdy, m)
     
-    #nur_integral(r) = nur_int.(Ref(fonll_int), temperature_profile(r);dσ_QQdy = dσ_QQdy) 
+    fugacity(r) = fug_fs_rdrop(temperature_profile, nhard_profile, r, eos;rdrop, dσ_QQdy, tau0, m = 1.5)  
+        
+    ccbar_thermo_fs,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos).pressure,0,rmax,rtol=0.00001) #integration to obtain the total number of charm
     
+    @show ccbar_thermo_fs
+
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
-    
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
-    set_array!(phi,(x)->nur_profile(x),:nur,disc_fields); #diffusion current initialization
     
+    set_array!(phi,(x)->nur_profile(x),:nur,disc_fields); #diffusion current initialization
 return DiscreteFields(disc,disc_fields,phi)
 end
 
@@ -135,11 +140,4 @@ function initialize_fields(x::TabulatedData{A,B},list; tau0 = 0.4, gridpoints=50
     
 return DiscreteFields(disc,disc_fields,phi)
 end
-
-
-
-
-
-
-
 
