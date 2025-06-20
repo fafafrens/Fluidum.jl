@@ -848,11 +848,11 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     e_i=disc.index_structure.unit_inidices_space
     X=disc.discretization
     index=get_index(express,disc.fields)
-    @show Sizes[1]
+    @show Sizes[1],T_pert,typeof(tspan[1])
 #preallocation of a surface vector 
     surface_list=zeros(surface_crossing_point{T,typeof(tspan[1]),space_dimension+1,N_field},100000) #100000 is number of counts
-    surface_list_pert=zeros(surface_crossing_point_pert{T_pert,typeof(tspan[1]),space_dimension+1,N_field_pert,Sizes[1]},100000)
-    @show typeof(surface_list_pert),typeof(surface_list)
+    surface_list_pert=zeros(surface_crossing_point_pert{Float64,Float64,space_dimension+1},100000) #this is fine
+    #@show typeof(surface_list_pert),typeof(surface_list)
     max_size=length(surface_list)
     max_size_pert=length(surface_list_pert)
     count=1
@@ -860,43 +860,49 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     @inbounds for (uprev,tprev,u,t) in intervals(integrator)
         max_of_index=zero(T)
         @inbounds for I in disc.index_structure.interior
+            #Cprev_cache,Cnow_cache=matrix_temp
+            #take!(Cprev_cache)
             
             ϕ=@views u.phi[I,:]
             ϕprev=@views uprev.phi[I,:]
 
             # @inbounds for I in disc.index_structure.interior
-            C=@views u.C[:,:,:,1,I,:]
-            Cprev=@views uprev.C[:,:,:,1,I,:]   
-            #@show axes(Cprev) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
             max_of_index=max(ϕprev[index],max_of_index)
             # time  
             #if ((ϕ[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ[index]<surf))
             if (ϕprev[index]>surf)&&(ϕ[index]<surf)
                 @show count
+                #Cnow_cache = @views u.C[:,:,:,1,I,:]
+                #Cprev_cache = @views uprev.C[:,:,:,1,I,:]   
+            #@show axes(Cprev) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
+            
                 if count<=max_size
 
 #adjust the tuple!! maybe redefine the discrete fields for the perturbations, to store all the dimensions
-
-                surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
-                surface_list_pert[count]=surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SArray{Tuple{2, N_field_pert, N_field_pert, Sizes[1],T}}(Cprev[:, :, :, :]),SArray{Tuple{2, N_field_pert, N_field_pert,Sizes[1]},T}(C[:, :, :, :]))     
-                count=count +1 
-            else 
+                
+                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
+                    print("bg done")
+                    surface_list_pert[count]=surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:])     
+                    count=count +1 
+                    else 
                     push!(surface_list,surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
-                    push!(surface_list_pert,surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SArray{Tuple{2, N_field_pert, N_field_pert, Sizes[1]},T}(Cprev[:, :, :, :]),SArray{Tuple{2, N_field_pert, N_field_pert, Sizes[1]},T}(C[:, :, :, :])))     
+                    print("bg done")
+                    
+                    push!(surface_list_pert,surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
                     count=count +1 
-                end 
+                end
+               # reset!(Cprev_cache)
+               # reset!(Cnow_cache)
             end 
-
-             
             #space (we check uprev)
             @inbounds for versor in e_i
                 I_check_plus= I + versor
                 I_check_minus= I - versor
                 ϕ_plus = @views uprev.phi[I_check_plus,:]
                 ϕ_minus = @views uprev.phi[I_check_minus,:]
-                C_plus=@views uprev.C[:,:,:,1,I_check_plus,:]
-                C_minus=@views uprev.C[:,:,:,1,I_check_minus,:]  
+                #C_plus=@views uprev.C[:,:,:,1,I_check_plus,:]
+                #C_minus=@views uprev.C[:,:,:,1,I_check_minus,:]  
                 #@show axes(C_plus) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
              
             
@@ -912,9 +918,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                         surface_list_pert[count]=surface_crossing_point_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},Float64}(Cprev[:, :, :, :]),
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},Float64}(C_plus[:, :, :, :])
-                            )
+                            uprev.C[:,:,:,1,I,:],uprev.C[:,:,:,1,I_check_plus,:])
                         count=count +1 
                     else 
                         push!(surface_list,surface_crossing_point(
@@ -926,8 +930,8 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                         push!(surface_list_pert,surface_crossing_point_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(Cprev[:, :, :, :]),
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(C_plus[:, :, :, :])
+                            uprev.C[:,:,:,1,I,:],
+                            uprev.C[:,:,:,1,I_check_minus,:]
                             )
                             )
                         count=count +1
@@ -945,8 +949,8 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                         surface_list_pert[count]=surface_crossing_point_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(Cprev[:, :, :, :]),
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(C_minus[:, :, :, :])
+                            uprev.C[:,:,:,1,I,:],
+                            uprev.C[:,:,:,1,I_check_minus,:]
                             )
                         count=count +1  
                     else 
@@ -959,8 +963,8 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                         push!(surface_list_pert,surface_crossing_point_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(Cprev[:, :, :, :]),
-                            SArray{Tuple{2, N_field_pert, N_field_pert, 100},T}(C_minus[:, :, :, :])
+                            uprev.C[:,:,:,1,I,:],
+                            uprev.C[:,:,:,1,I_check_minus,:]
                         ))
                         
                         count=count +1
@@ -1006,13 +1010,13 @@ struct surface_crossing{S,T,N_dim,N_field}
     phi_2::SVector{N_field,S}
 end
 
-struct surface_crossing_pert{S,T,N_dim,N_field,length}
+struct surface_crossing_pert{S,T,N_field}
     t_1::T
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
-    C_1::SArray{Tuple{2, N_field, N_field, length},S}
-    C_2::SArray{Tuple{2, N_field, N_field, length},S}
+    C_1::Array{S,4}
+    C_2::Array{S,4}
 end
 
 function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
@@ -1025,14 +1029,14 @@ function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim
     zeros(SVector{N_field,S})  )
 end
 
-function Base.zero(::Type{surface_crossing_pert{S,T,N_dim,N_field,length}}) where {S,T,N_dim,N_field,length}
+function Base.zero(::Type{surface_crossing_pert{S,T,N_dim}}) where {S,T,N_dim}
     surface_crossing_pert(
     zero(T)
     ,zero(T),
     zero(CartesianIndex{N_dim}),
     zero(CartesianIndex{N_dim}),
-    zeros(SArray{Tuple{2, N_field, N_field, length},S}),
-    zeros(SArray{Tuple{2, N_field, N_field, length}, S}) )
+    zeros(S,2,10,10,100),
+    zeros(S,2,10,10,100))
 end
 
 
@@ -1043,11 +1047,11 @@ struct surface_crossing_point{S,T,N_dim,N_field}
     phi_2::SVector{N_field,S}
 end 
 
-struct surface_crossing_point_pert{S,T,N_dim,N_field,length}
+struct surface_crossing_point_pert{S,T,N_dim}
     X_1::SVector{N_dim,T}
     X_2::SVector{N_dim,T}
-    C_1::SArray{Tuple{2, N_field, N_field, N_dim,length},S}
-    C_2::SArray{Tuple{2, N_field, N_field, N_dim,length},S}
+    C_1::Array{S,4}
+    C_2::Array{S,4}
 end
 
 function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,express::Symbol,disc) where {M,T,N_dim,N_field}
@@ -1069,7 +1073,7 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,expres
     surface_point(X_fo,phi_fo)
 end
 
-function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim,N_field_pert,length},temp,express::Symbol,disc) where {M,T,N_dim,N_field,N_field_pert}
+function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim},temp,express::Symbol,disc) where {M,T,N_dim,N_field,N_field_pert}
     index=get_index(express,disc.fields)
     x1=S.X_1
     x2=S.X_2
@@ -1097,28 +1101,31 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::sur
 end
 
 function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
-surface_crossing_point(
+    surface_crossing_point(
     zeros(SVector{N_dim,T}),
     zeros(SVector{N_dim,T}),
-zeros(SVector{N_field,S}),
-zeros(SVector{N_field,S})  )
+    zeros(SVector{N_field,S}),
+    zeros(SVector{N_field,S})  )
 end
 
-function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim,N_field,length}}) where {S,T,N_dim,N_field,length}
+function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim}}) where {S,T,N_dim}
     surface_crossing_point_pert(
-        zeros(SVector{N_dim,T}),
     zeros(SVector{N_dim,T}),
-    zeros(SArray{Tuple{2, N_field, N_field, N_dim,length}, S}) ,
-    zeros(SArray{Tuple{2, N_field, N_field, N_dim,length}, S}) )
+    zeros(SVector{N_dim,T}),
+    #zeros(S,2,N_field,N_field,length),
+    #zeros(S,2,N_field,N_field,length)
+    zeros(S,2,10,10,100),
+    zeros(S,2,10,10,100)
+    )
 end
 
 struct surface_point{S,T,N_dim,N_field}
     X::SVector{N_dim,T}
     phi::SVector{N_field,S}
 end 
-struct surface_point_pert{S,T,N_dim,N_field}
+struct surface_point_pert{S,T,N_dim}
     X::SVector{N_dim,T}
-    C::SArray{Tuple{2, N_field, N_field, N_dim,length},S}
+    C::Array{S,4}
 end 
 
 struct Surface_coodrinates{S,T,N_parm,N_dim,N_field}
