@@ -1134,6 +1134,12 @@ struct Surface_coodrinates{S,T,N_parm,N_dim,N_field}
     phi::SVector{N_field,S}
 end 
 
+struct Surface_coordinates_pert{S,T,N_parm,N_dim}
+    coordinates::SVector{N_parm,T}
+    X::SVector{N_dim,T}
+    C::Array{S,4}
+end 
+
 
 function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
     #here i pick up the first two entry of x 
@@ -1164,14 +1170,36 @@ function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field},surface_con
 end
 
 
+function Surface_coordinates(point::surface_point_pert{S,T,N_dim} ) where {S,T,N_dim}
+    #here i pick up the first two entry of x 
+    x_red=point.X[1:2]
+    r=hypot(x_red...)
+    theta=atan(x_red...)
+    if N_dim <3
+        Surface_coordinates_pert(SVector{N_dim-1}(theta),point.X,point.C
+        )
+    else 
+        Surface_coordinates_pert(SVector{N_dim-1}((theta,point.X[3:end]...)),
+        point.X,point.C
+        )
+    end 
+end 
+
 struct Surface{S,T,N_dim,N_field}
     points::Vector{surface_point{S,T,N_dim,N_field}}
+end 
+
+struct Surface_pert{S,T,N_dim}
+    points::Vector{surface_point_pert{S,T,N_dim}}
 end 
 
 struct Chart{S,T,N_parm,N_dim,N_field}
     points::Vector{Surface_coodrinates{S,T,N_parm,N_dim,N_field}}
 end 
 
+struct Chart_pert{S,T,N_parm,N_dim}
+    points::Vector{Surface_coordinates_pert{S,T,N_parm,N_dim}} #maybe change here
+end 
 
 function Chart(Sur::Surface{S,T,N_dim,N_field}) where {S,T,N_dim,N_field}
     Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points))
@@ -1181,6 +1209,9 @@ function Chart(Sur::Surface{S,T,N_dim,N_field},surface_condition) where {S,T,N_d
     Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points,surface_condition))
 end
 
+function Chart(Sur::Surface{S,T,N_dim,N_field}) where {S,T,N_dim,N_field}
+    Chart_pert{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points))
+end
 
 struct DifferentibleChart{S,T,N_parm,N_dim,N_field,leftbound,rightbound,A,B}
     X::A
