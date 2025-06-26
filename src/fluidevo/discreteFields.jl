@@ -1185,6 +1185,19 @@ function Surface_coordinates(point::surface_point_pert{S,T,N_dim} ) where {S,T,N
     end 
 end 
 
+
+function Surface_coordinates(point::surface_point_pert{S,T,N_dim},surface_condition ) where {S,T,N_dim}
+    #here i pick up the first two entry of x 
+    #x_red=point.X[1:2]
+    #r=hypot(x_red...)
+    #theta=atan(x_red...)
+    
+    coordianates=surface_condition(point.X...)
+    
+    Surface_coordinates_pert(coordianates,point.X,point.C
+        )
+end
+
 struct Surface{S,T,N_dim,N_field}
     points::Vector{surface_point{S,T,N_dim,N_field}}
 end 
@@ -1209,8 +1222,12 @@ function Chart(Sur::Surface{S,T,N_dim,N_field},surface_condition) where {S,T,N_d
     Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points,surface_condition))
 end
 
-function Chart(Sur::Surface{S,T,N_dim,N_field}) where {S,T,N_dim,N_field}
-    Chart_pert{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points))
+function Chart(Sur::Surface_pert{S,T,N_dim}) where {S,T,N_dim}
+    Chart_pert{S,T,N_dim-1,N_dim}(Surface_coordinates.(Sur.points))
+end
+
+function Chart(Sur::Surface_pert{S,T,N_dim},surface_condition) where {S,T,N_dim}
+    Chart_pert{S,T,N_dim-1,N_dim}(Surface_coordinates.(Sur.points,surface_condition))
 end
 
 struct DifferentibleChart{S,T,N_parm,N_dim,N_field,leftbound,rightbound,A,B}
@@ -1285,6 +1302,31 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N
 
     phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
 
+    #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
+    function X(x)
+        SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
+    end
+
+    function phi(x)
+        SVector{N_field}(ntuple(i->phi_interp[i](x),Val{N_field}()))
+    end
+
+    (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(phi,total_left,total_right))
+end
+
+function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}};sort_index=3) where {S,T,N_parm,N_dim}
+    
+    sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
+
+    totalpoint=length(sortedcha)
+    total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
+
+    total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
+
+    X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())
+
+    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+    C_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
     #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
     function X(x)
         SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
