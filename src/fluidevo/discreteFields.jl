@@ -1314,29 +1314,36 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N
     (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(phi,total_left,total_right))
 end
 
-function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}};sort_index=3) where {S,T,N_parm,N_dim}
+function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
     
     sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
-
+    @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
     totalpoint=length(sortedcha)
     total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
 
     total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
 
     X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())
-
+    grid_min=grid.grid[2]
+    grid_max=grid.grid[end-1]
+    lowerbound=[total_left,grid_min]
+    upperbound=[total_right,grid_max]
+    grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
+    #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
+    #@show value_combos
+    #TOD pass grid and get min max, but drop 1 ond last
     #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
-    C_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+    C_interp=ntuple(kappa->ntuple(field2->ntuple(field1->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),10),10),2)
     #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
     function X(x)
         SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
     end
 
-    function phi(x)
-        SVector{N_field}(ntuple(i->phi_interp[i](x),Val{N_field}()))
+    function C(alpha,r)
+        Vector{2,10,10}(ntuple(kappa->ntuple(field2->ntuple(field1->C_interp[kappa,field1,field2](alpha,r),10),10),2))
     end
 
-    (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(phi,total_left,total_right))
+    (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(C,total_left,total_right))
 end
 
 
@@ -1372,6 +1379,46 @@ function radial_basisinterpolate(surf::Chart{S,T,N_parm,N_dim,N_field};baches=20
             end 
         else 
             x,phi=_radial_basisinterpolate(sortedcha,sort_index=sort_index)
+            X=PieceWiseFunction(x)
+            Phi=PieceWiseFunction(phi)
+        end 
+
+    return FreezeOutResult(X,Phi) #(coord=X,fields=Phi)
+end 
+
+
+function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=2001,sort_index=1) where {S,T,N_parm,N_dim}
+
+        #here i sort the vector on the dimension select by sort_index 
+        sortedcha=sort(surf.points,by=v->getindex(v.coordinates,sort_index))
+        #first we check the size of the vector 
+        len=length(sortedcha)
+        #then we compute the number of baches 
+        if len >baches
+            # here we have at least 2 baches 
+            nbaches=div(len,baches) +1 
+                
+            x,phi=_radial_basisinterpolate(view(sortedcha,1:baches),grid,sort_index=sort_index)
+            
+            X=PieceWiseFunction(x)
+            Phi=PieceWiseFunction(phi)
+            for i in 2:nbaches
+                #@show i
+                if i==nbaches
+                    final_lenght=len
+                else 
+                    final_lenght = (baches*(i))
+                end 
+                #@show final_lenght
+                x,phi=_radial_basisinterpolate(view(sortedcha,(baches*(i-1)+1):final_lenght),grid,sort_index=sort_index)
+                
+                 
+                X=PieceWiseFunction(X,x)
+                Phi=PieceWiseFunction(Phi,phi)
+
+            end 
+        else 
+            x,phi=_radial_basisinterpolate(sortedcha,grid,sort_index=sort_index)
             X=PieceWiseFunction(x)
             Phi=PieceWiseFunction(phi)
         end 
