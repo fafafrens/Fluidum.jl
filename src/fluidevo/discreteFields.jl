@@ -1015,7 +1015,7 @@ struct surface_crossing_pert{S,T,N_field}
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
-    C_1::Array{S,4}
+    C_1::Array{S,4} #check typestable
     C_2::Array{S,4}
 end
 
@@ -1399,7 +1399,7 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
             nbaches=div(len,baches) +1 
                 
             x,phi=_radial_basisinterpolate(view(sortedcha,1:baches),grid,sort_index=sort_index)
-            
+            return x,phi
             X=PieceWiseFunction(x)
             Phi=PieceWiseFunction(phi)
             for i in 2:nbaches
