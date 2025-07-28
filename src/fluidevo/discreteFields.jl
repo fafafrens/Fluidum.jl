@@ -1317,32 +1317,43 @@ end
 function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
     
     sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
-    @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
+   # @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
     totalpoint=length(sortedcha)
     total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
 
     total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
 
     X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())
-    grid_min=grid.grid[2]
-    grid_max=grid.grid[end-1]
-    lowerbound=[total_left,grid_min]
-    upperbound=[total_right,grid_max]
-    grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
+    #grid_min=grid.grid[2]
+    #grid_max=grid.grid[end-1]
+    #lowerbound=[total_left,grid_min]
+    #upperbound=[total_right,grid_max]
+    #grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
+    
+    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+    C_interp = ntuple(k -> ntuple(field1 -> ntuple(field2 -> ntuple(r2 -> RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial()), 100), 10), 10), 2)
+   #@show typeof(C_interp[1][1][2][1](0.1)[1])
     #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
     #@show value_combos
     #TOD pass grid and get min max, but drop 1 ond last
     #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
-    C_interp=ntuple(kappa->ntuple(field2->ntuple(field1->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),10),10),2)
+   # C_interp=ntuple(k->ntuple(field1->ntuple(field2->ntuple(r2->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),100),10),10),2)
     #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
     function X(x)
         SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
     end
 
-    function C(alpha,r)
-        Vector{2,10,10}(ntuple(kappa->ntuple(field2->ntuple(field1->C_interp[kappa,field1,field2](alpha,r),10),10),2))
+    function C(alpha)
+    arr = Array{Float64,4}(undef, 2, 10, 10, 100)
+    for k in 1:2, field1 in 1:10, field2 in 1:10, r2 in 1:100
+        arr[k, field1, field2, r2] = C_interp[k][field1][field2][r2](alpha)[1]
     end
+    arr
+end
+#show typeof(C(0.1))
 
+   
+   
     (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(C,total_left,total_right))
 end
 
@@ -1395,6 +1406,7 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
         len=length(sortedcha)
         #then we compute the number of baches 
         if len >baches
+           # print("len >baches")
             # here we have at least 2 baches 
             nbaches=div(len,baches) +1 
                 
@@ -1418,15 +1430,24 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
 
             end 
         else 
+           # print("len <baches")
+            
             x,phi=_radial_basisinterpolate(sortedcha,grid,sort_index=sort_index)
             X=PieceWiseFunction(x)
             Phi=PieceWiseFunction(phi)
         end 
-
+     #   @show FreezeOutResult(X,Phi) 
     return FreezeOutResult(X,Phi) #(coord=X,fields=Phi)
 end 
 
+"""
+spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100)
 
+    Takes the freezeout coordinates and fields in X.
+    Returns a FreezeOutResult with SplineInterp for the coordinates and fields.
+    A and B are PieceWiseFunction types.
+    ndim_tuple is the number of points in the spline interpolation.
+"""
 function spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100) where {A<:PieceWiseFunction,B<:PieceWiseFunction}
     
     #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
@@ -1438,5 +1459,10 @@ end
 function freezeout_interpolation(surf::Chart{S,T,N_parm,N_dim,N_field};baches=5001,sort_index=2,ndim_tuple=100) where {S,T,N_parm,N_dim,N_field}
      
     spline_interpolation(radial_basisinterpolate(surf,baches=baches,sort_index=sort_index),ndim_tuple=ndim_tuple)
+end 
+
+function freezeout_interpolation(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=5001,sort_index=2,ndim_tuple=100) where {S,T,N_parm,N_dim}
+     
+    spline_interpolation(radial_basisinterpolate(surf,grid, baches=baches,sort_index=sort_index),ndim_tuple=ndim_tuple)
 end 
 

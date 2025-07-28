@@ -89,20 +89,74 @@ struct SplineInterp{tuple,A,left,right} <:AbstractBoundedFunction{left,right}
 a::A
 end
 
-function SplineInterp(fun,tuple)
+"""
+SplineInterp(fun,tuple)
+    fun: A PieceWiseFunction or a function that takes a tuple of values and returns a value.
+    tuple: A tuple of integers that defines the number of points in each dimension for the spline interpolation.
+    returns: A SplineInterp object that can be used to evaluate the function at any point within the bounds defined by the PieceWiseFunction.
+"""
+#=function SplineInterp(fun,tuple)
     left=leftbounds(fun)
     right=rightbounds(fun)
+    #@show left, right
     ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
     iter =Iterators.product(ranges...)
-
     A = [fun(i) for i in iter ]
-
+    @show A[1]
     itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
-    
+
     sitp = scale(itp, ranges...)
 
     SplineInterp{tuple,typeof(sitp),left,right}(sitp)
+end =#
+
+
+function SplineInterp(fun,tuple)
+    left=leftbounds(fun)
+    right=rightbounds(fun)
+    #@show left, right
+    ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
+    @show ranges
+    iter =Iterators.product(ranges...)
+    A = [fun(i) for i in iter ]
+    
+   # for I in CartesianIndices(size(A[1]))
+   #     println(I)
+        #itp = Interpolations.interpolate(A[:][I], BSpline(Cubic(Line(OnGrid()))))
+        
+   # end
+   #@show ndims(A[1])
+    B= cat(A...,dims=ndims(A[1]) + 1)
+  #  @show typeof(B[:,1,1,1,1])
+  #  @show size(B)
+    #function C(alpha)
+    #arr = Array{Float64,4}(undef, 2, 10, 10, 100)
+    #for k in 1:2, field1 in 1:10, field2 in 1:10, r2 in 1:100
+    #    arr[k, field1, field2, r2] = C_interp[k][field1][field2][r2](alpha)[1]
+    #end
+    #arr
+ #  itp = Array{Any}(undef,size(A[1]))
+   #@show size(itp)
+ #  sitp = Array{Any}(undef,size(A[1]))
+   
+   itp = map(CartesianIndices(size(A[1]))) do I
+       #println(I)
+       Interpolations.interpolate(B[I,:], BSpline(Cubic(Line(OnGrid()))))
+   end
+   sitp = map(itp) do I
+        scale(I, ranges...)
+   end
+#
+   #    #itp = Interpolations.interpolate(B[I...], BSpline(Cubic(Line(OnGrid()))))
+   #    #B[I...] = itp
+   # @show typeof(itp)
+    #itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
+
+    #sitp = scale(itp, ranges...)
+
+    SplineInterp{tuple,typeof(sitp),left,right}(sitp)
 end 
+
 
 function (f::SplineInterp{tuple,A,left,right})(x::NTuple{N,T}) where {tuple,A,left,right,N,T}
     f.a(x...)
