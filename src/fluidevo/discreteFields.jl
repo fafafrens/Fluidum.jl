@@ -843,12 +843,12 @@ end
 function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
     disc_pert::DiscreteFileds{T_pert, total_dimensions_pert, space_dimension, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert},
     prob,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2,T_pert, total_dimensions_pert, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert}
-    @show space_dimension,total_dimensions,N_field,total_dimensions_pert,N_field_pert
+   # @show space_dimension,total_dimensions,N_field,total_dimensions_pert,N_field_pert
     integrator = init(prob,Tsit5();save_everystep=false) #fine
     e_i=disc.index_structure.unit_inidices_space
     X=disc.discretization
     index=get_index(express,disc.fields)
-    @show Sizes[1],T_pert,typeof(tspan[1])
+  #  @show Sizes[1],T_pert,typeof(tspan[1])
 #preallocation of a surface vector 
     surface_list=zeros(surface_crossing_point{T,typeof(tspan[1]),space_dimension+1,N_field},100000) #100000 is number of counts
     surface_list_pert=zeros(surface_crossing_point_pert{Float64,Float64,space_dimension+1},100000) #this is fine
@@ -871,7 +871,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
             # time  
             #if ((ϕ[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ[index]<surf))
             if (ϕprev[index]>surf)&&(ϕ[index]<surf)
-                @show count
+               # @show count
                 #Cnow_cache = @views u.C[:,:,:,1,I,:]
                 #Cprev_cache = @views uprev.C[:,:,:,1,I,:]   
             #@show axes(Cprev) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
@@ -881,12 +881,12 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
 #adjust the tuple!! maybe redefine the discrete fields for the perturbations, to store all the dimensions
                 
                     surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
-                    print("bg done")
+                   # print("bg done")
                     surface_list_pert[count]=surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:])     
                     count=count +1 
                     else 
                     push!(surface_list,surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
-                    print("bg done")
+                  #  print("bg done")
                     
                     push!(surface_list_pert,surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
@@ -986,10 +986,14 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     if length(surface_list_pert)>count
         surface_list_pert=surface_list_pert[1:count-1]
     end  
-    
-    surface_pert_tuples = linar_interpol.(surface_list, surface_list_pert, Ref(surf), Ref(express), Ref(disc))
-    surface = [x[1] for x in surface_pert_tuples]
-    surface_pert = [x[2] for x in surface_pert_tuples]
+   
+    surface_pert_tuples = map((s, s_pert) -> linar_interpol(s, s_pert, surf, express, disc), surface_list, surface_list_pert)
+    surface = getindex.(surface_pert_tuples, 1)
+    surface_pert = getindex.(surface_pert_tuples, 2)
+    #surface_pert_tuples = map((s, s_pert) -> linar_interpol(s, s_pert, surf, express, disc), surface_list, surface_list_pert)
+    #surface_pert_tuples = linar_interpol.(surface_list, surface_list_pert, Ref(surf), Ref(express), Ref(disc))
+   # surface = [x[1] for x in surface_pert_tuples]
+   # surface_pert = [x[2] for x in surface_pert_tuples]
     
     #surface,surface_pert=linar_interpol.(surface_list,surface_list_pert,Ref(surf),Ref(express),Ref(disc))
     #@show surface,surface_pert

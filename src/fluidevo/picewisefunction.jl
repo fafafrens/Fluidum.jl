@@ -116,7 +116,6 @@ function SplineInterp(fun,tuple)
     right=rightbounds(fun)
     #@show left, right
     ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
-    @show ranges
     iter =Iterators.product(ranges...)
     A = [fun(i) for i in iter ]
     
@@ -128,7 +127,6 @@ function SplineInterp(fun,tuple)
    #@show ndims(A[1])
     B= cat(A...,dims=ndims(A[1]) + 1)
   #  @show typeof(B[:,1,1,1,1])
-  #  @show size(B)
     #function C(alpha)
     #arr = Array{Float64,4}(undef, 2, 10, 10, 100)
     #for k in 1:2, field1 in 1:10, field2 in 1:10, r2 in 1:100
@@ -153,8 +151,9 @@ function SplineInterp(fun,tuple)
     #itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
 
     #sitp = scale(itp, ranges...)
-
-    SplineInterp{tuple,typeof(sitp),left,right}(sitp)
+#@show typeof(sitp)
+#@show size(A[1])
+    return SplineInterp{tuple,typeof(sitp),left,right}(sitp)
 end 
 
 
@@ -176,3 +175,7 @@ jacobian(f::SplineInterp{tuple,A,left,right},x::NTuple{N,T}) where {tuple,A,left
 jacobian(f::SplineInterp{tuple,A,left,right},x::SVector{N,T}) where {tuple,A,left,right,N,T}  =reduce(hcat,Interpolations.gradient(f.a,x...))'
 
 jacobian(f::SplineInterp{tuple,A,left,right},x...) where {tuple,A,left,right}  =reduce(hcat,Interpolations.gradient(f.a,x...))'
+
+
+
+#now these don't work cause f.a is a tuple of interpolated objects, to be called f.a[1](x...),f.a[2](x...)
