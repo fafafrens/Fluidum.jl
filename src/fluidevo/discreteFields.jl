@@ -1107,7 +1107,11 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,expres
     surface_point(X_fo,phi_fo)
 end
 
-function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim},temp,express::Symbol,disc) where {M,T,N_dim,N_field}
+function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},
+    S_pert::surface_crossing_point_pert{S1,S2,N_dim, N_field2,n_grid},
+    temp,express::Symbol,disc) where {M,T,N_dim,N_field,S1,S2,N_field2,n_grid}
+
+
     index=get_index(express,disc.fields)
     x1=S.X_1
     x2=S.X_2
@@ -1146,7 +1150,7 @@ struct surface_point_pert{S,T,N_dim}
     C::Array{S,4}
 end 
 
-struct Surface_coodrinates{S,T,N_parm,N_dim,N_field}
+struct Surface_coordinates{S,T,N_parm,N_dim,N_field}
     coordinates::SVector{N_parm,T}
     X::SVector{N_dim,T}
     phi::SVector{N_field,S}
@@ -1156,34 +1160,36 @@ struct Surface_coordinates_pert{S,T,N_parm,N_dim}
     coordinates::SVector{N_parm,T}
     X::SVector{N_dim,T}
     C::Array{S,4}
+    #this is the size of the perturbation field
+
 end 
 
 
-function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
+function Surface_coordinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
     #here i pick up the first two entry of x 
     x_red=point.X[1:2]
     r=hypot(x_red...)
     theta=atan(x_red...)
     if N_dim <3
-        Surface_coodrinates(SVector{N_dim-1}(theta),point.X,point.phi
+        Surface_coordinates(SVector{N_dim-1}(theta),point.X,point.phi
         )
     else 
-        Surface_coodrinates(SVector{N_dim-1}((theta,point.X[3:end]...)),
+        Surface_coordinates(SVector{N_dim-1}((theta,point.X[3:end]...)),
         point.X,point.phi
         )
     end 
 end 
 
 
-function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field},surface_condition ) where {S,T,N_dim,N_field}
+function Surface_coordinates(point::surface_point{S,T,N_dim,N_field},surface_condition ) where {S,T,N_dim,N_field}
     #here i pick up the first two entry of x 
     #x_red=point.X[1:2]
     #r=hypot(x_red...)
     #theta=atan(x_red...)
     
-    coordianates=surface_condition(point.X...)
-    
-    Surface_coodrinates(coordianates,point.X,point.phi
+    coordinates=surface_condition(point.X...)
+
+    Surface_coordinates(coordinates,point.X,point.phi
         )
 end
 
@@ -1210,9 +1216,9 @@ function Surface_coordinates(point::surface_point_pert{S,T,N_dim},surface_condit
     #r=hypot(x_red...)
     #theta=atan(x_red...)
     
-    coordianates=surface_condition(point.X...)
-    
-    Surface_coordinates_pert(coordianates,point.X,point.C
+    coordinates=surface_condition(point.X...)
+
+    Surface_coordinates_pert(coordinates,point.X,point.C
         )
 end
 
@@ -1225,7 +1231,7 @@ struct Surface_pert{S,T,N_dim}
 end 
 
 struct Chart{S,T,N_parm,N_dim,N_field}
-    points::Vector{Surface_coodrinates{S,T,N_parm,N_dim,N_field}}
+    points::Vector{Surface_coordinates{S,T,N_parm,N_dim,N_field}}
 end 
 
 struct Chart_pert{S,T,N_parm,N_dim}
@@ -1233,11 +1239,11 @@ struct Chart_pert{S,T,N_parm,N_dim}
 end 
 
 function Chart(Sur::Surface{S,T,N_dim,N_field}) where {S,T,N_dim,N_field}
-    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points))
+    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coordinates.(Sur.points))
 end
 
 function Chart(Sur::Surface{S,T,N_dim,N_field},surface_condition) where {S,T,N_dim,N_field}
-    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points,surface_condition))
+    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coordinates.(Sur.points,surface_condition))
 end
 
 function Chart(Sur::Surface_pert{S,T,N_dim}) where {S,T,N_dim}
@@ -1307,8 +1313,19 @@ Base.iterate(S::FreezeOutResult, ::Val{:x}) = (S.fields, Val(:done))
 Base.iterate(S::FreezeOutResult, ::Val{:done}) = nothing
 
 
-function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N_parm,N_dim,N_field}};sort_index=3) where {S,T,N_parm,N_dim,N_field}
-    
+struct FreezeOutResultPerturbation{A,B}
+    x::A
+    C::B
+end 
+
+Base.iterate(S::FreezeOutResultPerturbation) = (S.x, Val(:x))
+Base.iterate(S::FreezeOutResultPerturbation, ::Val{:x}) = (S.C, Val(:done))
+Base.iterate(S::FreezeOutResultPerturbation, ::Val{:done}) = nothing
+
+
+
+function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates{S,T,N_parm,N_dim,N_field}};sort_index=3) where {S,T,N_parm,N_dim,N_field}
+
     sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
 
     totalpoint=length(sortedcha)
@@ -1333,7 +1350,7 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N
 end
 
 function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
-    
+
     sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
    # @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
     totalpoint=length(sortedcha)
@@ -1349,7 +1366,16 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{
     #grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
     
     #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+    correlator_dimension= size(first(surf).C)
     C_interp = ntuple(k -> ntuple(field1 -> ntuple(field2 -> ntuple(r2 -> RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial()), 100), 10), 10), 2)
+
+    C_interp = map(CartesianIndices(correlator_dimension)) do  I
+        k, field1, field2, r2 = Tuple(I)
+        RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial())
+    end
+
+
+
    #@show typeof(C_interp[1][1][2][1](0.1)[1])
     #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
     #@show value_combos
@@ -1357,22 +1383,18 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{
     #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
    # C_interp=ntuple(k->ntuple(field1->ntuple(field2->ntuple(r2->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),100),10),10),2)
     #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
-    function X(x)
-        SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
-    end
 
-    function C(alpha)
+
+    #=function C(alpha)
     arr = Array{Float64,4}(undef, 2, 10, 10, 100)
     for k in 1:2, field1 in 1:10, field2 in 1:10, r2 in 1:100
         arr[k, field1, field2, r2] = C_interp[k][field1][field2][r2](alpha)[1]
     end
     arr
-end
+end=#
 #show typeof(C(0.1))
 
-   
-   
-    (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(C,total_left,total_right))
+    (coord=BoundedFunction.(X_interp,Ref(total_left),Ref(total_right)),fields=BoundedFunction.(C_interp,Ref(total_left),Ref(total_right)))
 end
 
 
@@ -1451,11 +1473,11 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
            # print("len <baches")
             
             x,phi=_radial_basisinterpolate(sortedcha,grid,sort_index=sort_index)
-            X=PieceWiseFunction(x)
-            Phi=PieceWiseFunction(phi)
+            X=PieceWiseFunction.(x)
+            Phi=PieceWiseFunction.(phi)
         end 
      #   @show FreezeOutResult(X,Phi) 
-    return FreezeOutResult(X,Phi) #(coord=X,fields=Phi)
+    return FreezeOutResultPerturbation(X,Phi) #(coord=X,fields=Phi)
 end 
 
 """
@@ -1472,6 +1494,21 @@ function spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100) where {A<:
     x,phi=X
     FreezeOutResult(SplineInterp(x,ndim_tuple),SplineInterp(phi,ndim_tuple))
 end 
+
+function spline_interpolation(X::FreezeOutResultPerturbation{A,B};ndim_tuple=100) where {A,B}
+    
+    #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
+    x,phi=X
+    
+    C=map(phi) do i
+        @show i 
+       SplineInterp(i,ndim_tuple) 
+    end
+     x_out=map(x) do i
+       SplineInterp(i,ndim_tuple) 
+    end
+   FreezeOutResultPerturbation(x_out,C)
+end
 
 
 function freezeout_interpolation(surf::Chart{S,T,N_parm,N_dim,N_field};baches=5001,sort_index=2,ndim_tuple=100) where {S,T,N_parm,N_dim,N_field}

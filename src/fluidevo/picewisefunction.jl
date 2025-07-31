@@ -95,22 +95,23 @@ SplineInterp(fun,tuple)
     tuple: A tuple of integers that defines the number of points in each dimension for the spline interpolation.
     returns: A SplineInterp object that can be used to evaluate the function at any point within the bounds defined by the PieceWiseFunction.
 """
-#=function SplineInterp(fun,tuple)
+function SplineInterp(fun,tuple)
     left=leftbounds(fun)
     right=rightbounds(fun)
     #@show left, right
     ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
     iter =Iterators.product(ranges...)
     A = [fun(i) for i in iter ]
-    @show A[1]
+
+    @show fun(first(ranges)...)
     itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
 
     sitp = scale(itp, ranges...)
 
     SplineInterp{tuple,typeof(sitp),left,right}(sitp)
-end =#
+end 
 
-
+#=
 function SplineInterp(fun,tuple)
     left=leftbounds(fun)
     right=rightbounds(fun)
@@ -155,7 +156,7 @@ function SplineInterp(fun,tuple)
 #@show size(A[1])
     return SplineInterp{tuple,typeof(sitp),left,right}(sitp)
 end 
-
+=#
 
 function (f::SplineInterp{tuple,A,left,right})(x::NTuple{N,T}) where {tuple,A,left,right,N,T}
     f.a(x...)
