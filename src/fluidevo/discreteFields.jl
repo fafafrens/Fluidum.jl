@@ -1077,7 +1077,7 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,expres
     surface_point(X_fo,phi_fo)
 end
 
-function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim},temp,express::Symbol,disc) where {M,T,N_dim,N_field,N_field_pert}
+function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim},temp,express::Symbol,disc) where {M,T,N_dim,N_field}
     index=get_index(express,disc.fields)
     x1=S.X_1
     x2=S.X_2
