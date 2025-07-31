@@ -847,11 +847,14 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     integrator = init(prob,Tsit5();save_everystep=false) #fine
     e_i=disc.index_structure.unit_inidices_space
     X=disc.discretization
+    n_grid=first(Sizes_pert)
     index=get_index(express,disc.fields)
-  #  @show Sizes[1],T_pert,typeof(tspan[1])
+
+    crossing_point_type_pert=surface_crossing_point_pert{T,T,space_dimension+1,N_field_pert,N_field2_pert}
+    
 #preallocation of a surface vector 
     surface_list=zeros(surface_crossing_point{T,typeof(tspan[1]),space_dimension+1,N_field},100000) #100000 is number of counts
-    surface_list_pert=zeros(surface_crossing_point_pert{Float64,Float64,space_dimension+1},100000) #this is fine
+    surface_list_pert=zeros(crossing_point_type_pert,100000) #this is fine
     #@show typeof(surface_list_pert),typeof(surface_list)
     max_size=length(surface_list)
     max_size_pert=length(surface_list_pert)
@@ -880,15 +883,21 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
 
 #adjust the tuple!! maybe redefine the discrete fields for the perturbations, to store all the dimensions
                 
-                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
+                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()]
+                    ,X[t,I,Val{:SVector}()],
+                    SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
+                    SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
                    # print("bg done")
-                    surface_list_pert[count]=surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:])     
+                    surface_list_pert[count]=crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()],
+                    uprev.C[:,:,:,1,I,:],
+                    u.C[:,:,:,1,I,:])     
                     count=count +1 
                     else 
-                    push!(surface_list,surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
+                    push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
                   #  print("bg done")
                     
-                    push!(surface_list_pert,surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
+                    push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
                     count=count +1 
                 end
@@ -915,7 +924,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_plus[i],Val{N_field}()))
                             )
-                        surface_list_pert[count]=surface_crossing_point_pert(
+                        surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],uprev.C[:,:,:,1,I_check_plus,:])
@@ -927,7 +936,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_plus[i],Val{N_field}())))
                             )
-                        push!(surface_list_pert,surface_crossing_point_pert(
+                        push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
@@ -946,7 +955,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_minus[i],Val{N_field}()))
                             )
-                        surface_list_pert[count]=surface_crossing_point_pert(
+                        surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
@@ -960,7 +969,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_minus[i],Val{N_field}())))
                             )
-                        push!(surface_list_pert,surface_crossing_point_pert(
+                        push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
@@ -1005,25 +1014,25 @@ end
 
 
 
-struct surface_crossing{S,T,N_dim,N_field}
+#=struct surface_crossing{S,T,N_dim,N_field}
     t_1::T
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
     phi_1::SVector{N_field,S}
     phi_2::SVector{N_field,S}
-end
+end =#
 
-struct surface_crossing_pert{S,T,N_field}
+#= struct surface_crossing_pert{S,T,N_dim, N_field,n_grid}
     t_1::T
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
     C_1::Array{S,4} #check typestable
     C_2::Array{S,4}
-end
+end =#
 
-function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
+#=function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
     surface_crossing(
     zero(T)
     ,zero(T),
@@ -1031,17 +1040,17 @@ function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim
     zero(CartesianIndex{N_dim}),
     zeros(SVector{N_field,S}),
     zeros(SVector{N_field,S})  )
-end
+end =#
 
-function Base.zero(::Type{surface_crossing_pert{S,T,N_dim}}) where {S,T,N_dim}
+#=function Base.zero(::Type{surface_crossing_pert{S,T,N_dim, N_field,n_grid}}) where {S,T,N_dim, N_field,n_grid}
     surface_crossing_pert(
     zero(T)
     ,zero(T),
     zero(CartesianIndex{N_dim}),
     zero(CartesianIndex{N_dim}),
-    zeros(S,2,10,10,100),
-    zeros(S,2,10,10,100))
-end
+    zeros(S,2,N_field,N_field,n_grid),
+    zeros(S,2,N_field,N_field,n_grid))
+end =#
 
 
 struct surface_crossing_point{S,T,N_dim,N_field}
@@ -1051,12 +1060,33 @@ struct surface_crossing_point{S,T,N_dim,N_field}
     phi_2::SVector{N_field,S}
 end 
 
-struct surface_crossing_point_pert{S,T,N_dim}
+struct surface_crossing_point_pert{S,T,N_dim,N_field,n_grid}
     X_1::SVector{N_dim,T}
     X_2::SVector{N_dim,T}
     C_1::Array{S,4}
     C_2::Array{S,4}
 end
+
+
+
+function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
+    surface_crossing_point(
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_field,S}),
+    zeros(SVector{N_field,S})  )
+end
+
+function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}}) where {S,T,N_dim, N_field,n_grid}
+    surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}(
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_dim,T}),
+    zeros(S,2,N_field,N_field,n_grid),
+    zeros(S,2,N_field,N_field,n_grid))
+    
+end
+
+
 
 function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,express::Symbol,disc) where {M,T,N_dim,N_field}
     index=get_index(express,disc.fields)
@@ -1104,24 +1134,8 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::sur
     return (surface_point(X_fo,phi_fo),surface_point_pert(X_fo,phi_fo_pert))
 end
 
-function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
-    surface_crossing_point(
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_field,S}),
-    zeros(SVector{N_field,S})  )
-end
 
-function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim}}) where {S,T,N_dim}
-    surface_crossing_point_pert(
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_dim,T}),
-    #zeros(S,2,N_field,N_field,length),
-    #zeros(S,2,N_field,N_field,length)
-    zeros(S,2,10,10,100),
-    zeros(S,2,10,10,100)
-    )
-end
+
 
 struct surface_point{S,T,N_dim,N_field}
     X::SVector{N_dim,T}
