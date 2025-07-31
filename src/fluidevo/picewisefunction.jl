@@ -98,12 +98,22 @@ SplineInterp(fun,tuple)
 function SplineInterp(fun,tuple)
     left=leftbounds(fun)
     right=rightbounds(fun)
-    #@show left, right
     ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
     iter =Iterators.product(ranges...)
     A = [fun(i) for i in iter ]
+    itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
 
-    @show fun(first(ranges)...)
+    sitp = scale(itp, ranges...)
+
+    SplineInterp{tuple,typeof(sitp),left,right}(sitp)
+end 
+
+function SplineInterpPerturbation(fun,tuple)
+    left=leftbounds(fun)
+    right=rightbounds(fun)
+    ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
+    iter =Iterators.product(ranges...)
+    A = [fun(i)[1] for i in iter ]
     itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
 
     sitp = scale(itp, ranges...)
