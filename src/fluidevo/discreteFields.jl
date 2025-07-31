@@ -1160,8 +1160,6 @@ struct Surface_coordinates_pert{S,T,N_parm,N_dim}
     coordinates::SVector{N_parm,T}
     X::SVector{N_dim,T}
     C::Array{S,4}
-    #this is the size of the perturbation field
-
 end 
 
 
@@ -1351,29 +1349,68 @@ end
 
 function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
 
-    sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
+    sortedcha=sort(surf,by=v->getindex(v.coordinates,sort_index))
    # @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
     totalpoint=length(sortedcha)
-    total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
+   
+    #total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
 
-    total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
+   # total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
 
-    X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())
-    #grid_min=grid.grid[2]
-    #grid_max=grid.grid[end-1]
-    #lowerbound=[total_left,grid_min]
-    #upperbound=[total_right,grid_max]
-    #grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
-    
-    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+    total_left = ntuple(Val{N_parm}()) do i
+        extrema(map(sortedcha) do s
+            s.coordinates[i]
+        end
+        )[1]
+
+      #  extrema(getindex.(sortedcha.coordinates, i))[1]
+ end
+ 
+    total_right= ntuple(Val{N_parm}()) do i
+        extrema(map(sortedcha) do s
+            s.coordinates[i]
+        end
+        )[2]
+
+      #  extrema(getindex.(sortedcha.coordinates, i))[1]
+    end
+    alpha = map(sortedcha) do s
+           s.coordinates
+    end
+    X_interp=map(1:N_dim) do i
+        x_i = map(sortedcha) do s
+        s.X[i]
+        end
+        RadialBasis(alpha,x_i, total_left, total_right, rad=thinplateRadial())
+    end
     correlator_dimension= size(first(surf).C)
-   # C_interp = ntuple(k -> ntuple(field1 -> ntuple(field2 -> ntuple(r2 -> RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial()), 100), 10), 10), 2)
-
-    C_interp = map(CartesianIndices(correlator_dimension)) do  I
+   
+    C_interp = map(CartesianIndices(correlator_dimension)) do I
         k, field1, field2, r2 = Tuple(I)
-        RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial())
+        C_i = map(sortedcha) do s
+            s.C[k, field1, field2, r2, :]
+        end
+        RadialBasis(alpha, C_i, total_left, total_right, rad=thinplateRadial())
     end
 
+   # X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())   
+    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
+   # C_interp = ntuple(k -> ntuple(field1 -> ntuple(field2 -> ntuple(r2 -> RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial()), 100), 10), 10), 2)
+
+    #=C_interp = map(CartesianIndices(correlator_dimension)) do  I
+        k, field1, field2, r2 = Tuple(I)
+        a=sortedcha.C[k, field1, field2, r2, :]
+        @show typeof(getindex.(sortedcha.C, k, field1, field2, r2, :))
+        RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial())
+    end=#
+   
+    fields = map(C_interp) do I
+        BoundedFunction(I, total_left, total_right)
+    end
+    coord = map(X_interp) do I
+        BoundedFunction(I, total_left, total_right)
+    end
+    
    #@show typeof(C_interp[1][1][2][1](0.1)[1])
     #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
     #@show value_combos
@@ -1391,7 +1428,8 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{
     arr
 end=#
 #show typeof(C(0.1))
-    return (coord=BoundedFunction.(X_interp,Ref(total_left),Ref(total_right)),fields=BoundedFunction.(C_interp,Ref(total_left),Ref(total_right)))
+    #return (coord=BoundedFunction.(X_interp,Ref(total_left),Ref(total_right)),fields=BoundedFunction.(C_interp,Ref(total_left),Ref(total_right)))
+    return (;coord,fields)
 end
 
 
@@ -1471,7 +1509,9 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
            # print("len <baches")
             
             x,phi=_radial_basisinterpolate(sortedcha,grid,sort_index=sort_index)
-            X=PieceWiseFunction.(x)
+            X= map(x) do I
+                PieceWiseFunction(I)
+            end
             Phi=map(phi) do I
                 PieceWiseFunction(I)
             end
@@ -1497,14 +1537,11 @@ function spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100) where {A<:
 end 
 
 function spline_interpolation(X::FreezeOutResultPerturbation{A,B};ndim_tuple=100) where {A,B}
-    @show "here"
     #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
     x,phi=X
-    
-    C=map(phi) do i
+     C=map(phi) do i
        SplineInterpPerturbation(i,ndim_tuple) 
     end
-    
     x_out=map(x) do i
        SplineInterpPerturbation(i,ndim_tuple) 
     end #ok
