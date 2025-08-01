@@ -852,10 +852,10 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
 
     crossing_point_type_pert=surface_crossing_point_pert{T,T,space_dimension+1,N_field_pert,N_field2_pert}
     
-#preallocation of a surface vector 
+    #preallocation of a surface vector 
     surface_list=zeros(surface_crossing_point{T,typeof(tspan[1]),space_dimension+1,N_field},100000) #100000 is number of counts
     surface_list_pert=zeros(crossing_point_type_pert,100000) #this is fine
-    #@show typeof(surface_list_pert),typeof(surface_list)
+   
     max_size=length(surface_list)
     max_size_pert=length(surface_list_pert)
     count=1
@@ -863,31 +863,22 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     @inbounds for (uprev,tprev,u,t) in intervals(integrator)
         max_of_index=zero(T)
         @inbounds for I in disc.index_structure.interior
-            #Cprev_cache,Cnow_cache=matrix_temp
-            #take!(Cprev_cache)
-            
+          
             ϕ=@views u.phi[I,:]
             ϕprev=@views uprev.phi[I,:]
 
-            # @inbounds for I in disc.index_structure.interior
             max_of_index=max(ϕprev[index],max_of_index)
             # time  
             #if ((ϕ[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ[index]<surf))
             if (ϕprev[index]>surf)&&(ϕ[index]<surf)
-               # @show count
-                #Cnow_cache = @views u.C[:,:,:,1,I,:]
-                #Cprev_cache = @views uprev.C[:,:,:,1,I,:]   
-            #@show axes(Cprev) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
             
                 if count<=max_size
-
-#adjust the tuple!! maybe redefine the discrete fields for the perturbations, to store all the dimensions
                 
-                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()]
-                    ,X[t,I,Val{:SVector}()],
+                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()],
                     SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                     SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
-                   # print("bg done")
+                    
                     surface_list_pert[count]=crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
                     X[t,I,Val{:SVector}()],
                     uprev.C[:,:,:,1,I,:],
@@ -895,14 +886,12 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                     count=count +1 
                     else 
                     push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
-                  #  print("bg done")
                     
                     push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
                     count=count +1 
                 end
-               # reset!(Cprev_cache)
-               # reset!(Cnow_cache)
+             
             end 
             #space (we check uprev)
             @inbounds for versor in e_i
@@ -910,11 +899,8 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                 I_check_minus= I - versor
                 ϕ_plus = @views uprev.phi[I_check_plus,:]
                 ϕ_minus = @views uprev.phi[I_check_minus,:]
-                #C_plus=@views uprev.C[:,:,:,1,I_check_plus,:]
-                #C_minus=@views uprev.C[:,:,:,1,I_check_minus,:]  
-                #@show axes(C_plus) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
-             
-            
+              
+
                 #if ((ϕ_plus[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ_plus[index]<surf))
                 if (ϕprev[index]>surf)&&(ϕ_plus[index]<surf)
                     if count<=max_size
@@ -946,7 +932,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                         count=count +1
                     end 
                 end 
-                #if ((ϕ_minus[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ_minus[index]<surf))
+             
                 if ((ϕprev[index]>surf)&&(ϕ_minus[index]<surf))
                     if count<=max_size
                         surface_list[count]=surface_crossing_point(
@@ -999,15 +985,9 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     surface_pert_tuples = map((s, s_pert) -> linar_interpol(s, s_pert, surf, express, disc), surface_list, surface_list_pert)
     surface = getindex.(surface_pert_tuples, 1)
     surface_pert = getindex.(surface_pert_tuples, 2)
-    #surface_pert_tuples = map((s, s_pert) -> linar_interpol(s, s_pert, surf, express, disc), surface_list, surface_list_pert)
-    #surface_pert_tuples = linar_interpol.(surface_list, surface_list_pert, Ref(surf), Ref(express), Ref(disc))
-   # surface = [x[1] for x in surface_pert_tuples]
-   # surface_pert = [x[2] for x in surface_pert_tuples]
-    
-    #surface,surface_pert=linar_interpol.(surface_list,surface_list_pert,Ref(surf),Ref(express),Ref(disc))
-    #@show surface,surface_pert
+ 
     return (;surface, surface_list, surface_pert, surface_list_pert, surf ,integrator)
-   #return (;surface, surface_list, surf ,integrator)
+ 
 end
 
 
@@ -1350,13 +1330,8 @@ end
 function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
 
     sortedcha=sort(surf,by=v->getindex(v.coordinates,sort_index))
-   # @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
     totalpoint=length(sortedcha)
    
-    #total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
-
-   # total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
-
     total_left = ntuple(Val{N_parm}()) do i
         extrema(map(sortedcha) do s
             s.coordinates[i]
@@ -1383,52 +1358,22 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{
         end
         RadialBasis(alpha,x_i, total_left, total_right, rad=thinplateRadial())
     end
-    correlator_dimension= size(first(surf).C)
-   
+    correlator_dimension = first(sortedcha).C
     C_interp = map(CartesianIndices(correlator_dimension)) do I
         k, field1, field2, r2 = Tuple(I)
         C_i = map(sortedcha) do s
-            s.C[k, field1, field2, r2, :]
+            s.C[k, field1, field2, r2]
         end
+    
         RadialBasis(alpha, C_i, total_left, total_right, rad=thinplateRadial())
     end
-
-   # X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())   
-    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
-   # C_interp = ntuple(k -> ntuple(field1 -> ntuple(field2 -> ntuple(r2 -> RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial()), 100), 10), 10), 2)
-
-    #=C_interp = map(CartesianIndices(correlator_dimension)) do  I
-        k, field1, field2, r2 = Tuple(I)
-        a=sortedcha.C[k, field1, field2, r2, :]
-        @show typeof(getindex.(sortedcha.C, k, field1, field2, r2, :))
-        RadialBasis(sortedcha.coordinates, getindex.(sortedcha.C, k, field1, field2, r2, :), total_left, total_right, rad=thinplateRadial())
-    end=#
-   
+    
     fields = map(C_interp) do I
         BoundedFunction(I, total_left, total_right)
     end
     coord = map(X_interp) do I
         BoundedFunction(I, total_left, total_right)
     end
-    
-   #@show typeof(C_interp[1][1][2][1](0.1)[1])
-    #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
-    #@show value_combos
-    #TOD pass grid and get min max, but drop 1 ond last
-    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
-   # C_interp=ntuple(k->ntuple(field1->ntuple(field2->ntuple(r2->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),100),10),10),2)
-    #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
-
-
-    #=function C(alpha)
-    arr = Array{Float64,4}(undef, 2, 10, 10, 100)
-    for k in 1:2, field1 in 1:10, field2 in 1:10, r2 in 1:100
-        arr[k, field1, field2, r2] = C_interp[k][field1][field2][r2](alpha)[1]
-    end
-    arr
-end=#
-#show typeof(C(0.1))
-    #return (coord=BoundedFunction.(X_interp,Ref(total_left),Ref(total_right)),fields=BoundedFunction.(C_interp,Ref(total_left),Ref(total_right)))
     return (;coord,fields)
 end
 
@@ -1540,10 +1485,10 @@ function spline_interpolation(X::FreezeOutResultPerturbation{A,B};ndim_tuple=100
     #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
     x,phi=X
      C=map(phi) do i
-       SplineInterpPerturbation(i,ndim_tuple) 
+       SplineInterp(i,ndim_tuple) 
     end
     x_out=map(x) do i
-       SplineInterpPerturbation(i,ndim_tuple) 
+       SplineInterp(i,ndim_tuple) 
     end #ok
     
     #FreezeOutResult(SplineInterp(x,ndim_tuple),SplineInterp

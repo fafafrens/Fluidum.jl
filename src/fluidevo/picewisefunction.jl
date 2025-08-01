@@ -108,18 +108,6 @@ function SplineInterp(fun,tuple)
     SplineInterp{tuple,typeof(sitp),left,right}(sitp)
 end 
 
-function SplineInterpPerturbation(fun,tuple)
-    left=leftbounds(fun)
-    right=rightbounds(fun)
-    ranges=range.(leftbounds(fun),rightbounds(fun),tuple)
-    iter =Iterators.product(ranges...)
-    A = [fun(i)[1] for i in iter ]
-    itp = Interpolations.interpolate(A, BSpline(Cubic(Line(OnGrid()))))
-
-    sitp = scale(itp, ranges...)
-
-    SplineInterp{tuple,typeof(sitp),left,right}(sitp)
-end 
 
 #=
 function SplineInterp(fun,tuple)
@@ -187,6 +175,5 @@ jacobian(f::SplineInterp{tuple,A,left,right},x::SVector{N,T}) where {tuple,A,lef
 
 jacobian(f::SplineInterp{tuple,A,left,right},x...) where {tuple,A,left,right}  =reduce(hcat,Interpolations.gradient(f.a,x...))'
 
-
-
-#now these don't work cause f.a is a tuple of interpolated objects, to be called f.a[1](x...),f.a[2](x...)
+gradient(f::SplineInterp{tuple,A,left,right},x) where {tuple,A,left,right}  =Interpolations.gradient(f.a,x)
+derivative(f::SplineInterp{tuple,A,left,right},x) where {tuple,A,left,right}  =ForwardDiff.derivative(f.a,x)
