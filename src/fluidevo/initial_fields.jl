@@ -58,7 +58,6 @@ function nur_polar(T,ncoll_profile, fonll_profile,r; tau0, dσ_QQdy, m = 1.5)
     return nur_polar
 end
 
-
 """
 Initialize the temperature, the fugacity, and the diffusion current 
 """
@@ -128,10 +127,27 @@ function initialize_fields(x::TabulatedData{A,B},list; tau0 = 0.4, gridpoints=50
     
     n_therm(x) = thermodynamic(temperature_profile(x),fugacity(x),eos).pressure
     
-    #@show n_therm.(range(0,rmax,gridpoints))
+    oned_visc_hydro = Fluidum.HQ_viscous_1d()
+    disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
     
-    #@show nhard_profile.(range(0,rmax,gridpoints))
+return DiscreteFields(disc,disc_fields,phi)
+end
+
+"""
+Initialize the temperature, the fugacity, and the diffusion current 
+"""
+function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer, list; gridpoints=500, rmax=30, norm_temp=1, tau0 = 0.4, dσ_QQdy = 1, exp_tail = true,rdrop = 12,offset = 0.01, m=1.5) where {A,B,C,D}
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = 2/tau0*dσ_QQdy, exp_tail, offset=offset)
     
+    ccbar = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=0.00001)[1]
+    @show ccbar
+
+    eos=HadronResonaceGas_ccbar(list, ccbar)
+    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos;rdrop)   
+
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 

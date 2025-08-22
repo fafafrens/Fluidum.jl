@@ -885,9 +885,14 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                     u.C[:,:,:,1,I,:])     
                     count=count +1 
                     else 
-                    push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
+                    push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()]
+                    ,SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
+                    SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
                     
-                    push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
+                    push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()]
+                    ,uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
                     count=count +1 
                 end
@@ -926,7 +931,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
-                            uprev.C[:,:,:,1,I_check_minus,:]
+                            uprev.C[:,:,:,1,I_check_plus,:]
                             )
                             )
                         count=count +1
