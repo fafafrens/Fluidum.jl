@@ -1,33 +1,25 @@
 
-@inline function cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff; delta_f = false)
-    
-
+@inline function cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff,eos; delta_f = false)
     fmGeV = 5.068
-    #mt=sqrt(m^2+pt^2)
     factor=1/(2*pi)^3*t*r
     
     r_factor=-factor* dra
-    t_factor=factor* dta
-       
+    t_factor=factor* dta 
+
     if delta_f == true
-         eos = Heavy_Quark()
         norm = normalization(T,μ,eos)
-        result = (r_factor.*(K1eq.+K1diff*ν*q./norm)+t_factor*(K2eq.+K2diff*ν*q./norm)).*exp(μ)    
-    
+        result = (r_factor.*(K1eq.+K1diff*ν*q./(T*norm))+t_factor*(K2eq.+K2diff*ν*q./(T*norm))).*exp(q*μ)
+            
     else 
-        ν = 0
-        n = 1
-       result = (r_factor*(K1eq+K1diff*ν/(T*n))+t_factor*(K2eq+K2diff*ν/(T*n)))*exp(μ)    
+        result = (r_factor*(K1eq)+t_factor*(K2eq))*exp(q*μ)   
     end 
+    
 
     return result*fmGeV^3
 end
 
 
-@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V};decays, ccbar = 2.76, delta_f = false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
-    
-    fact = besseli(1, ccbar/2)/besseli(0, ccbar/2)
-
+@inline function _pointwise_spectra(pt,alpha,x::A,phi::B,part::particle_attribute{S,R,U,V},eos;decays, delta_f = false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
     T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha) 
@@ -37,6 +29,7 @@ end
         @warn string("Radial velocity out of fastreso limits")       
     end 
     
+    fact = besseli(1, eos.hadron_list.ccbar/2)/besseli(0, eos.hadron_list.ccbar/2)
     q = 1
     if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* has degeneracy 3 since total angular momentum = 3.  
         deg = 3
@@ -47,97 +40,90 @@ end
         fact = 1
         q = 2
     end 
-    μ = q*μ 
 
     if(decays==true)
         kernel = part.total_kernel_ext
     else 
         kernel = part.thermal_kernel_ext
     end
-    K1eq=kernel.K1eq(T,pt,ur)
-    K2eq=kernel.K2eq(T,pt,ur)
-    K1diff=kernel.K1diff(T,pt,ur)
-    K2diff=kernel.K2diff(T,pt,ur)
-    cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff;delta_f=delta_f)*deg*fact
+    # K1eq=kernel.K1eq(T,pt,ur)
+    # K2eq=kernel.K2eq(T,pt,ur)
+    # K1diff=kernel.K1diff(T,pt,ur)
+    # K2diff=kernel.K2diff(T,pt,ur)
+    K1eq=kernel.K1eq(pt,ur)
+    K2eq=kernel.K2eq(pt,ur)
+    K1diff=kernel.K1diff(pt,ur)
+    K2diff=kernel.K2diff(pt,ur)
+    
+    cilindrical_thermal_spectra(q,r,t,dra,dta,T,ν,μ,K1eq,K2eq,K1diff,K2diff,eos;delta_f=delta_f)*deg*fact
 end
 
 #spectra in a single pt point
-function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true,ccbar = 2.76) where {C<:Number,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+#numerical integration of function of alpha, from the lb of alpha to the rb of alpha (over all the fo surface)
+function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true) where {C<:Number,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo   
     lb=leftbounds(x)
     rb=rightbounds(x)
-
-    #numerical integration of function of alpha, from the lb of alpha to the rb of alpha (over all the fo surface)
-    quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar,delta_f),lb...,rb...,rtol=rtol)
-
+    result = quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part,eos;decays,delta_f),lb...,rb...,rtol=rtol)
+    if result < 0
+            @warn string("Negative spectrum: ", result)
+        end  
+    return result
 end
 
 #spectra points between max, min with given step (even spacing)
-function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true,rightbound=(100,),ccbar = 2.76,delta_f=false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},eos;pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true,rightbound=(100,),delta_f=false) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
-    
-    #T = [fo.fields.a[i][1] for i in 1:100]
-    #μ = [fo.fields.a[i][6] for i in 1:100]
-
-    
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb=min.(rb,rightbound)
     buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
     
-    if delta_f == true print("delta_f applied \n")  
+    if delta_f == true 
+        print("delta_f applied \n")
+         
     else print("delta_f not applied \n")
     end 
 
-    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar,delta_f),lb...,rb...;segbuf=buff,rtol=rtol) for pt in range(pt_min,pt_max,step) ] 
+    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part,eos;decays,delta_f),lb...,rb...;segbuf=buff,rtol=rtol) for pt in range(pt_min,pt_max,step) ] 
 
 end
 
 #spectra points in a given range (can also be uneven spacing)
-function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V}, pt_range::Vector{Float64};rtol=1000*sqrt(eps()),decays=true,rightbound=(100,),ccbar = 2.76) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V}, pt_range::Vector{Float64};rtol=1000*sqrt(eps()),decays=true,rightbound=(100,)) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb=min.(rb,rightbound)
     buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
     
-    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part;decays,ccbar),lb...,rb...;segbuf=buff,rtol=rtol) for pt in pt_range ] 
+    [quadgk(alpha->_pointwise_spectra(pt,alpha,x,phi,part,eos;decays),lb...,rb...;segbuf=buff,rtol=rtol) for pt in pt_range ] 
 
 end
 
 
-function spectra(pt::C,fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true) where {C<:AbstractVector,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},pt::C;rtol=1000*sqrt(eps()),decays=true) where {C<:AbstractVector,A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
     buff=alloc_segbuf(Float64, eltype(lb),Float64;size=1)
 
-    [quadgk(alpha->_pointwise_spectra(i,alpha,x,phi,part;decays),lb...,rb...,segbuf=buff,rtol=rtol) for i in pt ] 
+    [quadgk(alpha->_pointwise_spectra(i,alpha,x,phi,part,eos;decays),lb...,rb...,segbuf=buff,rtol=rtol) for i in pt ] 
 
 end
 
-#spectra points over pt range
-function spectra(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100) where {A<:SplineInterp,B<:SplineInterp}
-    x,phi=fo
-    lb=leftbounds(x)
-    rb=rightbounds(x)
-    buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
-    
-    [quadgk(alpha->_pointwise_spectra(pt,m,alpha,x,phi),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ] 
-
-end
 function multiplicity(pt,spectra)
     f = [spectra[i][1]*pt[i] for i in 1:length(pt)]
     2.0*π*NumericalIntegration.integrate(pt,f)
 end
 
 
-function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V};rtol=1000*sqrt(eps()),decays=true, delta_f = false, rightbound=100,pt_min=0.,pt_max=10.0) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},eos;rtol=1000*sqrt(eps()),decays=true, delta_f = false, rightbound=100,pt_min=0.,pt_max=10.0) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
     rb = min.(rb,(rightbound,))
-    hcubature( b ->2.0*π *_pointwise_spectra(b[1],b[2],x,phi,part;decays,delta_f)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
+    hcubature( b ->2.0*π*_pointwise_spectra(b[1],b[2],x,phi,part,eos;decays,delta_f)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
     
 end
 
@@ -207,6 +193,8 @@ function multiplicity(m::Number,fo::FreezeOutResult{A,B};rtol=sqrt(eps()),pt_min
     hcubature( b ->2.0*π *_pointwise_spectra_internal(b[1],m,b[2],x,phi)*b[1],(pt_min,lb...),(pt_max,rb...);rtol=rtol)
     
 end
+
+
 #WITH DISSIPATIVE CORRECTIONS
 struct prefactors{T}
     piphiphi::T
@@ -273,23 +261,23 @@ end
     else 
         kernel = part.thermal_kernel_ext
     end
-    K1eq=kernel.K1eq(T,pt,ur)
-    K2eq=kernel.K2eq(T,pt,ur)
-    K1piphi=kernel.K1piphi(T,pt,ur)
-    K2piphi=kernel.K2piphi(T,pt,ur)
-    K1pieta=kernel.K1pieta(T,pt,ur)
-    K2pieta=kernel.K2pieta(T,pt,ur)
-    K1bulk=kernel.K1bulk(T,pt,ur)
-    K2bulk=kernel.K2bulk(T,pt,ur)
-    #print("fixed temperature")
-    # K1eq=kernel.K1eq(pt,ur)
-    # K2eq=kernel.K2eq(pt,ur)
-    # K1piphi=kernel.K1piphi(pt,ur)
-    # K2piphi=kernel.K2piphi(pt,ur)
-    # K1pieta=kernel.K1pieta(pt,ur)
-    # K2pieta=kernel.K2pieta(pt,ur)
-    # K1bulk=kernel.K1bulk(pt,ur)
-    # K2bulk=kernel.K2bulk(pt,ur)
+    # K1eq=kernel.K1eq(T,pt,ur)
+    # K2eq=kernel.K2eq(T,pt,ur)
+    # K1piphi=kernel.K1piphi(T,pt,ur)
+    # K2piphi=kernel.K2piphi(T,pt,ur)
+    # K1pieta=kernel.K1pieta(T,pt,ur)
+    # K2pieta=kernel.K2pieta(T,pt,ur)
+    # K1bulk=kernel.K1bulk(T,pt,ur)
+    # K2bulk=kernel.K2bulk(T,pt,ur)
+    # #print("fixed temperature")
+    K1eq=kernel.K1eq(pt,ur)
+    K2eq=kernel.K2eq(pt,ur)
+    K1piphi=kernel.K1piphi(pt,ur)
+    K2piphi=kernel.K2piphi(pt,ur)
+    K1pieta=kernel.K1pieta(pt,ur)
+    K2pieta=kernel.K2pieta(pt,ur)
+    K1bulk=kernel.K1bulk(pt,ur)
+    K2bulk=kernel.K2bulk(pt,ur)
     
     cilindrical_thermal_spectra(pt,m,r,t,dra,dta,ur,T,pi_phi,pi_eta,pi_b,K1eq,K2eq,K1piphi,K2piphi,K1pieta,K2pieta,K1bulk,K2bulk,fluidpropery)
 end
@@ -314,7 +302,7 @@ end
 
 
 #spectra points over pt range
-function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},fluidpropery;pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
+function spectra_lf(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},fluidpropery;pt_min=0.,pt_max=10.0,step=100,rtol=1000*sqrt(eps()),decays=true) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)

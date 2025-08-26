@@ -1,5 +1,3 @@
-
-
 struct HadronResonaceGas{T} <:EquationOfState
     particle_list::T
 end
@@ -51,8 +49,9 @@ end
 
 
 
-#read in resonaces
+#read in resonances
 function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+#function HadronResonaceGas(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -123,13 +122,11 @@ function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_masso
        ))
     filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Charm!=0&&condition(x)),fulllist)
    HadronResonaceGasNew(filterlist)
-
 end
 
-
-
-
 function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+#function readresonancelist(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
+
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -166,11 +163,6 @@ function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmPart
    
 end
 
-# #read in resonaces
-# function HadronResonaceGas_ccbar(filterlist,ccbar;name_file=string(@__DIR__,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
-#     HadronResonaceGas_ccbar(filterlist,ccbar)
-
-# end
 
 #pretty printing
 function Base.show(io::IO, z::HadronResonaceGas)
@@ -263,14 +255,9 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L}; ccbar = 2.76)  where {L}
                 #b1 = besselk(1,m/T)
                 b3 = b1+4/(reducemass)*b2
                 ex=exp(QC* μ - reducemass)
-                #equation 7, hq new
-                if QC == 1 
-                    fact = besseli(1, ccbar/2)./besseli(0, ccbar/2)
+                fact = 1 #no correction factor in this case 
 
-                else 
-                    fact = 1
-                end   
-
+                
                 density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
                 n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
                 n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
@@ -290,7 +277,6 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L}; ccbar = 2.76)  where {L}
     return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
 end
 
-#prova=HadronResonaceGas(Maxmass=2.1)
 #using BenchmarkTools
 
 
@@ -394,7 +380,7 @@ function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
                 
                 b3 = b1+4/(reducemass)*b2
                 ex=exp(QC* μ - reducemass)
-                #equation 7, hq new
+                #correction factor due to canonical ensemble 
                 if QC == 1 
                     fact = besseli(1, ccbar/2)./besseli(0, ccbar/2)
 

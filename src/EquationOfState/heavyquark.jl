@@ -10,10 +10,15 @@ Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState
     b3::T  = -4.653922019495976 
     c::T  = -1.0465330501411811
     d::T  = 0.09551531822245873
-    hadron_list::HadronResonaceGas{S}=HadronResonaceGas()  
+    hadron_list::HadronResonaceGas_ccbar{S,T}=readresonancelist()  
+    #hadron_list::HadronResonaceGas{S}=HadronResonaceGas()  
     
 end
 
+function Heavy_Quark(particle_list, ccbar)
+    list = HadronResonaceGas_ccbar(particle_list, ccbar)
+    return Heavy_Quark(hadron_list = list)
+end
 
 @inline @fastmath function pressure(T,x::Heavy_Quark) 
     (exp((-0.01*^(x.d,2) - 0.1*^(x.c,2)*T)/^(T,2))*(0.0005624486560000001*x.a4 
@@ -79,7 +84,8 @@ function free_hadron(m,deg,q,T,μ)
     ex = exp(q*μ - m/T)  
     density = deg*(T /(2 *π^2)*m^2* ex* b2)* fmGeV3; #fm-3
     densityDerT = deg*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T))* fmGeV3 ; #(*fm^-3/GeV*)
-    densityDerμ= deg*(m^2* T /(2 *π^2)* ex* b2)* fmGeV3+0.0001; #(*fm^-3/GeV*)
+    #densityDerμ= deg*(m^2/(2 *π^2)* ex* b2)* fmGeV3+0.0001; #(*fm^-3/GeV*)
+    densityDerμ= density/T+0.0001;
     densityDerTDerμ =deg*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T))* fmGeV3 ;
     
     return (density,densityDerT,densityDerμ,densityDerTDerμ)

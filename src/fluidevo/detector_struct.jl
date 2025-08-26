@@ -9,6 +9,20 @@ struct detector{S, T}
     nucl::S #colliding nuclei
 end
 
+struct InitialParameters{S}
+    norm::S
+    tau0::S
+    tau_fs::S
+    rdrop::S
+    InitialParameters(norm::S, tau0::S, tau_fs::S, rdrop::S) where S = new{S}(norm, tau0, tau_fs, rdrop)
+    InitialParameters(norm::S, tau0::S, rdrop::S) where S = new{S}(norm, tau0, tau0, rdrop)
+end
+
+
+struct GridParameters{S}
+    rmax::S
+    gridpoints::S
+end
 
 
 # Name	  radius      σ_in	  dσ_QQdy       nucl		
