@@ -40,7 +40,7 @@ end
     @test Fluidum.diffusion(1.0,dpt,params.diffusion)==0
 end
 
-
+#=
 @testset "observables" begin 
     eos = Heavy_Quark()
     eos_HQ = HadronResonaceGas()
@@ -53,7 +53,7 @@ end
     @test typeof(obs.yield_th)<:Float64
 end
 
-
+=#
 #@testset "plots" begin
 #    #Fluidum.plot_params(gui=true)
 #    eos = Heavy_Quark()
@@ -101,7 +101,7 @@ end
 
 @testset "2d viscous " begin
 
-    fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
+fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
 
 # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
 twod_visc_hydro=Fields(

@@ -94,7 +94,7 @@ include("fluidevo/initial_fields.jl")
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
 include("Matrix/2d_viscous.jl")
-
+include("Matrix/2d_viscous_fugacity.jl")
 
 include("wraps2.jl")
 #include("plotting_routines.jl")
@@ -116,7 +116,7 @@ export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult
 export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
-export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult
+export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult, FreezeOutResultPerturbation
 export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
 
 

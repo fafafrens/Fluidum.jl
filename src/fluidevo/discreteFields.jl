@@ -843,16 +843,19 @@ end
 function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
     disc_pert::DiscreteFileds{T_pert, total_dimensions_pert, space_dimension, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert},
     prob,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2,T_pert, total_dimensions_pert, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert}
-    @show space_dimension,total_dimensions,N_field,total_dimensions_pert,N_field_pert
+   # @show space_dimension,total_dimensions,N_field,total_dimensions_pert,N_field_pert
     integrator = init(prob,Tsit5();save_everystep=false) #fine
     e_i=disc.index_structure.unit_inidices_space
     X=disc.discretization
+    n_grid=first(Sizes_pert)
     index=get_index(express,disc.fields)
-    @show Sizes[1],T_pert,typeof(tspan[1])
-#preallocation of a surface vector 
+
+    crossing_point_type_pert=surface_crossing_point_pert{T,T,space_dimension+1,N_field_pert,N_field2_pert}
+    
+    #preallocation of a surface vector 
     surface_list=zeros(surface_crossing_point{T,typeof(tspan[1]),space_dimension+1,N_field},100000) #100000 is number of counts
-    surface_list_pert=zeros(surface_crossing_point_pert{Float64,Float64,space_dimension+1},100000) #this is fine
-    #@show typeof(surface_list_pert),typeof(surface_list)
+    surface_list_pert=zeros(crossing_point_type_pert,100000) #this is fine
+   
     max_size=length(surface_list)
     max_size_pert=length(surface_list_pert)
     count=1
@@ -860,40 +863,40 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     @inbounds for (uprev,tprev,u,t) in intervals(integrator)
         max_of_index=zero(T)
         @inbounds for I in disc.index_structure.interior
-            #Cprev_cache,Cnow_cache=matrix_temp
-            #take!(Cprev_cache)
-            
+          
             ϕ=@views u.phi[I,:]
             ϕprev=@views uprev.phi[I,:]
 
-            # @inbounds for I in disc.index_structure.interior
             max_of_index=max(ϕprev[index],max_of_index)
             # time  
             #if ((ϕ[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ[index]<surf))
             if (ϕprev[index]>surf)&&(ϕ[index]<surf)
-                @show count
-                #Cnow_cache = @views u.C[:,:,:,1,I,:]
-                #Cprev_cache = @views uprev.C[:,:,:,1,I,:]   
-            #@show axes(Cprev) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
             
                 if count<=max_size
-
-#adjust the tuple!! maybe redefine the discrete fields for the perturbations, to store all the dimensions
                 
-                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
-                    print("bg done")
-                    surface_list_pert[count]=surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:])     
+                    surface_list[count]=surface_crossing_point(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()],
+                    SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
+                    SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}())))
+                    
+                    surface_list_pert[count]=crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()],
+                    uprev.C[:,:,:,1,I,:],
+                    u.C[:,:,:,1,I,:])     
                     count=count +1 
                     else 
-                    push!(surface_list,surface_crossing_point(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
-                    print("bg done")
+                    push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()]
+                    ,SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
+                    SVector{N_field,T}(ntuple(i->ϕ[i],Val{N_field}()))))
                     
-                    push!(surface_list_pert,surface_crossing_point_pert(X[tprev,I,Val{:SVector}()],X[t,I,Val{:SVector}()],uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
+                    push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
+                    X[t,I,Val{:SVector}()]
+                    ,uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
                 
                     count=count +1 
                 end
-               # reset!(Cprev_cache)
-               # reset!(Cnow_cache)
+             
             end 
             #space (we check uprev)
             @inbounds for versor in e_i
@@ -901,11 +904,8 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                 I_check_minus= I - versor
                 ϕ_plus = @views uprev.phi[I_check_plus,:]
                 ϕ_minus = @views uprev.phi[I_check_minus,:]
-                #C_plus=@views uprev.C[:,:,:,1,I_check_plus,:]
-                #C_minus=@views uprev.C[:,:,:,1,I_check_minus,:]  
-                #@show axes(C_plus) #this is 2,N_field_pert,N_field_pert,m_modes,Npoints
-             
-            
+              
+
                 #if ((ϕ_plus[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ_plus[index]<surf))
                 if (ϕprev[index]>surf)&&(ϕ_plus[index]<surf)
                     if count<=max_size
@@ -915,7 +915,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_plus[i],Val{N_field}()))
                             )
-                        surface_list_pert[count]=surface_crossing_point_pert(
+                        surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],uprev.C[:,:,:,1,I_check_plus,:])
@@ -927,17 +927,17 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_plus[i],Val{N_field}())))
                             )
-                        push!(surface_list_pert,surface_crossing_point_pert(
+                        push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
-                            uprev.C[:,:,:,1,I_check_minus,:]
+                            uprev.C[:,:,:,1,I_check_plus,:]
                             )
                             )
                         count=count +1
                     end 
                 end 
-                #if ((ϕ_minus[index]>surf)&&(ϕprev[index]<surf))||((ϕprev[index]>surf)&&(ϕ_minus[index]<surf))
+             
                 if ((ϕprev[index]>surf)&&(ϕ_minus[index]<surf))
                     if count<=max_size
                         surface_list[count]=surface_crossing_point(
@@ -946,7 +946,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_minus[i],Val{N_field}()))
                             )
-                        surface_list_pert[count]=surface_crossing_point_pert(
+                        surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
@@ -960,7 +960,7 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
                             SVector{N_field,T}(ntuple(i->ϕprev[i],Val{N_field}())),
                             SVector{N_field,T}(ntuple(i->ϕ_minus[i],Val{N_field}())))
                             )
-                        push!(surface_list_pert,surface_crossing_point_pert(
+                        push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
                             uprev.C[:,:,:,1,I,:],
@@ -986,40 +986,38 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     if length(surface_list_pert)>count
         surface_list_pert=surface_list_pert[1:count-1]
     end  
-    
-    surface_pert_tuples = linar_interpol.(surface_list, surface_list_pert, Ref(surf), Ref(express), Ref(disc))
-    surface = [x[1] for x in surface_pert_tuples]
-    surface_pert = [x[2] for x in surface_pert_tuples]
-    
-    #surface,surface_pert=linar_interpol.(surface_list,surface_list_pert,Ref(surf),Ref(express),Ref(disc))
-    #@show surface,surface_pert
+   
+    surface_pert_tuples = map((s, s_pert) -> linar_interpol(s, s_pert, surf, express, disc), surface_list, surface_list_pert)
+    surface = getindex.(surface_pert_tuples, 1)
+    surface_pert = getindex.(surface_pert_tuples, 2)
+ 
     return (;surface, surface_list, surface_pert, surface_list_pert, surf ,integrator)
-   #return (;surface, surface_list, surf ,integrator)
+ 
 end
 
 
 
 
 
-struct surface_crossing{S,T,N_dim,N_field}
+#=struct surface_crossing{S,T,N_dim,N_field}
     t_1::T
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
     phi_1::SVector{N_field,S}
     phi_2::SVector{N_field,S}
-end
+end =#
 
-struct surface_crossing_pert{S,T,N_field}
+#= struct surface_crossing_pert{S,T,N_dim, N_field,n_grid}
     t_1::T
     t_2::T
     I_1::SVector{N_field,T}
     I_2::SVector{N_field,T}
     C_1::Array{S,4} #check typestable
     C_2::Array{S,4}
-end
+end =#
 
-function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
+#=function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
     surface_crossing(
     zero(T)
     ,zero(T),
@@ -1027,17 +1025,17 @@ function Base.zero(::Type{surface_crossing{S,T,N_dim,N_field}}) where {S,T,N_dim
     zero(CartesianIndex{N_dim}),
     zeros(SVector{N_field,S}),
     zeros(SVector{N_field,S})  )
-end
+end =#
 
-function Base.zero(::Type{surface_crossing_pert{S,T,N_dim}}) where {S,T,N_dim}
+#=function Base.zero(::Type{surface_crossing_pert{S,T,N_dim, N_field,n_grid}}) where {S,T,N_dim, N_field,n_grid}
     surface_crossing_pert(
     zero(T)
     ,zero(T),
     zero(CartesianIndex{N_dim}),
     zero(CartesianIndex{N_dim}),
-    zeros(S,2,10,10,100),
-    zeros(S,2,10,10,100))
-end
+    zeros(S,2,N_field,N_field,n_grid),
+    zeros(S,2,N_field,N_field,n_grid))
+end =#
 
 
 struct surface_crossing_point{S,T,N_dim,N_field}
@@ -1047,12 +1045,33 @@ struct surface_crossing_point{S,T,N_dim,N_field}
     phi_2::SVector{N_field,S}
 end 
 
-struct surface_crossing_point_pert{S,T,N_dim}
+struct surface_crossing_point_pert{S,T,N_dim,N_field,n_grid}
     X_1::SVector{N_dim,T}
     X_2::SVector{N_dim,T}
     C_1::Array{S,4}
     C_2::Array{S,4}
 end
+
+
+
+function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
+    surface_crossing_point(
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_field,S}),
+    zeros(SVector{N_field,S})  )
+end
+
+function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}}) where {S,T,N_dim, N_field,n_grid}
+    surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}(
+    zeros(SVector{N_dim,T}),
+    zeros(SVector{N_dim,T}),
+    zeros(S,2,N_field,N_field,n_grid),
+    zeros(S,2,N_field,N_field,n_grid))
+    
+end
+
+
 
 function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,express::Symbol,disc) where {M,T,N_dim,N_field}
     index=get_index(express,disc.fields)
@@ -1073,7 +1092,11 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},temp,expres
     surface_point(X_fo,phi_fo)
 end
 
-function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::surface_crossing_point_pert{M,T,N_dim},temp,express::Symbol,disc) where {M,T,N_dim,N_field,N_field_pert}
+function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},
+    S_pert::surface_crossing_point_pert{S1,S2,N_dim, N_field2,n_grid},
+    temp,express::Symbol,disc) where {M,T,N_dim,N_field,S1,S2,N_field2,n_grid}
+
+
     index=get_index(express,disc.fields)
     x1=S.X_1
     x2=S.X_2
@@ -1100,24 +1123,8 @@ function linar_interpol(S::surface_crossing_point{M,T,N_dim,N_field},S_pert::sur
     return (surface_point(X_fo,phi_fo),surface_point_pert(X_fo,phi_fo_pert))
 end
 
-function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T,N_dim,N_field}
-    surface_crossing_point(
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_field,S}),
-    zeros(SVector{N_field,S})  )
-end
 
-function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim}}) where {S,T,N_dim}
-    surface_crossing_point_pert(
-    zeros(SVector{N_dim,T}),
-    zeros(SVector{N_dim,T}),
-    #zeros(S,2,N_field,N_field,length),
-    #zeros(S,2,N_field,N_field,length)
-    zeros(S,2,10,10,100),
-    zeros(S,2,10,10,100)
-    )
-end
+
 
 struct surface_point{S,T,N_dim,N_field}
     X::SVector{N_dim,T}
@@ -1128,7 +1135,7 @@ struct surface_point_pert{S,T,N_dim}
     C::Array{S,4}
 end 
 
-struct Surface_coodrinates{S,T,N_parm,N_dim,N_field}
+struct Surface_coordinates{S,T,N_parm,N_dim,N_field}
     coordinates::SVector{N_parm,T}
     X::SVector{N_dim,T}
     phi::SVector{N_field,S}
@@ -1141,31 +1148,31 @@ struct Surface_coordinates_pert{S,T,N_parm,N_dim}
 end 
 
 
-function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
+function Surface_coordinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
     #here i pick up the first two entry of x 
     x_red=point.X[1:2]
     r=hypot(x_red...)
     theta=atan(x_red...)
     if N_dim <3
-        Surface_coodrinates(SVector{N_dim-1}(theta),point.X,point.phi
+        Surface_coordinates(SVector{N_dim-1}(theta),point.X,point.phi
         )
     else 
-        Surface_coodrinates(SVector{N_dim-1}((theta,point.X[3:end]...)),
+        Surface_coordinates(SVector{N_dim-1}((theta,point.X[3:end]...)),
         point.X,point.phi
         )
     end 
 end 
 
 
-function Surface_coodrinates(point::surface_point{S,T,N_dim,N_field},surface_condition ) where {S,T,N_dim,N_field}
+function Surface_coordinates(point::surface_point{S,T,N_dim,N_field},surface_condition ) where {S,T,N_dim,N_field}
     #here i pick up the first two entry of x 
     #x_red=point.X[1:2]
     #r=hypot(x_red...)
     #theta=atan(x_red...)
     
-    coordianates=surface_condition(point.X...)
-    
-    Surface_coodrinates(coordianates,point.X,point.phi
+    coordinates=surface_condition(point.X...)
+
+    Surface_coordinates(coordinates,point.X,point.phi
         )
 end
 
@@ -1192,9 +1199,9 @@ function Surface_coordinates(point::surface_point_pert{S,T,N_dim},surface_condit
     #r=hypot(x_red...)
     #theta=atan(x_red...)
     
-    coordianates=surface_condition(point.X...)
-    
-    Surface_coordinates_pert(coordianates,point.X,point.C
+    coordinates=surface_condition(point.X...)
+
+    Surface_coordinates_pert(coordinates,point.X,point.C
         )
 end
 
@@ -1207,7 +1214,7 @@ struct Surface_pert{S,T,N_dim}
 end 
 
 struct Chart{S,T,N_parm,N_dim,N_field}
-    points::Vector{Surface_coodrinates{S,T,N_parm,N_dim,N_field}}
+    points::Vector{Surface_coordinates{S,T,N_parm,N_dim,N_field}}
 end 
 
 struct Chart_pert{S,T,N_parm,N_dim}
@@ -1215,11 +1222,11 @@ struct Chart_pert{S,T,N_parm,N_dim}
 end 
 
 function Chart(Sur::Surface{S,T,N_dim,N_field}) where {S,T,N_dim,N_field}
-    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points))
+    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coordinates.(Sur.points))
 end
 
 function Chart(Sur::Surface{S,T,N_dim,N_field},surface_condition) where {S,T,N_dim,N_field}
-    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coodrinates.(Sur.points,surface_condition))
+    Chart{S,T,N_dim-1,N_dim,N_field}(Surface_coordinates.(Sur.points,surface_condition))
 end
 
 function Chart(Sur::Surface_pert{S,T,N_dim}) where {S,T,N_dim}
@@ -1289,8 +1296,19 @@ Base.iterate(S::FreezeOutResult, ::Val{:x}) = (S.fields, Val(:done))
 Base.iterate(S::FreezeOutResult, ::Val{:done}) = nothing
 
 
-function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N_parm,N_dim,N_field}};sort_index=3) where {S,T,N_parm,N_dim,N_field}
-    
+struct FreezeOutResultPerturbation{A,B}
+    x::A
+    C::B
+end 
+
+Base.iterate(S::FreezeOutResultPerturbation) = (S.x, Val(:x))
+Base.iterate(S::FreezeOutResultPerturbation, ::Val{:x}) = (S.C, Val(:done))
+Base.iterate(S::FreezeOutResultPerturbation, ::Val{:done}) = nothing
+
+
+
+function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates{S,T,N_parm,N_dim,N_field}};sort_index=3) where {S,T,N_parm,N_dim,N_field}
+
     sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
 
     totalpoint=length(sortedcha)
@@ -1315,35 +1333,53 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coodrinates{S,T,N
 end
 
 function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{S,T,N_parm,N_dim}},grid;sort_index=3) where {S,T,N_parm,N_dim}
-    
-    sortedcha=StructArray(sort(surf,by=v->getindex(v.coordinates,sort_index)))
-    @show  getindex.(sortedcha.C,1,1,1,1)[1], sortedcha.C[1,1,1,1][1]
+
+    sortedcha=sort(surf,by=v->getindex(v.coordinates,sort_index))
     totalpoint=length(sortedcha)
-    total_left=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[1],Val{N_parm}())
+   
+    total_left = ntuple(Val{N_parm}()) do i
+        extrema(map(sortedcha) do s
+            s.coordinates[i]
+        end
+        )[1]
 
-    total_right=ntuple(i->extrema(getindex.(sortedcha.coordinates,(i)))[2],Val{N_parm}())
+      #  extrema(getindex.(sortedcha.coordinates, i))[1]
+ end
+ 
+    total_right= ntuple(Val{N_parm}()) do i
+        extrema(map(sortedcha) do s
+            s.coordinates[i]
+        end
+        )[2]
 
-    X_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.X,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_dim}())
-    grid_min=grid.grid[2]
-    grid_max=grid.grid[end-1]
-    lowerbound=[total_left,grid_min]
-    upperbound=[total_right,grid_max]
-    grid_combos=vcat(map(i->map(alpha->(sortedcha.coordinates[alpha][1],grid.grid[i][1]),1:length(sortedcha.coordinates)),2:length(grid.grid)-1)...)
-    #value_combos=vcat(map(i->map(alpha->sortedcha.C[alpha][1,1,1,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...)
-    #@show value_combos
-    #TOD pass grid and get min max, but drop 1 ond last
-    #phi_interp=ntuple(i->RadialBasis(sortedcha.coordinates, getindex.(sortedcha.phi,(i)),total_left,total_right,rad=thinplateRadial()),Val{N_field}())
-    C_interp=ntuple(kappa->ntuple(field2->ntuple(field1->RadialBasis(grid_combos, vcat(map(i->map(alpha->sortedcha.C[alpha][kappa,field1,field2,i],1:length(sortedcha.coordinates)),1:length(grid.grid)-2)...),lowerbound,upperbound),10),10),2)
-    #(;X_interp , phi_interp,  total_left ,total_right,totalpoint)
-    function X(x)
-        SVector{N_dim}(ntuple(i->X_interp[i](x),Val{N_dim}()))
+      #  extrema(getindex.(sortedcha.coordinates, i))[1]
     end
-
-    function C(alpha,r)
-        Vector{2,10,10}(ntuple(kappa->ntuple(field2->ntuple(field1->C_interp[kappa,field1,field2](alpha,r),10),10),2))
+    alpha = map(sortedcha) do s
+           s.coordinates
     end
-
-    (coord=BoundedFunction(X,total_left,total_right),fields=BoundedFunction(C,total_left,total_right))
+    X_interp=map(1:N_dim) do i
+        x_i = map(sortedcha) do s
+        s.X[i]
+        end
+        RadialBasis(alpha,x_i, total_left, total_right, rad=thinplateRadial())
+    end
+    correlator_dimension = first(sortedcha).C
+    C_interp = map(CartesianIndices(correlator_dimension)) do I
+        k, field1, field2, r2 = Tuple(I)
+        C_i = map(sortedcha) do s
+            s.C[k, field1, field2, r2]
+        end
+    
+        RadialBasis(alpha, C_i, total_left, total_right, rad=thinplateRadial())
+    end
+    
+    fields = map(C_interp) do I
+        BoundedFunction(I, total_left, total_right)
+    end
+    coord = map(X_interp) do I
+        BoundedFunction(I, total_left, total_right)
+    end
+    return (;coord,fields)
 end
 
 
@@ -1383,6 +1419,7 @@ function radial_basisinterpolate(surf::Chart{S,T,N_parm,N_dim,N_field};baches=20
             Phi=PieceWiseFunction(phi)
         end 
 
+
     return FreezeOutResult(X,Phi) #(coord=X,fields=Phi)
 end 
 
@@ -1395,6 +1432,7 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
         len=length(sortedcha)
         #then we compute the number of baches 
         if len >baches
+           # print("len >baches")
             # here we have at least 2 baches 
             nbaches=div(len,baches) +1 
                 
@@ -1418,15 +1456,29 @@ function radial_basisinterpolate(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
 
             end 
         else 
+           # print("len <baches")
+            
             x,phi=_radial_basisinterpolate(sortedcha,grid,sort_index=sort_index)
-            X=PieceWiseFunction(x)
-            Phi=PieceWiseFunction(phi)
+            X= map(x) do I
+                PieceWiseFunction(I)
+            end
+            Phi=map(phi) do I
+                PieceWiseFunction(I)
+            end
+        
         end 
-
-    return FreezeOutResult(X,Phi) #(coord=X,fields=Phi)
+     #   @show FreezeOutResult(X,Phi) 
+    return FreezeOutResultPerturbation(X,Phi) #(coord=X,fields=Phi)
 end 
 
+"""
+spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100)
 
+    Takes the freezeout coordinates and fields in X.
+    Returns a FreezeOutResult with SplineInterp for the coordinates and fields.
+    A and B are PieceWiseFunction types.
+    ndim_tuple is the number of points in the spline interpolation.
+"""
 function spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100) where {A<:PieceWiseFunction,B<:PieceWiseFunction}
     
     #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
@@ -1434,9 +1486,28 @@ function spline_interpolation(X::FreezeOutResult{A,B};ndim_tuple=100) where {A<:
     FreezeOutResult(SplineInterp(x,ndim_tuple),SplineInterp(phi,ndim_tuple))
 end 
 
+function spline_interpolation(X::FreezeOutResultPerturbation{A,B};ndim_tuple=100) where {A,B}
+    #(coord= SplineInterp(x[:coord],ndim_tuple),fields=SplineInterp(x[:fields],ndim_tuple))
+    x,phi=X
+     C=map(phi) do i
+       SplineInterp(i,ndim_tuple) 
+    end
+    x_out=map(x) do i
+       SplineInterp(i,ndim_tuple) 
+    end #ok
+    
+    #FreezeOutResult(SplineInterp(x,ndim_tuple),SplineInterp
+   FreezeOutResultPerturbation(x_out,C)
+end
+
 
 function freezeout_interpolation(surf::Chart{S,T,N_parm,N_dim,N_field};baches=5001,sort_index=2,ndim_tuple=100) where {S,T,N_parm,N_dim,N_field}
      
     spline_interpolation(radial_basisinterpolate(surf,baches=baches,sort_index=sort_index),ndim_tuple=ndim_tuple)
+end 
+
+function freezeout_interpolation(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=5001,sort_index=2,ndim_tuple=100) where {S,T,N_parm,N_dim}
+    
+    spline_interpolation(radial_basisinterpolate(surf,grid, baches=baches,sort_index=sort_index),ndim_tuple=ndim_tuple)
 end 
 

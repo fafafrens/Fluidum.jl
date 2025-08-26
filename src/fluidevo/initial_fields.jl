@@ -168,3 +168,54 @@ function ncoll_step(r; Ncoll = 1, rdrop = 7, R = 7)
         else return 0.01
     end            
 end
+
+
+"""
+Initialize fields when only the temperature profile is given, using a step-like function for the collision profile
+"""
+function initialize_fields(x::TabulatedData{A,B},list; tau0 = 0.4, gridpoints=500,rmax=30,norm_temp=1, norm_coll=1, Ncoll = 1, rdrop = 7) where {A,B}
+    temperature_profile = Profiles(x; norm_temp = norm_temp, radius = range(0, rmax, gridpoints)) 
+    
+    nhard_profile(r) = norm_coll*ncoll_step(r;Ncoll,rdrop)*(temperature_profile(r)/temperature_profile(0.0))^4 
+    
+    ccbar = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=0.00001)[1]
+    @show ccbar
+
+    eos=HadronResonaceGas_ccbar(list, ccbar)
+    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos;rdrop)
+
+    ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos).pressure,0,rmax,rtol=0.00001) 
+    @show ccbar_thermo
+    
+    n_therm(x) = thermodynamic(temperature_profile(x),fugacity(x),eos).pressure
+    
+    oned_visc_hydro = Fluidum.HQ_viscous_1d()
+    disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
+    
+return DiscreteFields(disc,disc_fields,phi)
+end
+
+"""
+Initialize the temperature, the fugacity, and the diffusion current 
+"""
+function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer, list; gridpoints=500, rmax=30, norm_temp=1, tau0 = 0.4, dσ_QQdy = 1, exp_tail = true,rdrop = 12,offset = 0.01, m=1.5) where {A,B,C,D}
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_temp = norm_temp, norm_coll = 2/tau0*dσ_QQdy, exp_tail, offset=offset)
+    
+    ccbar = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=0.00001)[1]
+    @show ccbar
+
+    eos=HadronResonaceGas_ccbar(list, ccbar)
+    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos;rdrop)   
+
+    oned_visc_hydro = Fluidum.HQ_viscous_1d()
+    disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
+    set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
+    
+return DiscreteFields(disc,disc_fields,phi)
+end
+
