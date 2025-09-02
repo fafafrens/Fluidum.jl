@@ -7,6 +7,7 @@ using DifferentiationInterface
 
 
 @testset "equation of state" begin
+    ccbar = 30.
     @test IdealQCD()==IdealQCD(3,2)
     @test isfinite(thermodynamic(1,IdealQCD()).pressure[1])
     @test isfinite(thermodynamic(0,IdealQCD()).pressure_derivative[1])
@@ -15,10 +16,10 @@ using DifferentiationInterface
     @test length(thermodynamic(10,IdealQCD(1,0)).pressure_derivative)==1
     @test length(thermodynamic(10,IdealQCD(1,0)).pressure_hessian)==1
 
-    @test isfinite(free_charm(1,0,Heavy_Quark())[1])
-    @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(pressure(1,FluiduMEoS()), sigdigits=10)
-    @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
-    @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01   
+    @test isfinite(free_charm(1,0,Heavy_Quark(readresonancelist(), ccbar))[1])
+    @test round(pressure(1,Heavy_Quark(readresonancelist(), ccbar)), sigdigits=10)==round(pressure(1,FluiduMEoS()), sigdigits=10)
+    @test round(pressure(1,Heavy_Quark(readresonancelist(), ccbar)), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
+    @test pressure(1,Heavy_Quark(readresonancelist(), ccbar)) ≈ pressure(1,FluiduMEoS()) atol=0.01
 
     eos=FluiduMEoS()
     @test  isapprox(DifferentiationInterface.derivative(x->Fluidum.pressure_derivative(x,Val(2),eos),AutoForwardDiff(),0.2),Fluidum.pressure_derivative(0.2,Val(3),eos))
@@ -122,7 +123,8 @@ twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
 
  #we define some random intial condition 
 function temperature(r)
-       0.4(1+0.3rand())/(exp(abs(r)-10)+1 )+0.01
+       #0.4(1+0.3rand())/(exp(abs(r)-10)+1 )+0.01
+       0.4/(exp(abs(r)-10)+1 )+0.01
 end
 #we set the array corresponding to the temperature 
 phi=set_array((x,y)->temperature(hypot(x,y)),:temperature,twod_visc_hydro_discrete);
