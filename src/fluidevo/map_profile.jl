@@ -70,7 +70,7 @@ end
 
 """
 Initialize a profile when both the entropy and the density of binary collision profiles are given"""
-function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true) where {A,B}
+function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset=0.005) where {A,B}
     #entropy profile
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_x)
     
@@ -217,4 +217,5 @@ function dσ_fonll_interp(x::TabulatedData{A,B}) where {A,B}
     dσ_fonll_interpol = LinearInterpolation(x.radius, vec(x.profile)*1e-10; extrapolation_bc=Flat()) #interpolated FONLL cross section
     return dσ_fonll_interpol
 end
+
 
