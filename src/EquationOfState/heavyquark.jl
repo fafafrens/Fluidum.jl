@@ -95,10 +95,13 @@ end
 struct HQdiffusion{M}<:Diffusion
     DsT::M
     mass::M
+    tauD::M
 end
 
+HQdiffusion(dsT,mass)=HQdiffusion(dsT,mass,1.0)
+
 function HQdiffusion()
-    HQdiffusion(0.39,1.5)  
+    HQdiffusion(0.39,1.5,1.)  
 end
 
 struct QGPViscosity{T}<:ShearViscosity
@@ -192,6 +195,7 @@ end
 
 function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     m = x.mass
+    funnyfuctor=x.tauD
   
     b2 = besselkx(2,m/T)*exp(-m/T)
     b1 = besselkx(1,m/T)*exp(-m/T)
@@ -200,13 +204,14 @@ function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     b4 = b2 + 6/(m/T)*b3  
     b5 = b3+8/(m/T)*b4
 
-  return ((2*π*x.DsT) *m^3/T^3/(96*π*T)*(2*b1 - 3*b3 +b5)/b2)/fmGeV; #
+  return ((2*π*x.DsT) *m^3/T^3/(96*π*T)*(2*b1 - 3*b3 +b5)/b2)/fmGeV*funnyfuctor; #
   
 end
 
 
 function τ_diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
     tauq = 0
+    funnyfuctor=x.tauD
     for i in x.hadron_list.particle_list
         m = i.Mass
         q = i.Nc + i.Nac
@@ -216,9 +221,9 @@ function τ_diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
         b4 = b2 + 6/(m/T)*b3  
         b5 = b3+8/(m/T)*b4
         ex = exp(q*μ)
-        tauq += ((2*π*y.DsT)/(192*π^3*T^3)*q^2*m^5*ex*(2*b1 - 3*b3 +b5))*(fmGeV^2); 
+        tauq += ((2*π*y.DsT)/(192*π^3*T^3)*q^2*m^5*ex*(2*b1 - 3*b3 +b5)); 
     end   
-  return tauq/normalization(T,μ,x); #
+  return tauq/normalization(T,μ,x)*funnyfuctor*(fmGeV^2); #
 end
 
 
@@ -255,3 +260,4 @@ end
 function diffusion_hadron(T,μ,x::Heavy_Quark,y::ZeroDiffusion) 
     return 0.0
 end
+
