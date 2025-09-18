@@ -195,7 +195,7 @@ end
 
 function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     m = x.mass
-    funnyfuctor=y.tauD
+    funnyfuctor=x.tauD
   
     b2 = besselkx(2,m/T)*exp(-m/T)
     b1 = besselkx(1,m/T)*exp(-m/T)
@@ -260,5 +260,6 @@ end
 function diffusion_hadron(T,μ,x::Heavy_Quark,y::ZeroDiffusion) 
     return 0.0
 end
+
 
 
