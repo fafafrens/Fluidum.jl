@@ -744,6 +744,65 @@ function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspa
     solve(prob,Tsit5(),args...;kwargs..., dtmax = 0.01)
 end
 
+"""
+Debug function to check the eigenvalues of the system at each time step and spatial point. Return a warning if the imaginary part of any eigenvalue exceeds 1e-5 or if the real part exceeds 1.
+"""
+function oneshoot_debug(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,params,phi,tspan,args...;kwargs...)
+    prob=problem(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,params,phi,tspan)
+    integrator = init(prob,Tsit5();save_everystep=false)
+    e_i=two_ideal_hydro_discrete.index_structure.unit_inidices_space
+    X=two_ideal_hydro_discrete.discretization
+    causal = 0
+    @inbounds for (uprev,tprev,u,t) in intervals(integrator)
+        @inbounds for I in two_ideal_hydro_discrete.index_structure.interior
+        ϕ=@views u[:,I]
+        #@show X[I][1], t, ϕ[1]
+        dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
+        dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
+
+        etaVisc=viscosity(ϕ[1],dpt,params.shear)
+        tauS=τ_shear(ϕ[1],dpt,params.shear)
+        tauB=τ_bulk(ϕ[1],dpt,dptt,params.bulk)
+        zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
+        
+        thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
+        n=thermo.pressure
+        dtn, dmn = thermo.pressure_derivative
+        dmn+=0.0001
+        #dtn+=0.0001
+        #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
+        
+        Ds = diffusion(ϕ[1],n,params.diffusion)
+        tauDiff=τ_diffusion(ϕ[1],params.diffusion)
+
+        #κ = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
+        #tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
+        
+        dmp = 0 #for now we don t have chemical potential in the eos
+        dtdmp = 0 
+        dmdmp = 0
+
+        #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
+
+        #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+        #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
+        (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[I][1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+        
+        ev = eigvals(Ax, At)
+        max_im = maximum(abs.(imag.(ev)))
+        if max_im > 1e-5
+            @warn "Imaginary parts of eigenvalues exceed 1e-5" max_im = max_im t = t I = I
+            causal = 1
+        end
+        max_re = maximum(abs.(real.(ev)))
+        if max_re > 1.
+            @warn "Real part of eigenvalues exceed 1" max_re = max_re t = t I = I
+            causal = 1
+        end
+    end
+end
+return causal
+end
 
 function isosurface(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
     ideal_matrix_equation_2d!,cs,phi,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}
