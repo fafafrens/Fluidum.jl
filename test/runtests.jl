@@ -152,7 +152,10 @@ end
 #end
 
 @testset "causality check" begin
-    eos = Heavy_Quark(readresonancelist(), ccbar)
+    #define equation of state and transport coefficients
+    ccbar = 30.
+    eos = Heavy_Quark(readresonancelist(), ccbar)   
+
     viscosity = QGPViscosity(0.1,0.2); #or, ZeroViscosity();
     bulk = SimpleBulkViscosity(0.083,15.0); #or, ZeroBulkViscosity();   
 
@@ -175,8 +178,11 @@ end
     #set the temperature field
     phi=set_array((x)->temperature(x),:temperature,disc_fields); 
     set_array!(phi,(x)->-3. *temperature(x),:mu,disc_fields); 
-    
-    iszero(Fluidum.oneshoot_debug(fields.discrete_field, Fluidum.matrxi1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8))
+
+    tspan = (0.4,10);
+    field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrxi1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
+ 
+    iszero(field_results_Ds)
 
 end
 
