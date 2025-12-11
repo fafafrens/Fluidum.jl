@@ -47,47 +47,45 @@ end
 
 
 #read in resonances
-# #function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
-# function HadronResonaceGas(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
-#     data     =readdlm(name_file,comment_char='#',comments=true)
-#     names    =convert.(String,data[:,1])
-#     mass     =convert.(Float64,data[:,2])
-#     gamma    =convert.(Float64,data[:,3])
-#     deg      =convert.(Int64,data[:,4])
-#     spin     =convert.(Float64,data[:,5])
-#     iso_spin =convert.(Float64,data[:,6])
-#     I3       =convert.(Float64,data[:,7])
-#     Nq       =convert.(Float64,data[:,8])
-#     Ns       =convert.(Float64,data[:,9])
-#     Naq      =convert.(Float64,data[:,10])
-#     Nas      =convert.(Float64,data[:,11])
-#     Nc       =convert.(Float64,data[:,12])
-#     Nac      =convert.(Float64,data[:,13])
-#     MC       =convert.(Int64,data[:,14])
+function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+    data     =readdlm(name_file,comment_char='#',comments=true)
+    names    =convert.(String,data[:,1])
+    mass     =convert.(Float64,data[:,2])
+    gamma    =convert.(Float64,data[:,3])
+    deg      =convert.(Int64,data[:,4])
+    spin     =convert.(Float64,data[:,5])
+    iso_spin =convert.(Float64,data[:,6])
+    I3       =convert.(Float64,data[:,7])
+    Nq       =convert.(Float64,data[:,8])
+    Ns       =convert.(Float64,data[:,9])
+    Naq      =convert.(Float64,data[:,10])
+    Nas      =convert.(Float64,data[:,11])
+    Nc       =convert.(Float64,data[:,12])
+    Nac      =convert.(Float64,data[:,13])
+    MC       =convert.(Int64,data[:,14])
 
-#     fulllist=StructArray(Particle.(
-#         names    ,
-#         mass     ,
-#         gamma    ,
-#         deg      ,
-#         spin     ,
-#         iso_spin ,
-#         I3       ,
-#         Nq       ,
-#         Ns       ,
-#         Naq      ,
-#         Nas      ,
-#         Nc       ,
-#         Nac      ,
-#         MC       
-#        ))
-#     filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Name != "de2000plb"&&x.Name !="de2000plu" &&condition(x)),fulllist)
-#    HadronResonaceGas(filterlist)
+    fulllist=StructArray(Particle.(
+        names    ,
+        mass     ,
+        gamma    ,
+        deg      ,
+        spin     ,
+        iso_spin ,
+        I3       ,
+        Nq       ,
+        Ns       ,
+        Naq      ,
+        Nas      ,
+        Nc       ,
+        Nac      ,
+        MC       
+       ))
+    filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Name != "de2000plb"&&x.Name !="de2000plu" &&condition(x)),fulllist)
+   HadronResonaceGas(filterlist)
 
-# end
+end
 
-#function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
-function readresonancelist(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
+function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
 
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
