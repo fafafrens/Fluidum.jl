@@ -176,4 +176,5 @@ jacobian(f::SplineInterp{tuple,A,left,right},x::SVector{N,T}) where {tuple,A,lef
 jacobian(f::SplineInterp{tuple,A,left,right},x...) where {tuple,A,left,right}  =reduce(hcat,Interpolations.gradient(f.a,x...))'
 
 gradient(f::SplineInterp{tuple,A,left,right},x) where {tuple,A,left,right}  =Interpolations.gradient(f.a,x)
+
 derivative(f::SplineInterp{tuple,A,left,right},x) where {tuple,A,left,right}  =ForwardDiff.derivative(f.a,x)
