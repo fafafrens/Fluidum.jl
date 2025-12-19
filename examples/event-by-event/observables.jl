@@ -3,6 +3,12 @@ using LinearAlgebra
 using Integrals
 using Cuba
 
+struct particle_simple
+    mass::Float64
+    degeneracy::Int64
+    charge::Int64
+end
+
 function dsigma_down(fo, coords)
     point, phi = fo
     t,x,y= point(coords...)
@@ -152,15 +158,15 @@ function dvn_dp_list_delta(fo,species_list, pTlist, eta_p, wavenum_list; eta_min
                 denom=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*pT 
             
                 for (j,wavenum_m) in enumerate(wavenum_list)
-                    y[1,i,j]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*cos(wavenum_m*u[4])*pT
-                    y[2,i,j]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*sin(wavenum_m*u[4])*pT
-                    y[3,i,j]=denom
+                    y[1,i,j,k]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*cos(wavenum_m*u[4])*pT
+                    y[2,i,j,k]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*sin(wavenum_m*u[4])*pT
+                    y[3,i,j,k]=denom
                 end
             end
         end
     end
-    prototype = zeros(3,length(pTlist),length(wavenum_list))
-    par = (fo, species_list, pTlist, eta_p, wavenum_list, delta)
+    prototype = zeros(3,length(pTlist),length(wavenum_list),length(species_list))
+    par = (fo, species_list, pTlist, eta_p, wavenum_list)
     prob = IntegralProblem(IntegralFunction(f,prototype),domain,par)
     result = solve(prob, CubaVegas(), reltol=1e-3, abstol=1e-6)
     return result

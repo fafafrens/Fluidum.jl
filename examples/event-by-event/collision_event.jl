@@ -26,8 +26,8 @@ discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax
 twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
 
 #nuclear parameters
-n1= TabulatedEvent(".//NLEFT_dmin_0.5fm_positiveweights_O.h5")
-n2= TabulatedEvent(".//NLEFT_dmin_0.5fm_positiveweights_O.h5")
+n1= TabulatedEvent(pwd()*"/examples/event-by-event/NLEFT_dmin_0.5fm_positiveweights_O.h5")
+n2= n1
 w= 1
 s_NN=5000
 k=1
@@ -37,11 +37,7 @@ p=0.
 norm = 90
 participants=Participants(n1,n2,w,s_NN,k,p)
 
-struct particle_simple
-    mass::Float64
-    degeneracy::Int64
-    charge::Int64
-end
+
 
 pion = particle_simple(0.13957,1,0)
 D0 = particle_simple(1.86483,1,1)
@@ -77,27 +73,26 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
     phi=set_array(temperature_func.+0.01,:temperature,twod_visc_hydro_discrete);
     set_array!(phi,fug_func,:mu,twod_visc_hydro_discrete);
 
-    tspan=(0.4,15.)
-    Tfo=0.150
+    tspan=(0.4,30.)
+    Tfo=0.156
     result=Fluidum.isosurface(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc_HQ!,fluidproperty,phi,tspan,:temperature,Tfo)
     cha=Fluidum.Chart(Fluidum.Surface(result[:surface]),(t,x,y)->Fluidum.SVector{2}(atan(t,hypot(y,x)),atan(y,x)))
     if length(cha.points)==0
-        return ObservableResult(mult,zeros(length(pTlist)),zeros(length(pTlist)),Array{Float64}(undef,3,length(pTlist),length(wavenum_m)))
+        return ObservableResult(mult,zeros(length(pTlist)),Array{Float64}(undef,3,length(pTlist),length(wavenum_m),length(species_list)))
     end
     fo_bg=Fluidum.freezeout_interpolation(cha,sort_index=2,ndim_tuple=50)
 
     #run observables
     vn = dvn_dp_list_delta(fo_bg,species_list, pTlist, eta_p, wavenum_m; eta_min=-5.0, eta_max=5.0)
-    spectra = dn_dpTdetap(fo_bg,m,pTlist, eta_p; eta_min=-5.0, eta_max=5.0)
+   # spectra = dn_dpTdetap(fo_bg,m,pTlist, eta_p; eta_min=-5.0, eta_max=5.0)
    # writedlm("dvn_dp_list_result.txt", vn)
-return ObservableResult(mult,pTlist,spectra.u,vn.u)
+return ObservableResult(mult,pTlist,vn.u)
 end
 
 struct ObservableResult
     GlauberMultiplicity::Float64
     pTlist::Vector{Float64}
-    pt_spectra::Vector{Float64}
-    vn::Array{Float64,3}
+    vn::Array{Float64,4} # (cos, sin, denom) x length(pTlist) x length(wavenum_m) x length(species_list)
 end
 
 notempty = run_event(
@@ -108,7 +103,6 @@ notempty = run_event(
 )
 
 notempty.pTlist
-notempty.pt_spectra
 notempty.vn
 notempty.GlauberMultiplicity
 
