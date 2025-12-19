@@ -174,8 +174,7 @@ function dvn_dp_list_delta(fo,species_list, pTlist, eta_p, wavenum_list; eta_min
     prototype = zeros(3,length(pTlist),length(wavenum_list),length(species_list))
     par = (fo, species_list, pTlist, eta_p, wavenum_list)
     prob = IntegralProblem(IntegralFunction(f,prototype),domain,par)
-    #result = solve(prob, CubaVegas(), reltol=1e-3, abstol=1e-6)
-    result = solve(prob, HCubatureJL(), reltol=1e-3, abstol=1e-6)
+    result = solve(prob, CubaVegas(), reltol=1e-3, abstol=1e-6)
     return result
 end
 
