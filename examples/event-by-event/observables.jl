@@ -190,3 +190,93 @@ function dn_detap(fo,m,eta_p; eta_min=-5.0, eta_max=5.0,pt_min=0., pt_max=5.0)
     result = solve(prob, HCubatureJL(), reltol=1e-3, abstol=1e-6)
     return result
 end
+
+
+
+
+function total_M(result_single_event,species_list)
+    M = 0.
+    pTlist = result_single_event.pTlist
+    vn = result_single_event.vn
+    for k in eachindex(species_list)
+        for pt_idx in eachindex(pTlist)
+            M+=vn[3,pt_idx,1,k]
+        end
+    end
+    return M
+    
+end
+
+
+function M_species(result_single_event,species_list)
+    M = zeros(length(species_list))
+    pTlist = result_single_event.pTlist
+    vn = result_single_event.vn
+    for k in eachindex(species_list)
+        for pt_idx in eachindex(pTlist)
+            M[k]+=vn[3,pt_idx,1,k]
+        end
+    end
+    return M
+    
+end
+
+function M_species_ptbin(result_single_event,species_list)
+    pTlist = result_single_event.pTlist
+    vn = result_single_event.vn
+    M = zeros(length(pTlist),length(species_list))
+    for k in eachindex(species_list)
+        for pt_idx in eachindex(pTlist)
+            M[pt_idx,k]+=vn[3,pt_idx,1,k]
+        end
+    end  
+    return M
+end
+
+
+function g_species_ptbin(result_single_event,species_list)
+    return M_species_ptbin(result_single_event,species_list)./total_M(result_single_event,species_list)
+end
+
+
+
+function qvec(result_single_event,species_list,wavenum_list)
+    qvec_result = zeros(length(wavenum_list))
+    pTlist = result_single_event.pTlist
+    vn = result_single_event.vn
+
+    for wavenum in eachindex(wavenum_list)
+        for k in eachindex(species_list)
+            for pt_idx in eachindex(pTlist)
+                qvec_result[wavenum]+=sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*g_species_ptbin(result_single_event,species_list)[pt_idx,k]
+            end
+        end
+    end
+    return qvec_result
+end
+
+
+function v_wavenum(result_array,species_list,wavenum_list)
+    
+    pTlist = result_array[1].pTlist
+    vm_final= zeros(length(pTlist),length(wavenum_list),length(species_list))
+
+    for pt_idx in eachindex(pTlist)
+    for wavenum in eachindex(wavenum_list)
+    for k in eachindex(species_list)
+        for i in eachindex(result_array)
+
+       
+        vn = result_array[i].vn
+
+        q_vector = qvec(result_array[i],species_list,wavenum_list)
+
+        vm_final[pt_idx,wavenum,k] += 1/Nev*sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*q_vector[wavenum]
+        
+
+        end
+    end
+    end
+    end
+    return vm_final
+end

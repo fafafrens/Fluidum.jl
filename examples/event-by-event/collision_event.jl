@@ -1,6 +1,7 @@
 
 using Fluidum
 using MonteCarloGlauber
+using MuladdMacro
 include("MCglauber.jl")
 include("observables.jl")
 # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
@@ -47,7 +48,7 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
     #create event
     event=rand(participants);
     #compute center of mass
-    mult, x_com, y_com = center_of_mass(event,Nr=500, Nth=500)
+    mult, x_com, y_com = center_of_mass(event,Nr=500, Nth=50)
     xcm= x_com/mult
     ycm= y_com/mult   
     profile=map(discretization.grid) do y
@@ -89,8 +90,8 @@ return ObservableResult(mult,pTlist,vn.u)
 end
 
 struct ObservableResult
-    GlauberMultiplicity::Float64
-    pTlist::Vector{Float64}
+    glauber_multiplicity::Float64
+    pt_list::Vector{Float64}
     vn::Array{Float64,4} # (cos, sin, denom) x length(pTlist) x length(wavenum_m) x length(species_list)
 end
 
@@ -100,6 +101,7 @@ notempty = run_event(
     100;
     pTlist = collect(0.1:0.2:2.0)
 )
+
 
 notempty.pTlist
 notempty.vn
@@ -116,109 +118,133 @@ empty.pTlist
 empty.vn
 empty.GlauberMultiplicity
 
-length(empty.points)
-length(notempty.points)
+
+
+NeV = 2
+function run_event_by_event(Nev)
+        map(1:Nev) do i
+            println("Running event $i / $Nev")
+            result = run_event(
+                participants,
+                twod_visc_hydro_discrete,
+                norm;
+                pTlist = collect(0.5:0.5:4.0)
+            )
+            result
+        end
+    end
+
+run_event_by_event(NeV)
+
 using HDF5
 
+function append_to_h5(filename, data::Vector{ObservableResult})
+    if isfile(filename)
+        h5open(filename, "r+") do file
 
-result_file = pwd()*"/examples/event-by-event/results_auto.h5"
+            dataset = "glauber_multiplicity"
+            dset = file[dataset]
+            curr_dims = size(dset)
 
-function run_event_by_event(Nev,namefile)
-    h5open(namefile, "w") do file
-        for i in 1:Nev
-            result = run_event(
-                participants,
-                twod_visc_hydro_discrete,
-                norm;
-                pTlist = collect(0.5:0.5:4.0)
-            )
+            # New size after appending one time slice
+            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
 
-           
-            dset_name = "/run_$i"
-            write(file, dset_name, result)
-            println(i)
-           
+            # Extend the dataset along the time dimension
+            HDF5.set_extent_dims(dset, new_dims)
+
+            slab_size = ntuple(length(curr_dims)) do I
+                if I == 1 return curr_dims[1]+ 1:new_dims[1]
+                else return 1:curr_dims[I]
+                end
+            end
+
+            dset[slab_size...] = [d.glauber_multiplicity for d in data]
+
+            dataset = "pt_list"
+            dset = file[dataset]
+            curr_dims = size(dset)
+
+            # New size after appending one time slice
+            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
+
+            # Extend the dataset along the time dimension
+            HDF5.set_extent_dims(dset, new_dims)
+
+            slab_size = ntuple(length(curr_dims)) do I
+                if I == 1 return curr_dims[1]+ 1:new_dims[1]
+                else return 1:curr_dims[I]
+                end
+            end
+            dset[slab_size...] = [d.pt_list[i] for d in data, i in 1:length(data[1].pt_list)]
+
+            dataset = "vn"
+            dset = file[dataset]
+            curr_dims = size(dset)
+
+            # New size after appending one time slice
+            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
+
+            # Extend the dataset along the time dimension
+            HDF5.set_extent_dims(dset, new_dims)
+
+            slab_size = ntuple(length(curr_dims)) do I
+                if I == 1 return curr_dims[1]+ 1:new_dims[1]
+                else return 1:curr_dims[I]
+                end
+            end 
+            
+            dset[slab_size...] = [d.vn[i,j,k,l] for d in data, i in 1:3, j in 1:size(data[1].vn,2), k in 1:size(data[1].vn,3), l in 1:size(data[1].vn,4)]
+
+        end
+    else
+        h5open(filename, "w") do file
+
+            initial_size = (length(data),)
+            max_size = (-1,)
+            chunk = (length(data),)
+
+            dspace = dataspace(initial_size; max_dims=max_size)
+            # Create dataset and specify chunk size as a keyword argument    
+            dataset = "glauber_multiplicity"
+            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)    
+            dset[1:size(data,1)] = [d.glauber_multiplicity for d in data]
+
+            initial_size = (length(data), length(data[1].pt_list))
+            max_size = (-1, length(data[1].pt_list))
+            chunk = (length(data), length(data[1].pt_list))
+            dspace = dataspace(initial_size; max_dims=max_size)
+            # Create dataset and specify chunk size as a keyword argument    
+            dataset = "pt_list"
+            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)
+            dset[1:size(data,1), :] = [d.pt_list[i] for d in data, i in 1:length(data[1].pt_list)]
+
+            initial_size = (length(data), size(data[1].vn)...)
+            chunk = initial_size
+            max_size = (-1, size(data[1].vn)...)
+            dspace = dataspace(initial_size; max_dims=max_size)
+            # Create dataset and specify chunk size as a keyword argument    
+            dataset = "vn"
+            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)
+            dset[1:size(data,1), :, :, :, :] = [d.vn[i,j,k,l] for d in data, i in 1:3, j in 1:size(data[1].vn,2), k in 1:size(data[1].vn,3), l in 1:size(data[1].vn,4)]
+
         end
     end
-    close(file)
+    # Create dataspace from dims
+
+    
 end
 
-run_event_by_event(10,result_file)
-
-result_array = []
-function run_event_by_event(result_array,Nev)
-        for i in 1:Nev
-            result = run_event(
-                participants,
-                twod_visc_hydro_discrete,
-                norm;
-                pTlist = collect(0.5:0.5:4.0)
-            )
-            push!(result_array,result)
-            println(i)
-        end
-    end
-
-
-example = run_event(
-    participants,
-    twod_visc_hydro_discrete,
-    norm;
-    pTlist = collect(0.1:0.2:2.0)
-)
-
-
-run_event_by_event(10)
-result_array[1].vn
-pTlist = result_array[1].pTlist
-
-
+data = run_event_by_event(2)
+append_to_h5("event_by_event_results.h5", data)
 
 M_species(result_array[10],[pion,D0])
 g_species_ptbin(result_array[10],[pion,D0])[1,2]
 
-function qvec(result_single_event,species_list,wavenum_list)
-    qvec_result = zeros(length(wavenum_list))
-    pTlist = result_single_event.pTlist
-    vn = result_single_event.vn
-
-    for wavenum in eachindex(wavenum_list)
-        for k in eachindex(species_list)
-            for pt_idx in eachindex(pTlist)
-                qvec_result[wavenum]+=sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*g_species_ptbin(result_single_event,species_list)[pt_idx,k]
-            end
-        end
-    end
-    return qvec_result
-end
 
 qvec(result_array[10],[pion,D0],[2,3])
 
 
-function v_wavenum(result_array,species_list,wavenum_list)
-    
-    pTlist = result_array[1].pTlist
-    vm_final= zeros(length(pTlist),length(wavenum_list),length(species_list))
 
-    for pt_idx in eachindex(pTlist)
-    for wavenum in eachindex(wavenum_list)
-    for k in eachindex(species_list)
-        for i in eachindex(result_array)
-
-       
-        vn = result_array[i].vn
-
-        q_vector = qvec(result_array[i],species_list,wavenum_list)
-
-        vm_final[pt_idx,wavenum,k] += 1/Nev*sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*q_vector[wavenum]
-        
-
-        end
-    end
-    end
-    end
-    return vm_final
-end
 
 vns = v_wavenum(result_array,[pion,D0],[2,3])
 
@@ -226,72 +252,3 @@ scatter(pTlist,vns[:,1,1],label="v2 pion")
 scatter!(pTlist,vns[:,1,2],label="v2 D0")
 scatter!(pTlist,vns[:,2,1],label="v3 pion")
 scatter!(pTlist,vns[:,2,2],label="v3 D0")
-
-Nev = length(result_array)
-
-for pt_idx in eachindex(pTlist)
-
-    for i in eachindex(result_array)
-        qvec_pion[pt_idx] = sqrt(result_array[i].vn[1,pt_idx,1,1]^2+result_array[i].vn[2,pt_idx,1,1]^2)/result_array[i].vn[3,pt_idx,1,1]
-        qvec_D0[pt_idx] =sqrt(result_array[i].vn[1,pt_idx,1,2]^2+result_array[i].vn[2,pt_idx,1,2]^2)/result_array[i].vn[3,pt_idx,1,2]
-       
-        v2_pion[pt_idx]=v2_pion[pt_idx]+1/Nev*qvec_pion[pt_idx]*qvec
-        v2_D0[pt_idx]=v2_D0[pt_idx]+1/Nev*qvec_D0[pt_idx]*qvec
-    end
-end
-
-v2_pion
-
-using Plots
-scatter(pTlist,v2_pion)
-scatter!(pTlist,v2_D0)
-
-file = h5open("results.h5", "r")
-vn = Array{Float64}(undef,1,3,10,2)
-
-pTlist = collect(0.1:0.2:2.0)
-elliptic_flow = zeros(length(pTlist))
-triangular_flow = zeros(length(pTlist))
-for i in 1:17
-    dset_name = "/run_$i"
-    data = read(file, dset_name)
-    vn[i,:,:,:] = data
-end
-close(file)
-
-
-
-    for (i,pT) in enumerate(pTlist)
-        sum_cos = 0.
-        sum_sin = 0.
-        sum_den = 0.
-            
-        for j in 1:17
-            sum_cos = vn[j,1,i,1]
-            sum_sin = vn[j,2,i,1]
-            sum_den = vn[j,3,i,1]
-            elliptic_flow[i] += sqrt(sum_cos^2 + sum_sin^2)/sum_den
-        end
-    end
-
-
-elliptic_flow
-
-
-
-    for (i,pT) in enumerate(pTlist)
-            sum_cos += vn[j,1,i,2]
-            sum_sin += vn[j,2,i,2]
-            sum_den += vn[j,3,i,2]
-            for j in 1:17
-            sum_cos = 0.
-            sum_sin = 0.
-            sum_den = 0.
-            triangular_flow[i] = (sum_cos^2 + sum_sin^2)/sum_den
-        end
-    end
-
-    using Plots
-scatter(pTlist, elliptic_flow, label="v2")
-
-scatter(pTlist, triangular_flow, label="v3")
