@@ -93,20 +93,21 @@ end
 
 """
 Initialize a profile when both the entropy and the density of binary collision profiles are given"""
-function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset=0.005) where {A,B}
+function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset_x=0.01,offset_y=0.00, x_max_x = 8, x_max_y = 5) where {A,B}
     #entropy profile
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_x)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile)  
-    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
-    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = 8, offset = 0.005)
-   
+    temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat()) #from 9.9 fm it's flat
+    
+    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = x_max_x, offset = offset_x)
+   # temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = 8, offset = 0.01)
     temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
     #ncoll profile
     r, ncoll_profile = get_profile(y, cent1, cent2; norm = norm_y)  
-    ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
+    ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) #from 9.9 fm it's flat
    
-    ncoll_exp = exponential_tail_pointlike.(Ref(ncoll_funct), radius;xmax = 5, offset=0.)
+    ncoll_exp = exponential_tail_pointlike.(Ref(ncoll_funct), radius;xmax = x_max_y, offset=offset_y)
         
     ncoll_exp_funct = linear_interpolation(radius, ncoll_exp; extrapolation_bc=Flat()) 
     

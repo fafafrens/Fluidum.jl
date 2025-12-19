@@ -85,7 +85,7 @@ include("fluidevo/particle_dictionary.jl")
 
 
 include("fluidevo/spectra_fastreso_dict_HQ.jl")
-include("fluidevo/spectra.jl")
+#include("fluidevo/spectra.jl")
 
 include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")

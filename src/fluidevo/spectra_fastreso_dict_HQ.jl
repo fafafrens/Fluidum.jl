@@ -182,6 +182,21 @@ function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.
 
 end
 
+function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100,deg=1) where {A<:SplineInterp,B<:SplineInterp}
+    x,phi=fo
+    lb=leftbounds(x)
+    rb=rightbounds(x)
+    buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
+
+    function f(y, u, p)
+    end
+    domain = ([0.,0], [2pi,5]) #rapidity integral is even, and everything is zero after y = 5.
+    prob = IntegralProblem(IntegralFunction(f, prototype), domain)
+    sol = solve(prob, method; reltol = reltol, abstol = abstol)
+    sol.u
+    [quadgk(alpha->_pointwise_spectra_internal(pt,m,alpha,x,phi,deg=deg),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ] 
+
+end
 
 
 function multiplicity(m::Number,fo::FreezeOutResult{A,B};rtol=sqrt(eps()),pt_min=0,pt_max = 10) where {A<:SplineInterp,B<:SplineInterp}

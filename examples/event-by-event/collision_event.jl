@@ -1,7 +1,6 @@
 
 using Fluidum
 using MonteCarloGlauber
-using DelimitedFiles
 include("MCglauber.jl")
 include("observables.jl")
 # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
@@ -114,13 +113,15 @@ empty = run_event(
 )
 
 empty.pTlist
-empty.pt_spectra
 empty.vn
 empty.GlauberMultiplicity
 
 length(empty.points)
 length(notempty.points)
 using HDF5
+
+
+result_file = pwd()*"/examples/event-by-event/results_auto.h5"
 
 function run_event_by_event(Nev,namefile)
     h5open(namefile, "w") do file
@@ -129,7 +130,7 @@ function run_event_by_event(Nev,namefile)
                 participants,
                 twod_visc_hydro_discrete,
                 norm;
-                pTlist = collect(0.1:0.2:2.0)
+                pTlist = collect(0.5:0.5:4.0)
             )
 
            
@@ -142,8 +143,21 @@ function run_event_by_event(Nev,namefile)
     close(file)
 end
 
-run_event_by_event(10,"results_auto.h5")
+run_event_by_event(10,result_file)
 
+result_array = []
+function run_event_by_event(result_array,Nev)
+        for i in 1:Nev
+            result = run_event(
+                participants,
+                twod_visc_hydro_discrete,
+                norm;
+                pTlist = collect(0.5:0.5:4.0)
+            )
+            push!(result_array,result)
+            println(i)
+        end
+    end
 
 
 example = run_event(
@@ -152,8 +166,88 @@ example = run_event(
     norm;
     pTlist = collect(0.1:0.2:2.0)
 )
+
+
+run_event_by_event(10)
+result_array[1].vn
+pTlist = result_array[1].pTlist
+
+
+
+M_species(result_array[10],[pion,D0])
+g_species_ptbin(result_array[10],[pion,D0])[1,2]
+
+function qvec(result_single_event,species_list,wavenum_list)
+    qvec_result = zeros(length(wavenum_list))
+    pTlist = result_single_event.pTlist
+    vn = result_single_event.vn
+
+    for wavenum in eachindex(wavenum_list)
+        for k in eachindex(species_list)
+            for pt_idx in eachindex(pTlist)
+                qvec_result[wavenum]+=sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*g_species_ptbin(result_single_event,species_list)[pt_idx,k]
+            end
+        end
+    end
+    return qvec_result
+end
+
+qvec(result_array[10],[pion,D0],[2,3])
+
+
+function v_wavenum(result_array,species_list,wavenum_list)
+    
+    pTlist = result_array[1].pTlist
+    vm_final= zeros(length(pTlist),length(wavenum_list),length(species_list))
+
+    for pt_idx in eachindex(pTlist)
+    for wavenum in eachindex(wavenum_list)
+    for k in eachindex(species_list)
+        for i in eachindex(result_array)
+
+       
+        vn = result_array[i].vn
+
+        q_vector = qvec(result_array[i],species_list,wavenum_list)
+
+        vm_final[pt_idx,wavenum,k] += 1/Nev*sqrt(vn[1,pt_idx,wavenum,k]^2+vn[2,pt_idx,wavenum,k]^2)/vn[3,pt_idx,wavenum,k]*q_vector[wavenum]
+        
+
+        end
+    end
+    end
+    end
+    return vm_final
+end
+
+vns = v_wavenum(result_array,[pion,D0],[2,3])
+
+scatter(pTlist,vns[:,1,1],label="v2 pion")
+scatter!(pTlist,vns[:,1,2],label="v2 D0")
+scatter!(pTlist,vns[:,2,1],label="v3 pion")
+scatter!(pTlist,vns[:,2,2],label="v3 D0")
+
+Nev = length(result_array)
+
+for pt_idx in eachindex(pTlist)
+
+    for i in eachindex(result_array)
+        qvec_pion[pt_idx] = sqrt(result_array[i].vn[1,pt_idx,1,1]^2+result_array[i].vn[2,pt_idx,1,1]^2)/result_array[i].vn[3,pt_idx,1,1]
+        qvec_D0[pt_idx] =sqrt(result_array[i].vn[1,pt_idx,1,2]^2+result_array[i].vn[2,pt_idx,1,2]^2)/result_array[i].vn[3,pt_idx,1,2]
+       
+        v2_pion[pt_idx]=v2_pion[pt_idx]+1/Nev*qvec_pion[pt_idx]*qvec
+        v2_D0[pt_idx]=v2_D0[pt_idx]+1/Nev*qvec_D0[pt_idx]*qvec
+    end
+end
+
+v2_pion
+
+using Plots
+scatter(pTlist,v2_pion)
+scatter!(pTlist,v2_D0)
+
 file = h5open("results.h5", "r")
-vn = Array{Float64}(undef,17,3,10,2)
+vn = Array{Float64}(undef,1,3,10,2)
 
 pTlist = collect(0.1:0.2:2.0)
 elliptic_flow = zeros(length(pTlist))
