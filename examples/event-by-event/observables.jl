@@ -9,26 +9,32 @@ struct particle_simple
     charge::Int64
 end
 
-function dsigma_down(fo, coords)
-    point, phi = fo
+@inline @inbounds @fastmath function dsigma_down(fo, coords)
+    point= fo.x
     t,x,y= point(coords...)
     jmatrix = Fluidum.jacobian(point,coords)
-    -SVector{4}(jmatrix[1,2]*jmatrix[2,3]-jmatrix[1,3]*jmatrix[2,2],
-                jmatrix[1,3]*jmatrix[2,1]-jmatrix[1,1]*jmatrix[2,3],
-                jmatrix[1,1]*jmatrix[2,2]-jmatrix[1,2]*jmatrix[2,1],
-                zero(eltype(jmatrix))).*t #with minus!!! #with determinant of the metric
+    
+    
+    @muladd a0=-t*jmatrix[1,2]*jmatrix[2,3]+t*jmatrix[1,3]*jmatrix[2,2]
+    @muladd a1=-t*jmatrix[1,3]*jmatrix[2,1]+t*jmatrix[1,1]*jmatrix[2,3]
+    @muladd a2=-t*jmatrix[1,1]*jmatrix[2,2]+t*jmatrix[1,2]*jmatrix[2,1]
+    a3=zero(a0)
+
+    return SVector(a0,a1,a2,a3) #with minus!!! #with determinant of the metric
+    
 end
 
-function pmu_up(m, pT, phi_p, eta_p, eta)
+@inline @fastmath function pmu_up(m, pT, phi_p, eta_p, eta)
     mt = sqrt(m^2 + pT^2)
-    return SVector{4}(mt*cosh(eta_p-eta), pT*cos(phi_p), pT*sin(phi_p), zero(mt))
+    s,c=sincos(phi_p)
+    return SVector(mt*cosh(eta_p-eta), pT*c, pT*s, zero(mt))
 end
 
 
 
 @inbounds function dn_dpdx(fo,m,coords,eta,pT, phi_p, eta_p)
-    x, fields = fo
-    fields_on_coords = fields(coords...)
+    field = fo.fields
+    fields_on_coords = field(coords...)
     T = fields_on_coords[1]
     ux = fields_on_coords[2]
     uy = fields_on_coords[3]
@@ -41,24 +47,26 @@ end
     dot(dsigma_down(fo,coords),pmu_up(m,pT,phi_p,eta_p,eta))*f_eq/(2*pi)^3*Fluidum.fmGeV^3
 end
 
-@inbounds function dn_dpdx(fo,particle_species::particle_simple,coords,eta,pT, phi_p, eta_p)
-    x, fields = fo
-    fields_on_coords = fields(coords...)
-    T = fields_on_coords[1]
-    ux = fields_on_coords[2]
-    uy = fields_on_coords[3]
 
-    uμ_down = SVector{4}(-sqrt(ux^2+uy^2+1),ux,uy,zero(T))
+
+@fastmath function dn_dpdx(fo,particle_species::particle_simple,coords,eta,pT, phi_p, eta_p)
+    field = fo.fields
+    fields_on_coords = field(coords...)
+    @inbounds T = fields_on_coords[1]
+    @inbounds ux = fields_on_coords[2]
+    @inbounds uy = fields_on_coords[3]
+
+    uμ_down = SVector(-sqrt(ux^2+uy^2+one(ux)),ux,uy,zero(T))
 
     m = particle_species.mass
     charge = particle_species.charge
     deg = particle_species.degeneracy
 
-    α = fields_on_coords[8]
+    @inbounds α = fields_on_coords[8]
     pμ_up = pmu_up(m, pT, phi_p, eta_p, eta)
     f_eq = exp(dot(pμ_up,uμ_down)/T + charge*α)
    
-    deg*dot(dsigma_down(fo,coords),pmu_up(m,pT,phi_p,eta_p,eta))*f_eq/(2*pi)^3*Fluidum.fmGeV^3
+    deg*dot(dsigma_down(fo,coords),pμ_up)*f_eq/(2*pi)^3*Fluidum.fmGeV3
 end
 
 
@@ -147,19 +155,17 @@ function dvn_dp_list_delta(fo,species_list, pTlist, eta_p, wavenum_list; eta_min
 
     function f(y,u,p) 
         fo, species_list, pTlist, eta_p, wavenum_m = p
-    
-        for k in eachindex(species_list)
+        @inbounds for k in eachindex(species_list)
             species = species_list[k]
-
-            for i in eachindex(pTlist)
-
+            @inbounds for i in eachindex(pTlist)
                 delta = delta_list[i]
                 pT = u[5]*delta + pTlist[i] #mapping from [0,1] to [pTlist[i]-delta, pTlist[i]+delta]
                 denom=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*pT 
-            
-                for (j,wavenum_m) in enumerate(wavenum_list)
-                    y[1,i,j,k]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*cos(wavenum_m*u[4])*pT
-                    y[2,i,j,k]=dn_dpdx(fo,species,(u[1],u[2]),u[3],pT, u[4], eta_p)*sin(wavenum_m*u[4])*pT
+                @inbounds for j in eachindex(wavenum_list)
+                    wavenum_m=wavenum_list[j]
+                    snphi,cnphi=sincos(wavenum_m*u[4])
+                    y[1,i,j,k]=denom*cnphi
+                    y[2,i,j,k]=denom*snphi
                     y[3,i,j,k]=denom
                 end
             end
