@@ -2,8 +2,10 @@
 using Fluidum
 using MonteCarloGlauber
 using MuladdMacro
+using OhMyThreads
 include("MCglauber.jl")
 include("observables.jl")
+include("hdf5_io.jl")
 # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
 twod_visc_hydro=Fields(
 NDField((:even,:ghost),(:even,:ghost),:temperature),
@@ -19,7 +21,7 @@ NDField((:ghost,:ghost),(:ghost,:ghost),:nuy)
 )
 
 #we define a 2 cartesian grid form -25 to 25 50 point each dimension 
-gridpoints=200
+gridpoints=100
 xmax = 25.
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax),Fluidum.SymmetricInterval(gridpoints,xmax))
 # we prepare the field with the discretization
@@ -37,8 +39,6 @@ p=0.
 norm = 90
 participants=Participants(n1,n2,w,s_NN,k,p)
 
-
-
 pion = particle_simple(0.13957,1,0)
 D0 = particle_simple(1.86483,1,1)
 
@@ -48,7 +48,7 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
     #create event
     event=rand(participants);
     #compute center of mass
-    mult, x_com, y_com = center_of_mass(event,Nr=500, Nth=50)
+    mult, x_com, y_com = center_of_mass(event,100,50)
     xcm= x_com/mult
     ycm= y_com/mult   
     profile=map(discretization.grid) do y
@@ -89,40 +89,9 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
 return ObservableResult(mult,pTlist,vn.u)
 end
 
-struct ObservableResult
-    glauber_multiplicity::Float64
-    pt_list::Vector{Float64}
-    vn::Array{Float64,4} # (cos, sin, denom) x length(pTlist) x length(wavenum_m) x length(species_list)
-end
 
-notempty = run_event(
-    participants,
-    twod_visc_hydro_discrete,
-    100;
-    pTlist = collect(0.1:0.2:2.0)
-)
-
-
-notempty.pTlist
-notempty.vn
-notempty.GlauberMultiplicity
-
-empty = run_event(
-    participants,
-    twod_visc_hydro_discrete,
-    0.1;
-    pTlist = collect(0.1:0.2:2.0)
-)
-
-empty.pTlist
-empty.vn
-empty.GlauberMultiplicity
-
-
-
-NeV = 2
 function run_event_by_event(Nev)
-        map(1:Nev) do i
+        tmap(1:Nev) do i
             println("Running event $i / $Nev")
             result = run_event(
                 participants,
@@ -132,123 +101,20 @@ function run_event_by_event(Nev)
             )
             result
         end
-    end
+ end
 
-run_event_by_event(NeV)
 
-using HDF5
 
-function append_to_h5(filename, data::Vector{ObservableResult})
-    if isfile(filename)
-        h5open(filename, "r+") do file
+Nev = 100_000
+checkpoint_interval = 1000
+checkpoint_file = "event_by_event_results.h5"
 
-            dataset = "glauber_multiplicity"
-            dset = file[dataset]
-            curr_dims = size(dset)
-
-            # New size after appending one time slice
-            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
-
-            # Extend the dataset along the time dimension
-            HDF5.set_extent_dims(dset, new_dims)
-
-            slab_size = ntuple(length(curr_dims)) do I
-                if I == 1 return curr_dims[1]+ 1:new_dims[1]
-                else return 1:curr_dims[I]
-                end
-            end
-
-            dset[slab_size...] = [d.glauber_multiplicity for d in data]
-
-            dataset = "pt_list"
-            dset = file[dataset]
-            curr_dims = size(dset)
-
-            # New size after appending one time slice
-            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
-
-            # Extend the dataset along the time dimension
-            HDF5.set_extent_dims(dset, new_dims)
-
-            slab_size = ntuple(length(curr_dims)) do I
-                if I == 1 return curr_dims[1]+ 1:new_dims[1]
-                else return 1:curr_dims[I]
-                end
-            end
-            dset[slab_size...] = [d.pt_list[i] for d in data, i in 1:length(data[1].pt_list)]
-
-            dataset = "vn"
-            dset = file[dataset]
-            curr_dims = size(dset)
-
-            # New size after appending one time slice
-            new_dims = (curr_dims[1] + length(data),curr_dims[2:end]...)
-
-            # Extend the dataset along the time dimension
-            HDF5.set_extent_dims(dset, new_dims)
-
-            slab_size = ntuple(length(curr_dims)) do I
-                if I == 1 return curr_dims[1]+ 1:new_dims[1]
-                else return 1:curr_dims[I]
-                end
-            end 
-            
-            dset[slab_size...] = [d.vn[i,j,k,l] for d in data, i in 1:3, j in 1:size(data[1].vn,2), k in 1:size(data[1].vn,3), l in 1:size(data[1].vn,4)]
-
-        end
-    else
-        h5open(filename, "w") do file
-
-            initial_size = (length(data),)
-            max_size = (-1,)
-            chunk = (length(data),)
-
-            dspace = dataspace(initial_size; max_dims=max_size)
-            # Create dataset and specify chunk size as a keyword argument    
-            dataset = "glauber_multiplicity"
-            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)    
-            dset[1:size(data,1)] = [d.glauber_multiplicity for d in data]
-
-            initial_size = (length(data), length(data[1].pt_list))
-            max_size = (-1, length(data[1].pt_list))
-            chunk = (length(data), length(data[1].pt_list))
-            dspace = dataspace(initial_size; max_dims=max_size)
-            # Create dataset and specify chunk size as a keyword argument    
-            dataset = "pt_list"
-            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)
-            dset[1:size(data,1), :] = [d.pt_list[i] for d in data, i in 1:length(data[1].pt_list)]
-
-            initial_size = (length(data), size(data[1].vn)...)
-            chunk = initial_size
-            max_size = (-1, size(data[1].vn)...)
-            dspace = dataspace(initial_size; max_dims=max_size)
-            # Create dataset and specify chunk size as a keyword argument    
-            dataset = "vn"
-            dset = HDF5.create_dataset(file, dataset, Float64, dspace,chunk=chunk)
-            dset[1:size(data,1), :, :, :, :] = [d.vn[i,j,k,l] for d in data, i in 1:3, j in 1:size(data[1].vn,2), k in 1:size(data[1].vn,3), l in 1:size(data[1].vn,4)]
-
-        end
-    end
-    # Create dataspace from dims
-
-    
+for batch in 1:ceil(Int, Nev / checkpoint_interval)
+    batch_size = min(checkpoint_interval, Nev - (batch - 1) * checkpoint_interval)
+    println("Running batch $batch: $batch_size events")
+    data = run_event_by_event(batch_size)
+    append_to_h5(checkpoint_file, data)
+    println("Checkpoint saved. Total events: $(batch * checkpoint_interval)")
 end
 
-data = run_event_by_event(2)
-append_to_h5("event_by_event_results.h5", data)
 
-M_species(result_array[10],[pion,D0])
-g_species_ptbin(result_array[10],[pion,D0])[1,2]
-
-
-qvec(result_array[10],[pion,D0],[2,3])
-
-
-
-
-vns = v_wavenum(result_array,[pion,D0],[2,3])
-
-scatter(pTlist,vns[:,1,1],label="v2 pion")
-scatter!(pTlist,vns[:,1,2],label="v2 D0")
-scatter!(pTlist,vns[:,2,1],label="v3 pion")
-scatter!(pTlist,vns[:,2,2],label="v3 D0")
