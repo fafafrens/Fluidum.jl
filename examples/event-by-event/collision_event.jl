@@ -1,8 +1,16 @@
 
 using Fluidum
 using MonteCarloGlauber
+using StaticArrays
+using LinearAlgebra
+using Integrals
+using Cuba
+using HDF5
 using MuladdMacro
 using OhMyThreads
+using Base.Threads
+@info "Julia threads" nthreads()
+
 include("MCglauber.jl")
 include("observables.jl")
 include("hdf5_io.jl")
@@ -28,7 +36,7 @@ discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax
 twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
 
 #nuclear parameters
-n1= TabulatedEvent(pwd()*"/examples/event-by-event/NLEFT_dmin_0.5fm_positiveweights_O.h5")
+n1= TabulatedEvent(pwd()*"/NLEFT_dmin_0.5fm_positiveweights_O.h5")
 n2= n1
 w= 1
 s_NN=5000
@@ -105,7 +113,7 @@ function run_event_by_event(Nev)
 
 
 
-Nev = 100_000
+Nev = 100_00
 checkpoint_interval = 1000
 checkpoint_file = "event_by_event_results.h5"
 

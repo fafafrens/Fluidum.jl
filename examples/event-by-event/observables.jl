@@ -1,7 +1,4 @@
-using StaticArrays
-using LinearAlgebra
-using Integrals
-using Cuba
+
 
 struct particle_simple
     mass::Float64

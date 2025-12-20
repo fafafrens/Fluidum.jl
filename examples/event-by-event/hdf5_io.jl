@@ -1,4 +1,4 @@
-using HDF5
+
 
 struct ObservableResult
     glauber_multiplicity::Float64
