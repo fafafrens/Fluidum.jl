@@ -114,15 +114,102 @@ function run_event_by_event(Nev)
 
 
 Nev = 100_00
-checkpoint_interval = 1000
+checkpoint_interval = 200
 checkpoint_file = "event_by_event_results.h5"
+n_batches = ceil(Int, Nev / checkpoint_interval)
 
-for batch in 1:ceil(Int, Nev / checkpoint_interval)
-    batch_size = min(checkpoint_interval, Nev - (batch - 1) * checkpoint_interval)
-    println("Running batch $batch: $batch_size events")
-    data = run_event_by_event(batch_size)
-    append_to_h5(checkpoint_file, data)
-    println("Checkpoint saved. Total events: $(batch * checkpoint_interval)")
+function progress_bar(fraction; width=30)
+    filled = round(Int, fraction * width)
+    empty = width - filled
+    return "▓"^filled * "░"^empty
 end
+
+function format_time(seconds)
+    if seconds < 60
+        return "$(round(seconds, digits=1))s"
+    elseif seconds < 3600
+        m, s = divrem(seconds, 60)
+        return "$(Int(m))m $(round(s, digits=0))s"
+    else
+        h, rem = divrem(seconds, 3600)
+        m, s = divrem(rem, 60)
+        return "$(Int(h))h $(Int(m))m"
+    end
+end
+
+println()
+println("  ╔══════════════════════════════════════════════════════════╗")
+println("  ║     🌊  FLUIDUM Event-by-Event Simulation  🌊            ║")
+println("  ╚══════════════════════════════════════════════════════════╝")
+println()
+println("  ┌─────────────────────────────────────────────────────────┐")
+println("  │  📊 Simulation Parameters                               │")
+println("  ├─────────────────────────────────────────────────────────┤")
+println("  │  🎯 Total events:        $(lpad(Nev, 10))                   │")
+println("  │  💾 Checkpoint interval: $(lpad(checkpoint_interval, 10))                   │")
+println("  │  📦 Number of batches:   $(lpad(n_batches, 10))                   │")
+println("  │  🧵 Threads available:   $(lpad(Threads.nthreads(), 10))                   │")
+println("  │  📁 Output file:         $(rpad(checkpoint_file, 20))    │")
+println("  └─────────────────────────────────────────────────────────┘")
+println()
+
+start_time = time()
+batch_times = Float64[]
+
+for batch in 1:n_batches
+    batch_start = (batch - 1) * checkpoint_interval + 1
+    batch_end = min(batch * checkpoint_interval, Nev)
+    batch_size = batch_end - batch_start + 1
+    
+    println("  ┌─────────────────────────────────────────────────────────┐")
+    println("  │  🚀 Batch $batch/$n_batches │ Events $batch_start → $batch_end ($batch_size events)")
+    println("  └─────────────────────────────────────────────────────────┘")
+    
+    batch_time = @elapsed data = run_event_by_event(batch_size)
+    push!(batch_times, batch_time)
+    
+    append_to_h5(checkpoint_file, data)
+    
+    completed = min(batch * checkpoint_interval, Nev)
+    elapsed = time() - start_time
+    rate = completed / elapsed
+    eta = (Nev - completed) / rate
+    fraction = completed / Nev
+    
+    avg_mult = sum(d.glauber_multiplicity for d in data) / length(data)
+    
+    println()
+    println("     $(progress_bar(fraction)) $(round(100*fraction, digits=1))%")
+    println()
+    println("     ⏱️  Batch time:     $(format_time(batch_time))")
+    println("     ⏳ Total elapsed:  $(format_time(elapsed))")
+    println("     🏁 Completed:      $completed / $Nev events")
+    println("     ⚡ Rate:           $(round(rate, digits=2)) events/s")
+    println("     🔮 ETA:            $(format_time(eta))")
+    println("     📈 Avg multiplicity: $(round(avg_mult, digits=2))")
+    println("     💾 Checkpoint saved ✅")
+    println()
+end
+
+total_time = time() - start_time
+avg_batch_time = sum(batch_times) / length(batch_times)
+
+println("  ╔══════════════════════════════════════════════════════════╗")
+println("  ║              🎉 SIMULATION COMPLETED! 🎉                 ║")
+println("  ╚══════════════════════════════════════════════════════════╝")
+println()
+println("  ┌─────────────────────────────────────────────────────────┐")
+println("  │  📊 Final Statistics                                    │")
+println("  ├─────────────────────────────────────────────────────────┤")
+println("  │  ⏱️  Total time:        $(lpad(format_time(total_time), 15))               │")
+println("  │  ⚡ Average rate:      $(lpad(round(Nev/total_time, digits=2), 12)) events/s    │")
+println("  │  📦 Avg batch time:    $(lpad(format_time(avg_batch_time), 15))               │")
+println("  │  🧵 Threads used:      $(lpad(Threads.nthreads(), 15))               │")
+println("  │  📁 Results saved to:  $(rpad(checkpoint_file, 20))    │")
+println("  └─────────────────────────────────────────────────────────┘")
+println()
+println("  🌟 Thank you for using Fluidum! 🌟")
+println()
+println("="^60)
 
 

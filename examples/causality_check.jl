@@ -1,3 +1,4 @@
+
 # If you have initial conditions tabulated data, you can use this script to test the causality of the evolution
 using Fluidum
 #define the grid
