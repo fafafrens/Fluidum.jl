@@ -65,6 +65,8 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
     end
     ncoll_event=event.n_coll
 
+    println("     🎲 Glauber mult: $(round(mult, digits=2)) | Ncoll: $ncoll_event")
+
     #set up fluid properties
     dσ_QQdy = 0.05688 #in mb FONLL
     ccbar = ncoll_event*dσ_QQdy/70/0.4
