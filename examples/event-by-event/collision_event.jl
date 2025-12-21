@@ -5,6 +5,7 @@ using StaticArrays
 using LinearAlgebra
 using Integrals
 using Cuba
+using JLD2
 using HDF5
 using MuladdMacro
 using OhMyThreads
@@ -115,8 +116,8 @@ function run_event_by_event(Nev)
 
 
 
-Nev = 100_00
-checkpoint_interval = 200
+Nev = 10_000
+checkpoint_interval = 500
 checkpoint_file = "event_by_event_results.h5"
 n_batches = ceil(Int, Nev / checkpoint_interval)
 
@@ -169,8 +170,8 @@ for batch in 1:n_batches
     
     batch_time = @elapsed data = run_event_by_event(batch_size)
     push!(batch_times, batch_time)
-    
-    append_to_h5(checkpoint_file, data)
+    append_to_jld2(checkpoint_file, data)
+    #append_to_h5(checkpoint_file, data)
     
     completed = min(batch * checkpoint_interval, Nev)
     elapsed = time() - start_time

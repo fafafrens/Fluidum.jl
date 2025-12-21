@@ -1,5 +1,4 @@
 
-
 struct ObservableResult
     glauber_multiplicity::Float64
     pt_list::Vector{Float64}
@@ -24,6 +23,27 @@ function append_to_dataset!(file, dataset_name::String, new_data::AbstractArray)
     end
     
     dset[slab_size...] = new_data
+end
+
+"""
+    append_to_jld2(filename, data)
+
+Append ObservableResult data to a JLD2 file. Creates the file if it doesn't exist.
+"""
+function append_to_jld2(filename, data::Vector{ObservableResult})
+    glauber_data = extract_glauber_multiplicity(data)
+    pt_data = extract_pt_list(data)
+    vn_data = extract_vn(data)
+
+    if isfile(filename)
+        jldopen(filename, "a") do file
+            file["glauber_multiplicity"] = vcat(file["glauber_multiplicity"], glauber_data)
+            file["pt_list"] = vcat(file["pt_list"], pt_data)
+            file["vn"] = vcat(file["vn"], vn_data)
+        end
+    else
+        jldsave(filename; glauber_multiplicity=glauber_data, pt_list=pt_data, vn=vn_data)
+    end
 end
 
 """
@@ -90,4 +110,43 @@ function append_to_h5(filename, data::Vector{ObservableResult})
             create_extensible_dataset!(file, "vn", vn_data)
         end
     end
+end
+
+"""
+    convert_jld2_to_h5(jld2_file, h5_file)
+
+Convert a JLD2 results file into an HDF5 file with the same datasets.
+Destination is overwritten.
+"""
+function convert_jld2_to_h5(jld2_file::AbstractString, h5_file::AbstractString)
+    isfile(jld2_file) || error("JLD2 file not found: $jld2_file")
+
+    glauber_data, pt_data, vn_data = jldopen(jld2_file, "r") do file
+        (Array(file["glauber_multiplicity"]), Array(file["pt_list"]), Array(file["vn"]))
+    end
+
+    h5open(h5_file, "w") do file
+        create_extensible_dataset!(file, "glauber_multiplicity", glauber_data)
+        create_extensible_dataset!(file, "pt_list", pt_data)
+        create_extensible_dataset!(file, "vn", vn_data)
+    end
+
+    return h5_file
+end
+
+"""
+    convert_h5_to_jld2(h5_file, jld2_file)
+
+Convert an HDF5 results file into a JLD2 file with the same datasets.
+Destination is overwritten.
+"""
+function convert_h5_to_jld2(h5_file::AbstractString, jld2_file::AbstractString)
+    isfile(h5_file) || error("HDF5 file not found: $h5_file")
+
+    glauber_data, pt_data, vn_data = h5open(h5_file, "r") do file
+        (read(file["glauber_multiplicity"]), read(file["pt_list"]), read(file["vn"]))
+    end
+
+    jldsave(jld2_file; glauber_multiplicity=glauber_data, pt_list=pt_data, vn=vn_data)
+    return jld2_file
 end
