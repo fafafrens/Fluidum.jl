@@ -150,3 +150,17 @@ function convert_h5_to_jld2(h5_file::AbstractString, jld2_file::AbstractString)
     jldsave(jld2_file; glauber_multiplicity=glauber_data, pt_list=pt_data, vn=vn_data)
     return jld2_file
 end
+
+
+
+function hdf5_to_ObservableResult(h5_file::AbstractString)
+    isfile(h5_file) || error("HDF5 file not found: $h5_file")
+
+    glauber_data, pt_data, vn_data = h5open(h5_file, "r") do file
+        (read(file["glauber_multiplicity"]), read(file["pt_list"]), read(file["vn"]))
+    end
+        
+        Nev = size(glauber_data, 1)
+        return [ObservableResult(glauber_data[i], pt_data[i, :], vn_data[i, :, :, :, :]) for i in 1:Nev]
+end
+

@@ -35,9 +35,9 @@ xmax = 25.
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax),Fluidum.SymmetricInterval(gridpoints,xmax))
 # we prepare the field with the discretization
 twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
-
+pwd()
 #nuclear parameters
-n1= TabulatedEvent(pwd()*"/NLEFT_dmin_0.5fm_positiveweights_O.h5")
+n1= TabulatedEvent(pwd()*"/examples/event-by-event/NLEFT_dmin_0.5fm_positiveweights_O.h5")
 n2= n1
 w= 1
 s_NN=5000
@@ -118,7 +118,10 @@ function run_event_by_event(Nev)
 
 Nev = 10_000
 checkpoint_interval = 500
-checkpoint_file = "event_by_event_results.h5"
+checkpoint_file = "event_by_event_results_test.h5"
+
+Nev = 10
+checkpoint_interval = 5
 n_batches = ceil(Int, Nev / checkpoint_interval)
 
 function progress_bar(fraction; width=30)
@@ -139,7 +142,7 @@ function format_time(seconds)
         return "$(Int(h))h $(Int(m))m"
     end
 end
-
+begin
 println()
 println("  ╔══════════════════════════════════════════════════════════╗")
 println("  ║     🌊  FLUIDUM Event-by-Event Simulation  🌊            ║")
@@ -155,7 +158,7 @@ println("  │  🧵 Threads available:   $(lpad(Threads.nthreads(), 10))       
 println("  │  📁 Output file:         $(rpad(checkpoint_file, 20))    │")
 println("  └─────────────────────────────────────────────────────────┘")
 println()
-
+end;
 start_time = time()
 batch_times = Float64[]
 
@@ -214,5 +217,4 @@ println()
 println("  🌟 Thank you for using Fluidum! 🌟")
 println()
 println("="^60)
-
 
