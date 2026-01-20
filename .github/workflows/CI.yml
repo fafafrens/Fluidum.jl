@@ -26,7 +26,6 @@ jobs:
           - '1.12'
           - '1.11'
           - '1.10'
-          - 'nightly'
         os:
           - ubuntu-latest
           - macos-latest
@@ -46,11 +45,6 @@ jobs:
           - os: macos-latest
             arch: aarch64
             version: '1.10'
-          - os: macos-latest
-            arch: aarch64
-            version: 'nightly'
-    # Allow nightly regressions (e.g., Zygote) without failing stable CI.
-    continue-on-error: ${{ matrix.version == 'nightly' }}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
