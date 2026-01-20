@@ -1,10 +1,32 @@
+abstract type ParticleSpecies end
 
-
-struct particle_simple
+struct particle_simple{S} <:ParticleSpecies
+    name::S
     mass::Float64
     degeneracy::Int64
     charge::Int64
+    pt_list::Vector{Float64}
 end
+
+struct particle_full{T,S} <:ParticleSpecies
+    name::S
+    mass::Float64
+    degeneracy::Int
+    charge::Int
+    pt_list::Vector{Float64}
+    fj::T
+end
+
+name(particle::ParticleSpecies) = particle.name 
+pt_list(particle::ParticleSpecies)= particle.pt_list 
+
+pt_lists(species_list::Vector{T}) where {T<:ParticleSpecies} = vcat([pt_list(species) for species in species_list]...)
+
+
+#particle_simple() = particle_simple("pion",0.13957,1,0,collect(0.1:0.5:2.0))
+particle_simple(name, mass, degeneracy, charge) = particle_simple(name, mass, degeneracy, charge, collect(0.5:0.5:4.0))
+particle_full(name, mass, degeneracy, charge,fj) = particle_full(name, mass, degeneracy, charge, collect(0.5:0.5:4.0),fj)
+
 
 @inline @inbounds @fastmath function dsigma_down(fo, coords)
     point= fo.x
@@ -24,7 +46,7 @@ end
 @inline @fastmath function pmu_up(m, pT, phi_p, eta_p, eta)
     mt = sqrt(m^2 + pT^2)
     s,c=sincos(phi_p)
-    return SVector(mt*cosh(eta_p-eta), pT*c, pT*s, zero(mt))
+    return SVector(mt*cosh(eta_p-eta), pT*c, pT*s, zero(mt)) #last component is zero because it is always contracted with zero
 end
 
 
@@ -46,7 +68,7 @@ end
 
 
 
-@fastmath function dn_dpdx(fo,particle_species::particle_simple,coords,eta,pT, phi_p, eta_p)
+@fastmath function dn_dpdx(fo,particle_species::particle_simple,coords,eta,pT, phi_p, eta_p, fun = exp)
     field = fo.fields
     fields_on_coords = field(coords...)
     @inbounds T = fields_on_coords[1]
@@ -61,11 +83,40 @@ end
 
     @inbounds α = fields_on_coords[8]
     pμ_up = pmu_up(m, pT, phi_p, eta_p, eta)
-    f_eq = exp(dot(pμ_up,uμ_down)/T + charge*α)
+    f_eq = fun(dot(pμ_up,uμ_down)/T)*exp(charge*α)
    
     deg*dot(dsigma_down(fo,coords),pμ_up)*f_eq/(2*pi)^3*Fluidum.fmGeV3
 end
 
+
+
+@fastmath function dn_dpdx(fo,particle_species::particle_full,coords,eta,pT, phi_p, eta_p)
+    field = fo.fields
+    fields_on_coords = field(coords...)
+    @inbounds T = fields_on_coords[1]
+    @inbounds ux = fields_on_coords[2]
+    @inbounds uy = fields_on_coords[3]
+
+    uμ_down = SVector(-sqrt(ux^2+uy^2+one(ux)),ux,uy,zero(T))
+    uμ_up = SVector(sqrt(ux^2+uy^2+one(ux)),ux,uy,zero(T))
+
+    m = particle_species.mass
+    charge = particle_species.charge
+    deg = particle_species.degeneracy
+    f1 = particle_species.fj[1] #.. access Fj of particle
+    f2 = particle_species.fj[2]
+    #.. access Fj of particle
+
+    @inbounds α = fields_on_coords[8]
+    pμ_up = pmu_up(m, pT, phi_p, eta_p, eta)
+    #f_eq = fun(dot(pμ_up,uμ_down)/T)*exp(charge*α)
+    dσ_down = dsigma_down(fo,coords)
+    Ep = -dot(pμ_up,uμ_down)
+    su_contraction = Ep*dot(dσ_down,uμ_up)
+    term1 = f1(Ep)*(dot(dσ_down,pμ_up)-su_contraction)
+    term2 = f2(Ep)*su_contraction
+    return (term1+term2)*exp(charge*α)/(2*pi)^3*Fluidum.fmGeV3
+end
 
 function dn_dp(fo,m,pT, phi_p, eta_p; eta_min=-5.0, eta_max=5.0)
     domain = ([Fluidum.leftbounds(fo.x)...,eta_min],[Fluidum.rightbounds(fo.x)...,eta_max])
@@ -144,16 +195,19 @@ function indicator(x,qT,delta)
 end
 
 
+function dvn_dp_list_delta(fo,species_list, eta_p, wavenum_list; eta_min=-5.0, eta_max=5.0)
 
-function dvn_dp_list_delta(fo,species_list, pTlist, eta_p, wavenum_list; eta_min=-5.0, eta_max=5.0)
-
-    delta_list = increment(pTlist)
+    pTlists = pt_list.(species_list)
+    delta_lists = increment.(pTlists)
     domain = ([Fluidum.leftbounds(fo.x)...,eta_min,0.,-1.],[Fluidum.rightbounds(fo.x)...,eta_max,2pi,+1.])
 
+    pt_length_max = maximum(length.(pt_list.(species_list)))
     function f(y,u,p) 
-        fo, species_list, pTlist, eta_p, wavenum_m = p
+        fo, species_list, eta_p, wavenum_m = p
         @inbounds for k in eachindex(species_list)
             species = species_list[k]
+            pTlist = pTlists[k]
+            delta_list = delta_lists[k]
             @inbounds for i in eachindex(pTlist)
                 delta = delta_list[i]
                 pT = u[5]*delta + pTlist[i] #mapping from [0,1] to [pTlist[i]-delta, pTlist[i]+delta]
@@ -168,13 +222,12 @@ function dvn_dp_list_delta(fo,species_list, pTlist, eta_p, wavenum_list; eta_min
             end
         end
     end
-    prototype = zeros(3,length(pTlist),length(wavenum_list),length(species_list))
-    par = (fo, species_list, pTlist, eta_p, wavenum_list)
+    prototype = zeros(3,pt_length_max,length(wavenum_list),length(species_list))
+    par = (fo, species_list, eta_p, wavenum_list)
     prob = IntegralProblem(IntegralFunction(f,prototype),domain,par)
     result = solve(prob, CubaVegas(), reltol=1e-3, abstol=1e-6)
     return result
 end
-
 
 function dn_detap(fo,m,eta_p; eta_min=-5.0, eta_max=5.0,pt_min=0., pt_max=5.0)
     domain = ([Fluidum.leftbounds(fo.x)...,eta_min,0,pt_min],[Fluidum.rightbounds(fo.x)...,eta_max,2pi,pt_max])
@@ -227,6 +280,32 @@ function q_vector_event_pt_dependent(result::ObservableResult,species_list, wave
     return qvec_result
 end
 
+
+function spectra_event(result::ObservableResult,species_list)
+    glauber, pt_list, vn = result.glauber_multiplicity, result.pt_list, result.vn
+    spectra_result = zeros(length(pt_list),length(species_list))
+    for i in eachindex(pt_list)
+        for k in eachindex(species_list)
+            spectra_result[i,k] = vn[3,i,1,k]
+        end
+    end
+    return spectra_result
+end
+
+function spectra(event_list,species_list)
+    pt_list = event_list[1].pt_list
+    spectra_result = zeros(length(pt_list),length(species_list))
+    for result in event_list
+        glauber, pt_list, vn = result.glauber_multiplicity, result.pt_list, result.vn 
+        for i in eachindex(pt_list)
+            for k in eachindex(species_list)
+                spectra_result[i,k] += vn[3,i,1,k]/length(event_list)
+            end
+        end
+    end
+    return spectra_result
+end
+
 """
 multiplicity_event(result::ObservableResult,species_list)
 
@@ -235,11 +314,12 @@ returns the total multiplicity M of all charged particles and identified particl
 """
 function multiplicity_event(result::ObservableResult,species_list)
     glauber, pt_list, vn = result.glauber_multiplicity, result.pt_list, result.vn
+    delta_list = increment(pt_list)
     M = 0.
     M_species = zeros(length(species_list))
     for i in eachindex(pt_list)
         for k in eachindex(species_list)
-            M+=vn[3,i,1,k]
+            M+=vn[3,i,1,k] #makes sense to multiply by delta?
             M_species[k]+=vn[3,i,1,k]
         end
     end
@@ -254,6 +334,7 @@ returns the multiplicity of each species in each pt bin normalized by the total 
 """
 function g_species_event_pt_dependent(result::ObservableResult,species_list)
     glauber, pt_list, vn = result.glauber_multiplicity, result.pt_list, result.vn
+    delta_list = increment(pt_list)
     g_result = zeros(length(pt_list),length(species_list))
     M_total = multiplicity_event(result,species_list).total_multiplicity
     for i in eachindex(pt_list)

@@ -13,8 +13,9 @@ using Base.Threads
 @info "Julia threads" nthreads()
 
 include("MCglauber.jl")
-include("observables.jl")
 include("hdf5_io.jl")
+include("observables.jl")
+include("fastreso.jl")
 # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
 twod_visc_hydro=Fields(
 NDField((:even,:ghost),(:even,:ghost),:temperature),
@@ -29,29 +30,48 @@ NDField((:ghost,:ghost),(:ghost,:ghost),:nux),
 NDField((:ghost,:ghost),(:ghost,:ghost),:nuy)
 )
 
+
+
+
+
+#const Nev = 100_000
+#const checkpoint_interval = 100
+#const checkpoint_file = "event_by_event_results_debug.h5"
+Nev = 2
+checkpoint_interval = 2
+checkpoint_file = "event_by_event_results_debug.h5"
+
+n_batches = ceil(Int, Nev / checkpoint_interval)
+
 #we define a 2 cartesian grid form -25 to 25 50 point each dimension 
 gridpoints=100
-xmax = 25.
+xmax = 20.
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax),Fluidum.SymmetricInterval(gridpoints,xmax))
 # we prepare the field with the discretization
 twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
-pwd()
 #nuclear parameters
 n1= TabulatedEvent(pwd()*"/examples/event-by-event/NLEFT_dmin_0.5fm_positiveweights_O.h5")
 n2= n1
-w= 1
-s_NN=5000
-k=1
-p=0.
+const w= 0.5
+const s_NN=5360 #5360
+const k=1
+const p=0.
 
 #entropy normalization
-norm = 90
+const norm = 50
 participants=Participants(n1,n2,w,s_NN,k,p)
 
-pion = particle_simple(0.13957,1,0)
-D0 = particle_simple(1.86483,1,1)
+pion = particle_simple("pion",0.13957,1,0)
+D0 = particle_simple("D0",1.86483,1,1)
 
-function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1:0.5:2.0),eta_p=0.0,
+Fj = fastreso_reader(pwd()*"/examples/event-by-event/PDGid_211_total_T0.1560_Fj.out")
+particle_full_π = particle_full("pion",0.13957,1,0,Fj[1])
+Fj = fastreso_reader(pwd()*"/examples/event-by-event/Dc1865zer_total_T0.1560_Fj.out")
+particle_full_D0 = particle_full("D0",1.86483,1,1,Fj[1])
+
+
+
+function run_event(participants,twod_visc_hydro_discrete,norm;eta_p=0.0,
     wavenum_m=[2,3],species_list = [pion,D0])
     discretization=twod_visc_hydro_discrete.discretization
     #create event
@@ -68,36 +88,54 @@ function run_event(participants,twod_visc_hydro_discrete,norm;pTlist=collect(0.1
 
     println("     🎲 Glauber mult: $(round(mult, digits=2)) | Ncoll: $ncoll_event")
 
+
+    tspan=(0.4,30.)
     #set up fluid properties
-    dσ_QQdy = 0.05688 #in mb FONLL
-    ccbar = ncoll_event*dσ_QQdy/70/0.4
+    dσ_QQdy = 0.4087 #in mb FONLL #0.04087 with NNPDF_nlo_as_0118
+    σ_in = 70. #in mb
+    ccbar = ncoll_event*2*dσ_QQdy/σ_in #charm pair number density at tau0
+    ccbar_norm = 2*dσ_QQdy/σ_in
     eos = Heavy_Quark(readresonancelist(), ccbar)
     viscosity=QGPViscosity(0.2,0.2)
     bulk=SimpleBulkViscosity(0.05,15.0)
-    diffusion=HQdiffusion(0.1,1.5)
+    diffusion=ZeroDiffusion() #maybe diffusion too large?
 
     fluidproperty=FluidProperties(eos,viscosity,bulk,diffusion)
     
     #setup fields
     temperature_func = trento_event_eos(profile,norm=norm,exp_tail=false)
-    fug_func = fug_(temperature_func,ncoll_event, eos, discretization)   
-    phi=set_array(temperature_func.+0.01,:temperature,twod_visc_hydro_discrete);
+    fug_func = fug_(temperature_func,ncoll_event, eos, discretization; norm = ccbar_norm)   
+    
+    phi=set_array(temperature_func.+0.005,:temperature,twod_visc_hydro_discrete); #maybe offset too large?
     set_array!(phi,fug_func,:mu,twod_visc_hydro_discrete);
 
-    tspan=(0.4,30.)
-    Tfo=0.156
+    Tfo=0.156 #in GeV
+
+
+    simulation_pars = (
+        dσ_QQdy = dσ_QQdy,
+        viscosity = viscosity.ηs,
+        bulk = bulk.ζs,
+        diffusion = 0.,#diffusion.DsT,
+        t0 = tspan[1],
+        Tfo = Tfo,
+        species_list = name.(species_list),
+        pTlist = pt_lists(species_list),
+        length_pTlist = length.(pt_list.(species_list)),
+        wavenum_m = wavenum_m
+    )
+
     result=Fluidum.isosurface(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc_HQ!,fluidproperty,phi,tspan,:temperature,Tfo)
     cha=Fluidum.Chart(Fluidum.Surface(result[:surface]),(t,x,y)->Fluidum.SVector{2}(atan(t,hypot(y,x)),atan(y,x)))
     if length(cha.points)==0
-        return ObservableResult(mult,zeros(length(pTlist)),Array{Float64}(undef,3,length(pTlist),length(wavenum_m),length(species_list)))
+        return null_observable(wavenum_m,species_list), simulation_pars
     end
     fo_bg=Fluidum.freezeout_interpolation(cha,sort_index=2,ndim_tuple=50)
 
     #run observables
-    vn = dvn_dp_list_delta(fo_bg,species_list, pTlist, eta_p, wavenum_m; eta_min=-5.0, eta_max=5.0)
-   # spectra = dn_dpTdetap(fo_bg,m,pTlist, eta_p; eta_min=-5.0, eta_max=5.0)
-   # writedlm("dvn_dp_list_result.txt", vn)
-return ObservableResult(mult,pTlist,vn.u)
+    vn = dvn_dp_list_delta(fo_bg,species_list, eta_p, wavenum_m; eta_min=-5.0, eta_max=5.0)
+ 
+return ObservableResult(mult,vn.u), simulation_pars
 end
 
 
@@ -107,22 +145,12 @@ function run_event_by_event(Nev)
             result = run_event(
                 participants,
                 twod_visc_hydro_discrete,
-                norm;
-                pTlist = collect(0.5:0.5:4.0)
+                norm;species_list=[particle_full_π,particle_full_D0]
             )
             result
         end
  end
 
-
-
-Nev = 10_000
-checkpoint_interval = 500
-checkpoint_file = "event_by_event_results_test.h5"
-
-Nev = 10
-checkpoint_interval = 5
-n_batches = ceil(Int, Nev / checkpoint_interval)
 
 function progress_bar(fraction; width=30)
     filled = round(Int, fraction * width)
@@ -170,11 +198,14 @@ for batch in 1:n_batches
     println("  ┌─────────────────────────────────────────────────────────┐")
     println("  │  🚀 Batch $batch/$n_batches │ Events $batch_start → $batch_end ($batch_size events)")
     println("  └─────────────────────────────────────────────────────────┘")
-    
-    batch_time = @elapsed data = run_event_by_event(batch_size)
+   
+
+    sim = run_event_by_event(batch_size)
+    result = getindex.(sim, 1)
+    batch_time = @elapsed data = result
     push!(batch_times, batch_time)
-    append_to_jld2(checkpoint_file, data)
-    #append_to_h5(checkpoint_file, data)
+    metadata = sim[1][2]
+    append_to_h5(checkpoint_file, data, metadata)
     
     completed = min(batch * checkpoint_interval, Nev)
     elapsed = time() - start_time
