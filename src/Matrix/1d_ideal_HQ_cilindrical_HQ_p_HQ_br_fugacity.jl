@@ -1,5 +1,6 @@
 #
 # The matrices are based on the notebook: O(2)MIS_viscious_r_tau_all_ideal_br_p_fugacity.nb
+# The fields are stored in the order : T, ur, α
 #
 function matrix1d_full_ideal_HQ_br_HQ_p_fugacity!(A_i, Source, ϕ, t, X, params;free=true)
 

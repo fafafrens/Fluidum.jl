@@ -247,8 +247,8 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L}; ccbar = 2.76)  where {L}
         
         if reducemass<500*one(T)
            
-                b2 = safe_besselkx(2,reducemass)
-                b1 = safe_besselkx(1,reducemass)
+                b2 = besselkx(2,reducemass)
+                b1 = besselkx(1,reducemass)
                 
                 
                 #b2 = besselk(2,m/T)
@@ -313,8 +313,8 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
         if QB==0
           
             ## loop over mesons
-            b2 = safe_besselkx(2,reducemass)
-            b1 = safe_besselkx(1,reducemass)
+            b2 = besselkx(2,reducemass)
+            b1 = besselkx(1,reducemass)
             
             #b2 = besselk(2,m/T)
             #b1 = besselk(1,m/T)
@@ -327,8 +327,8 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
                
         else
             ## loop over barions 
-            b2 = safe_besselkx(2,reducemass)
-            b1 = safe_besselkx(1,reducemass)
+            b2 = besselkx(2,reducemass)
+            b1 = besselkx(1,reducemass)
             #b2 = besselk(2,m/T)
             #b1 = besselk(1,m/T)
             b3 = b1+4/(reducemass)*b2
@@ -375,8 +375,8 @@ function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
         
         if reducemass<500*one(T)
            
-                b2 = safe_besselkx(2,reducemass)
-                b1 = safe_besselkx(1,reducemass)
+                b2 = besselkx(2,reducemass)
+                b1 = besselkx(1,reducemass)
                 
                 b3 = b1+4/(reducemass)*b2
                 ex=exp(QC* μ - reducemass)
@@ -406,103 +406,61 @@ function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
 end
 
 
-const LOG_F64_MAX = log(floatmax(Float64))
-
-@inline function _besselkx_asym(ν, x::Float64)
-    # asymptotic for scaled K: besselkx(ν,x) = exp(x)*Kν(x)
-    # besselkx ~ sqrt(pi/(2x)) * [1 + (μ-1)/(8x) + (μ-1)(μ-9)/(2!(8x)^2) + ...]
-    μ = 4.0 * (Float64(ν)^2)
-    t = 1.0 / (8.0*x)
-
-    a1 = (μ - 1.0) * t
-    a2 = (μ - 1.0) * (μ - 9.0)  * (t*t) / 2.0
-    a3 = (μ - 1.0) * (μ - 9.0)  * (μ - 25.0) * (t*t*t) / 6.0
-
-    return sqrt(pi/(2.0*x)) * (1.0 + a1 + a2 + a3)
-end
-
-@inline function safe_besselkx(ν, x::Float64)
-    if !isfinite(x) || x <= 0.0
-        return 0.0
-    end
-    ν < 0 && return safe_besselkx(-ν, x)
-
-    # Small-x: avoid Inf/NaN from the library in corner cases
-    if x < 1e-20
-        if ν == 0
-            return -log(x/2) - Base.MathConstants.γ
-        else
-            # Kν(x) ~ (ν-1)! * 2^{ν-1} * x^{-ν}; scaling exp(x)≈1
-            logv = logfactorial(ν-1) + (ν-1)*log(2.0) - ν*log(x)
-            return exp(min(logv, LOG_F64_MAX))
-        end
-    end
-
-    # Large-x: DO NOT call AMOS; use asymptotic of the *scaled* function
-    # (This is accurate already for x ≳ 30–50 and avoids your crash for huge x.)
-    if x > 2000.0
-        return _besselkx_asym(ν, x)
-    end
-
-    v = besselkx(ν, x)
-    return isfinite(v) ? v : _besselkx_asym(ν, x)  # last-resort fallback
-end
-
 function hq_density(T, α; m=1.5, g=6)
     x = m/T
     A = g*m^2/(2π^2)
 
-    K1x = safe_besselkx(1, x)
-    K2x = safe_besselkx(2, x)
-    K3x = safe_besselkx(3, x)
+    K1x = besselkx(1, x)
+    K2x = besselkx(2, x)
+    K3x = besselkx(3, x)
 
-    E = exp(α - x)              # <-- key fix
+    E = exp(α - x)            
 
     n  = A*T*E*K2x
     nα = n
 
-    # with E = exp(α - x) the +x*K2x term disappears
     nT = A*E*( K2x + 0.5*x*(K1x + K3x) )
 
     return FieldData(n, (nT, nα), (zero(T), zero(T), zero(T)))
 end
 
+
 function hq_pressure(T, α; m=1.5, g=6)
     x = m/T
     A = g*m^2/(2π^2)
 
-    K0x = safe_besselkx(0, x)
-    K1x = safe_besselkx(1, x)
-    K2x = safe_besselkx(2, x)
-    K3x = safe_besselkx(3, x)
-    K4x = safe_besselkx(4, x)
+    K0x = besselkx(0, x)
+    K1x = besselkx(1, x)
+    K2x = besselkx(2, x)
+    K3x = besselkx(3, x)
+    K4x = besselkx(4, x)
 
-    E = exp(α - x)              # <-- key fix
+    E = exp(α - x)            
 
     P  = A*T^2*E*K2x
     Pα = P
-    PT = A*E*( 2T*K2x + 0.5*m*(K1x + K3x) )   # <-- no +m*K2x term
+    PT = A*E*( 2T*K2x + 0.5*m*(K1x + K3x) )  
 
     Pαα = P
     PTα = PT
 
-    # nice compact form with scaled Bessels:
     PTT = A*E*( 2*K2x + x*(K1x + K3x) + (x^2/4)*(K0x + 2K2x + K4x) )
 
     return Thermodynamic(P, (PT, Pα), (PTT, PTα, Pαα))
 end
 
+
 function hq_pressure_Tn(T, n; m=1.5, g=6)
     x = m/T
     A = g*m^2/(2π^2)
 
-    K0 = safe_besselkx(0, x)
-    K1 = safe_besselkx(1, x)
-    K2 = safe_besselkx(2, x)
-    K3 = safe_besselkx(3, x)
-    K4 = safe_besselkx(4, x)
+    K0 = besselkx(0, x)
+    K1 = besselkx(1, x)
+    K2 = besselkx(2, x)
+    K3 = besselkx(3, x)
+    K4 = besselkx(4, x)
 
-    # For single-species Boltzmann with your scaled Bessels:
+    # For single-species Boltzmann with scaled Bessels:
     # n = A*T*exp(α-x)*K2  ->  exp(α-x) = n/(A*T*K2)
     # α = log(exp(α-x)) + x
     α = (n > 0) ? (log(n/(A*T*K2)) + x) : -Inf

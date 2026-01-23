@@ -94,16 +94,8 @@ include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
-include("Matrix/1d_ideal_HQ_cilindrical_fugacity_ruwen.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_HQ_p_HQ_br_density.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_HQ_p_HQ_br_fugacity.jl")
-include("Matrix/1d_viscous_HQ_cilindrical_fugacity_ruwen.jl")
-include("Matrix/1d_viscous_BG_ideal_current_HQ_cilindrical_fugacity.jl")
-include("Matrix/1d_viscous_BG_ideal_current_HQ_cilindrical_density.jl")
-include("Matrix/1d_viscous_HQ_no_bulk_HQ_pressure_cilindrical_fugacity.jl")
-include("Matrix/1d_viscous_HQ_cilindrical_fugacity_grad_p.jl")
-include("Matrix/1d_viscous_HQ_cilindrical_fugacity_HQ_pressure.jl")
-include("Matrix/1d_viscous_HQ_no_bulk_cilindrical_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
 include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
@@ -126,12 +118,8 @@ export detector_collection,detector_dict
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
-export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResul, initialize_fields_free_HQ, FreezeOutResultPerturbation
-export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
-export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult, FreezeOutResultPerturbation
+export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult, initialize_fields_free_HQ, FreezeOutResultPerturbation
 export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
-export hq_density
-
 
 """
 

@@ -43,6 +43,11 @@ end
 
 thermodynamic(T::A,x::OneDAnalyticEquationOfState) where{A<:Number} = Thermodynamic{A,1,1}(x.f(T),(x.f_1(T),),(x.f_2(T),))
 
+"""
+thermodynamic(T::A,α::B,x::OneDAnalyticEquationOfState))
+α is the fugacity, i.e. α = μ/T
+T is the temperature
+"""
 thermodynamic(T::A,α::B,x::TwoDAnalyticEquationOfState) where{A<:Number,B<:Number} = Thermodynamic{promote_type(A,B),2,3}(x.f(T,α),(x.f_10(T,α),x.f_01(T,α)),(x.f_20(T,α),x.f_11(T,α),x.f_02(T,α)))
 
 thermodynamic(T::A,x::Gluing) where{A<:Number} = Thermodynamic{A,1,1}(x.f(T),(zero(A),),(zero(A),))

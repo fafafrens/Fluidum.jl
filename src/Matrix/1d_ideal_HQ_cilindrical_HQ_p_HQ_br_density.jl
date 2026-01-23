@@ -1,7 +1,7 @@
 #
 # The matrices are based on the notebook: O(2)MIS_viscious_r_tau_all_ideal_br_p_n.nb
+# The fields are stored in the order : T, ur, n 
 #
-
 function matrix1d_full_ideal_HQ_br_HQ_p_density!(A_i, Source, ϕ, t, X, params;free=true)
 
     #@show t, ϕ

@@ -100,8 +100,12 @@ struct SimpleDiffusionCoefficient{T}<:Diffusion
 end
 
 struct ZeroDiffusion{T}<:Diffusion
-    mass::T
+    mass::T = 1.5 #GeV
 end
+
+
+
+
 
 @inline function diffusion(T,x::Thermodynamic{N,1,1},y::SimpleDiffusionCoefficient{N}) where{N}
     zero(typeof(T))
@@ -159,6 +163,8 @@ end
 
 struct ZeroBulkViscosity<:BulkViscosity
 end
+
+
 
 #@inline @fastmath function speed_of_sound_squared(T,x::EquationOfState)
 #    pressure_derivative(T,Val(1),x)/(T*pressure_derivative(T,Val(2),x)) 

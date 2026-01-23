@@ -190,12 +190,6 @@ function diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
     κ = y.DsT/T*normalization(T,μ,x)/fmGeV
 end
 
-function diffusion(T,n,x::HQdiffusion{M}) where {M}
-    density = n #fm-^3
-    #κ = x.DsT/T*density/fmGeV #fm^-2
-    Ds = x.DsT/T/fmGeV
-end
-
 
 
 function τ_diffusion(T,x::HQdiffusion{M}) where {M}
@@ -204,8 +198,8 @@ function τ_diffusion(T,x::HQdiffusion{M}) where {M}
   
     #b2 = besselkx(2,m/T)*exp(-m/T)
     #b1 = besselkx(1,m/T)*exp(-m/T)
-    b2 = safe_besselkx(2,m/T)*exp(-m/T)
-    b1 = safe_besselkx(1,m/T)*exp(-m/T)
+    b2 = besselkx(2,m/T)*exp(-m/T)
+    b1 = besselkx(1,m/T)*exp(-m/T)
     b3 = b1+4/(m/T)*b2  
     b4 = b2 + 6/(m/T)*b3  
     b5 = b3+8/(m/T)*b4
