@@ -1,54 +1,50 @@
 # the convention here are T, ur,  \[Pi]phiphi, \[Pi]etaeta, \[Pi]B, α, nur
 
-function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
+function matrix1d_visc_density_HQ!(A_i,Source,ϕ,t,X,params;free=true)
+    
+    #@show t, ϕ
+    dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
+    dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
         
-    T  = ϕ[1]
-    μQ = ϕ[6]
+    etaVisc=viscosity(ϕ[1],dpt,params.shear)
+    tauS=τ_shear(ϕ[1],dpt,params.shear)
+    tauB=τ_bulk(ϕ[1],dpt,dptt,params.bulk)
+    zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
+    
+    if free == true 
+        thermo = hq_density(ϕ[1],ϕ[6];m=params.diffusion.mass)
+            n=thermo.value
+    dtn, dmn = thermo.gradient
+    else 
+        thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
+            n=thermo.pressure
+    dtn, dmn = thermo.pressure_derivative
+    end
+    
 
-    # EOS derivatives
-    dpt  = pressure_derivative(T, Val(1), params.eos)
-    dptt = pressure_derivative(T, Val(2), params.eos)
+    dmn+=0.00001
+    #dtn+=0.0001
 
-    etaVisc = viscosity(T, dpt, params.shear)
-    tauS    = τ_shear(T, dpt, params.shear)
-    tauB    = τ_bulk(T, dpt, dptt, params.bulk)
-    zeta    = bulk_viscosity(T, dpt, params.bulk)
-
-    if free
-        thermo = hq_density(T, μQ; m = params.diffusion.mass)
-        n        = thermo.value
-        dtn, dmn = thermo.gradient
+    
+    if free == true 
+        Ds = diffusion(ϕ[1],n,params.diffusion)
+        tauDiff= τ_diffusion(ϕ[1],params.diffusion)
     else
-        thermo = thermodynamic(T, μQ, params.eos.hadron_list)
-        n        = thermo.pressure
-        dtn, dmn = thermo.pressure_derivative
+
+        #Ds = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
+        #tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
     end
 
-    dmn_eps = let s = get(ENV, "FLUIDUM_DMN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
-    dtn_eps = let s = get(ENV, "FLUIDUM_DTN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
-
-    dmn += dmn_eps
-    dtn += dtn_eps
-
-    if free
-        Ds      = diffusion(T, n, params.diffusion)
-        tauDiff = τ_diffusion(T, params.diffusion)
-    else
-        Ds      = diffusion_hadron(T, μQ, params.eos, params.diffusion)
-        tauDiff = τ_diffusion_hadron(T, μQ, params.eos, params.diffusion)
-    end
+    
+    dmp   = 0 #for now we don t have chemical potential in the eos
+    dtdmp = 0 
+    dmdmp = 0
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 
     #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
     #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
-    (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+    (At,Ax, source)=one_d_viscous_matrix7(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
         
     Ainv= inv(At)
 
@@ -58,229 +54,215 @@ function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
     
     jgemvavx!(Source, Ainv,source)
     
-end 
+    end 
 
     
-    function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+    function one_d_viscous_matrix7(u,tau,R,p,dtp,dtdtp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
     
         At=SMatrix{7,7}(
-            dtdtp*u[1] + (dtp + dtdtp*u[1])*^(u[2],2)
-        
-            ,(dtp + dtdtp*u[1])*u[2]*sqrt(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,2*u[2]*(dtp*u[1] + u[5] - u[3] - u[4])
-            
-            ,((1 + 2*^(u[2],2))*(dtp*u[1] + u[5] - u[3] - u[4]))/sqrt(1 + ^(u[2],2))
-            
-            ,(-2*u[2]*visc)/(3*^(R,2)*sqrt(1 + ^(u[2],2)))
-            
-            ,(-2*u[2]*visc)/(3*^(tau,2)*sqrt(1 + ^(u[2],2)))
-            
-            ,(u[2]*zeta)/sqrt(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,-^(u[2],2)
-            
-            ,-(u[2]*sqrt(1 + ^(u[2],2)))
-            
-            ,(tauS*sqrt(1 + ^(u[2],2)))/^(R,2)
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,-^(u[2],2)
-            
-            ,-(u[2]*sqrt(1 + ^(u[2],2)))
-            
-            ,0
-            
-            ,(tauS*sqrt(1 + ^(u[2],2)))/^(tau,2)
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,^(u[2],2)
-            
-            ,u[2]*sqrt(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,tauB*sqrt(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,dmn*sqrt(1 + ^(u[2],2))
-            
-            #,κ*u[2]*sqrt(1 + ^(u[2],2))
-            ,Ds*n*u[2]*sqrt(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,u[2]/sqrt(1 + ^(u[2],2))
-            
-            ,tauDiff*sqrt(1 + ^(u[2],2))
+            (X[2] .^2 .*dP_dT  .+ X[1] .*(1  .+ X[2] .^2) .*dP_dTdT,
+
+X[2] .*sqrt.(1  .+ X[2] .^2) .*(dP_dT  .+ X[1] .*dP_dTdT),
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+2 .*X[2] .*( .-X[3]  .- X[4]  .+ X[5]  .+ X[1] .*dP_dT),
+
+((1  .+ 2 .*X[2] .^2) .*( .-X[3]  .- X[4]  .+ X[5]  .+ X[1] .*dP_dT)) ./sqrt.(1  .+ X[2] .^2),
+
+( .-2 .*etaShearVisc .*X[2]) ./(3. .*r .^2 .*sqrt.(1  .+ X[2] .^2)),
+
+( .-2 .*etaShearVisc .*X[2]) ./(3. .*sqrt.(1  .+ X[2] .^2) .*tau .^2),
+
+(zetaBulkVisc .*X[2]) ./sqrt.(1  .+ X[2] .^2),
+
+0,
+
+0,
+
+ .-X[2] .^2,
+
+ .-(X[2] .*sqrt.(1  .+ X[2] .^2)),
+
+(tauShear .*sqrt.(1  .+ X[2] .^2)) ./r .^2,
+
+0,
+
+0,
+
+0,
+
+0,
+
+ .-X[2] .^2,
+
+ .-(X[2] .*sqrt.(1  .+ X[2] .^2)),
+
+0,
+
+(tauShear .*sqrt.(1  .+ X[2] .^2)) ./tau .^2,
+
+0,
+
+0,
+
+0,
+
+X[2] .^2,
+
+X[2] .*sqrt.(1  .+ X[2] .^2),
+
+0,
+
+0,
+
+tauBulk .*sqrt.(1  .+ X[2] .^2),
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+sqrt.(1  .+ X[2] .^2),
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+X[2] ./sqrt.(1  .+ X[2] .^2),
+
+tauDiffusion .*sqrt.(1  .+ X[2] .^2))
         )
             #########################################################################################################################################################################
             
         Ax=SMatrix{7,7}(
-            (dtp + dtdtp*u[1])*u[2]*sqrt(1 + ^(u[2],2))
-        
-            ,dtp + (dtp + dtdtp*u[1])*^(u[2],2)
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,(-3*dtp*tauB*tauS*(dtdtp*u[1]*(u[7] + n*u[2]*(1 + ^(u[2],2))) + dtn*(u[2] + ^(u[2],3))*(-(dtp*u[1]) - u[5] + u[3] + u[4])))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4]))))))
-            
-            ,(3*dtdtp*dtp*u[7]*u[1]*tauB*tauDiff*tauS*u[2])/(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
-            
-            ,((1 + 2*^(u[2],2))*(dtp*u[1] + u[5] - u[3] - u[4]))/sqrt(1 + ^(u[2],2))
-            
-            ,2*u[2]*(dtp*u[1] + u[5] - u[3] - u[4])
-            
-            ,(-2*visc)/(3*^(R,2))
-            
-            ,(-2*visc)/(3*^(tau,2))
-            
-            ,zeta
-            
-            ,(3*dtp*u[7]*tauB*tauS*u[2]*(dtp*u[1] + u[5] - u[3] - u[4]) - 3*dtn*tauB*tauS*(1 + ^(u[2],2))*^(-(dtp*u[1]) - u[5] + u[3] + u[4],2) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(n - u[7]*u[2] + n*^(u[2],2)) + 3*n*tauB*tauS*(1 + ^(u[2],2))*(u[5] - u[3] - u[4]) + u[7]*u[2]*(4*tauB*visc + 3*tauS*zeta + 3*tauB*tauS*(-u[5] + u[3] + u[4]))))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4]))))))
-            
-            ,-((u[7]*tauDiff*^(u[2],2)*(3*^(dtp,2)*u[1]*tauB*tauS + dtdtp*u[1]*(4*tauB*visc + 3*tauS*zeta) + 3*dtp*tauB*tauS*(u[5] - u[3] - u[4])))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))))
-            
-            ,-(u[2]*sqrt(1 + ^(u[2],2)))
-            
-            ,-1 - ^(u[2],2)
-            
-            ,(tauS*u[2])/^(R,2)
-            
-            ,0
-            
-            ,0
-            
-            ,(3*tauB*tauS*(dtdtp*u[1]*(u[7] + n*u[2]*(1 + ^(u[2],2))) + dtn*(u[2] + ^(u[2],3))*(-(dtp*u[1]) - u[5] + u[3] + u[4])))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4]))))))
-            
-            ,(-3*dtdtp*u[7]*u[1]*tauB*tauDiff*tauS*u[2])/(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
-            
-            ,-(u[2]*sqrt(1 + ^(u[2],2)))
-            
-            ,-1 - ^(u[2],2)
-            
-            ,0
-            
-            ,(tauS*u[2])/^(tau,2)
-            
-            ,0
-            
-            ,(3*tauB*tauS*(dtdtp*u[1]*(u[7] + n*u[2]*(1 + ^(u[2],2))) + dtn*(u[2] + ^(u[2],3))*(-(dtp*u[1]) - u[5] + u[3] + u[4])))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4]))))))
-            
-            ,(-3*dtdtp*u[7]*u[1]*tauB*tauDiff*tauS*u[2])/(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
-            
-            ,u[2]*sqrt(1 + ^(u[2],2))
-            
-            ,1 + ^(u[2],2)
-            
-            ,0
-            
-            ,0
-            
-            ,tauB*u[2]
-            
-            ,(-3*tauB*tauS*(dtdtp*u[1]*(u[7] + n*u[2]*(1 + ^(u[2],2))) + dtn*(u[2] + ^(u[2],3))*(-(dtp*u[1]) - u[5] + u[3] + u[4])))/((1 + ^(u[2],2))*(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4]))))))
-            
-            ,(3*dtdtp*u[7]*u[1]*tauB*tauDiff*tauS*u[2])/(3*dtp*tauB*tauS*^(u[2],2)*(-(dtp*u[1]) - u[5] + u[3] + u[4]) + dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) - 3*tauS*^(u[2],2)*zeta - tauB*(3*tauS*(-u[5] + u[3] + u[4]) + ^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,dmn*u[2]
-            
-            #,κ*(1 + ^(u[2],2))
-            ,Ds*n*(1 + ^(u[2],2))
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,0
-            
-            ,1
-            
-            ,tauDiff*u[2]
-            )
+            (X[2] .*sqrt.(1  .+ X[2] .^2) .*(dP_dT  .+ X[1] .*dP_dTdT),
+
+(1  .+ X[2] .^2) .*dP_dT  .+ X[1] .*X[2] .^2 .*dP_dTdT,
+
+0,
+
+0,
+
+0,
+
+(3 .*tauShear .*tauBulk .*X[1] .*(X[2] .*(1  .+ X[2] .^2) .*X[6]  .+ X[7]) .*dP_dT .*dP_dTdT) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT))),
+
+(3 .*tauDiffusion .*tauShear .*tauBulk .*X[1] .*X[2] .*X[7] .*dP_dT .*dP_dTdT) ./( .-3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .- X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*(X[2] .^2 .*X[3]  .+ X[2] .^2 .*X[4]  .- X[2] .^2 .*X[5]  .+ X[1] .^2 .*dP_dTdT  .+ X[1] .^2 .*X[2] .^2 .*dP_dTdT)),
+
+((1  .+ 2 .*X[2] .^2) .*( .-X[3]  .- X[4]  .+ X[5]  .+ X[1] .*dP_dT)) ./sqrt.(1  .+ X[2] .^2),
+
+2 .*X[2] .*( .-X[3]  .- X[4]  .+ X[5]  .+ X[1] .*dP_dT),
+
+( .-2 .*etaShearVisc) ./(3. .*r .^2),
+
+( .-2 .*etaShearVisc) ./(3. .*tau .^2),
+
+zetaBulkVisc,
+
+ .-((3 .*tauShear .*tauBulk .*X[1] .*(1  .+ X[2] .^2) .*X[6] .*( .-X[3]  .- X[4]  .+ X[5]  .+ X[1] .*dP_dT) .*dP_dTdT  .+ X[2] .*X[7] .*(3 .*tauShear .*tauBulk .*X[1] .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear  .+ 4 .*etaShearVisc .*tauBulk  .+ 3 .*tauShear .*tauBulk .*X[3]  .+ 3 .*tauShear .*tauBulk .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-X[3]  .- X[4]  .+ X[5]  .- X[1] .^2 .*dP_dTdT))) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT)))),
+
+(tauDiffusion .*X[2] .^2 .*X[7] .*(3 .*tauShear .*tauBulk .*( .-X[3]  .- X[4]  .+ X[5]) .*dP_dT  .+ 3 .*tauShear .*tauBulk .*X[1] .*dP_dT .^2  .+ (3 .*zetaBulkVisc .*tauShear  .+ 4 .*etaShearVisc .*tauBulk) .*X[1] .*dP_dTdT)) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT))),
+
+ .-(X[2] .*sqrt.(1  .+ X[2] .^2)),
+
+ .-1  .- X[2] .^2,
+
+(tauShear .*X[2]) ./r .^2,
+
+0,
+
+0,
+
+( .-3 .*tauShear .*tauBulk .*X[1] .*(X[2] .*(1  .+ X[2] .^2) .*X[6]  .+ X[7]) .*dP_dTdT) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT))),
+
+( .-3 .*tauDiffusion .*tauShear .*tauBulk .*X[1] .*X[2] .*X[7] .*dP_dTdT) ./( .-3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .- X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*(X[2] .^2 .*X[3]  .+ X[2] .^2 .*X[4]  .- X[2] .^2 .*X[5]  .+ X[1] .^2 .*dP_dTdT  .+ X[1] .^2 .*X[2] .^2 .*dP_dTdT)),
+
+ .-(X[2] .*sqrt.(1  .+ X[2] .^2)),
+
+ .-1  .- X[2] .^2,
+
+0,
+
+(tauShear .*X[2]) ./tau .^2,
+
+0,
+
+( .-3 .*tauShear .*tauBulk .*X[1] .*(X[2] .*(1  .+ X[2] .^2) .*X[6]  .+ X[7]) .*dP_dTdT) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT))),
+
+( .-3 .*tauDiffusion .*tauShear .*tauBulk .*X[1] .*X[2] .*X[7] .*dP_dTdT) ./( .-3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .- X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*(X[2] .^2 .*X[3]  .+ X[2] .^2 .*X[4]  .- X[2] .^2 .*X[5]  .+ X[1] .^2 .*dP_dTdT  .+ X[1] .^2 .*X[2] .^2 .*dP_dTdT)),
+
+X[2] .*sqrt.(1  .+ X[2] .^2),
+
+1  .+ X[2] .^2,
+
+0,
+
+0,
+
+tauBulk .*X[2],
+
+(3 .*tauShear .*tauBulk .*X[1] .*(X[2] .*(1  .+ X[2] .^2) .*X[6]  .+ X[7]) .*dP_dTdT) ./((1  .+ X[2] .^2) .*(3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .+ X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*( .-(X[2] .^2 .*X[3])  .- X[2] .^2 .*X[4]  .+ X[2] .^2 .*X[5]  .- X[1] .^2 .*dP_dTdT  .- X[1] .^2 .*X[2] .^2 .*dP_dTdT))),
+
+(3 .*tauDiffusion .*tauShear .*tauBulk .*X[1] .*X[2] .*X[7] .*dP_dTdT) ./( .-3 .*tauShear .*tauBulk .*X[1] .*X[2] .^2 .*dP_dT .^2  .- X[1] .*(3 .*zetaBulkVisc .*tauShear .*X[2] .^2  .+ 4 .*etaShearVisc .*tauBulk .*X[2] .^2  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[3]  .+ 3 .*tauShear .*tauBulk .*(1  .+ X[2] .^2) .*X[4]  .- 3 .*tauShear .*tauBulk .*X[5]  .- 3 .*tauShear .*tauBulk .*X[2] .^2 .*X[5]) .*dP_dTdT  .+ 3 .*tauShear .*tauBulk .*dP_dT .*(X[2] .^2 .*X[3]  .+ X[2] .^2 .*X[4]  .- X[2] .^2 .*X[5]  .+ X[1] .^2 .*dP_dTdT  .+ X[1] .^2 .*X[2] .^2 .*dP_dTdT)),
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+X[2],
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+0,
+
+1,
+
+tauDiffusion .*X[2])
+)
             #########################################################################################################################################################################
         
         source=SVector{7}(
-            (dtp*u[1]*(R + R*^(u[2],2) + tau*u[2]*sqrt(1 + ^(u[2],2))) + tau*u[2]*sqrt(1 + ^(u[2],2))*(u[5] - u[3] - u[4]) + R*((1 + ^(u[2],2))*u[5] + u[4] - ^(u[2],2)*(u[3] + u[4])))/(R*tau)
-        
-            ,(dtp*u[1]*u[2]*(tau*u[2] + R*sqrt(1 + ^(u[2],2))) + R*u[2]*sqrt(1 + ^(u[2],2))*(u[5] - u[3] - u[4]) + tau*(-2*u[3] + ^(u[2],2)*(u[5] - u[3] - u[4]) - u[4]))/(R*tau)
-            
-            ,(4*tau*u[2]*visc - 2*R*sqrt(1 + ^(u[2],2))*visc + 3*R*tau*u[3])/(3*^(R,3)*tau)
-            
-            ,(-2*tau*u[2]*visc + 4*R*sqrt(1 + ^(u[2],2))*visc + 3*R*tau*u[4])/(3*R*^(tau,3))
-            
-            ,(u[2]*zeta)/R + (sqrt(1 + ^(u[2],2))*zeta)/tau + u[5]
-            
-            ,(3*dtp*tauB*tauS*u[2]*(dtp*u[7]*u[1]*(tau*^(u[2],3)*sqrt(1 + ^(u[2],2)) + R*(-1 + ^(u[2],4))) - n*u[2]*(1 + ^(u[2],2))*(tau*u[2]*sqrt(1 + ^(u[2],2))*(2*u[3] + u[4]) + R*(1 + ^(u[2],2))*(u[3] + 2*u[4])) + u[7]*(tau*u[2]*sqrt(1 + ^(u[2],2))*(-2*u[3] + ^(u[2],2)*(u[5] - u[3] - u[4]) - u[4]) + R*(1 + ^(u[2],2))*((-1 + ^(u[2],2))*u[5] - u[4] - ^(u[2],2)*(u[3] + u[4])))) - dtdtp*u[1]*(3*dtp*u[1]*tauB*tauS*^(1 + ^(u[2],2),2)*(u[7]*R*u[2] + u[7]*tau*sqrt(1 + ^(u[2],2)) + n*tau*u[2]*sqrt(1 + ^(u[2],2)) + n*R*(1 + ^(u[2],2))) - 3*n*(1 + ^(u[2],2))*(tau*tauB*u[2]*sqrt(1 + ^(u[2],2))*(-(tauS*(u[5] + u[3])) + ^(u[2],2)*(2*visc - tauS*(u[5] + u[3]))) + R*(-(tau*tauS*^(u[2],2)*sqrt(1 + ^(u[2],2))*u[5]) + tauB*(tauS*(-u[5] + u[3] + u[4]) + ^(u[2],4)*(2*visc - tauS*(u[5] + u[4])) + ^(u[2],2)*(2*visc + tauS*(-2*u[5] + u[3]) + tau*sqrt(1 + ^(u[2],2))*(u[3] + u[4]))))) - u[7]*(R*u[2]*(tauB*(2 + 6*^(u[2],2) + 4*^(u[2],4))*visc + 3*tauS*(-1 + ^(u[2],4))*zeta - 3*tau*tauS*sqrt(1 + ^(u[2],2))*u[5] + 3*tau*tauB*sqrt(1 + ^(u[2],2))*(u[3] + u[4]) - 3*tauB*tauS*(1 + ^(u[2],2))*((1 + ^(u[2],2))*u[5] + u[4] - ^(u[2],2)*(u[3] + u[4]))) + tau*sqrt(1 + ^(u[2],2))*(3*tauS*^(u[2],4)*zeta + tauB*(-3*tauS*(u[5] + u[3]) + 3*^(u[2],2)*(2*visc - 2*tauS*u[5] + tauS*u[4]) + ^(u[2],4)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))) + dtn*(1 + ^(u[2],2))*(3*^(dtp,2)*^(u[1],2)*tauB*tauS*(1 + ^(u[2],2))*(R + R*^(u[2],2) + tau*u[2]*sqrt(1 + ^(u[2],2))) - tau*u[2]*sqrt(1 + ^(u[2],2))*(3*tauS*^(u[2],2)*zeta*(2*u[3] + u[4]) - 3*tauB*tauS*(u[5] - u[3] - u[4])*(u[5] + 3*u[3] + u[4]) + tauB*^(u[2],2)*(2*visc*(3*u[5] + u[3] - u[4]) - 3*tauS*(u[5] - u[3] - u[4])*(u[5] + 3*u[3] + u[4]))) - 3*dtp*u[1]*(2*tau*tauB*u[2]*sqrt(1 + ^(u[2],2))*(-(tauS*(u[5] + u[3])) + ^(u[2],2)*(visc - tauS*(u[5] + u[3]))) + R*(-(tau*tauS*^(u[2],2)*sqrt(1 + ^(u[2],2))*u[5]) + tauB*(-2*tauS*u[5] + tauS*u[3] + 2*^(u[2],4)*(visc - tauS*(u[5] + u[4])) + ^(u[2],2)*(2*visc + tauS*(-4*u[5] + u[3] - 2*u[4]) + tau*sqrt(1 + ^(u[2],2))*(u[3] + u[4]))))) - R*(3*tauS*^(u[2],2)*(tau*sqrt(1 + ^(u[2],2))*u[5]*(-u[5] + u[3] + u[4]) + (1 + ^(u[2],2))*zeta*(u[3] + 2*u[4])) + tauB*(-3*tauS*(u[5] - u[3] - u[4])*(u[5] + u[4]) + ^(u[2],4)*(2*visc*(3*u[5] - u[3] + u[4]) - 3*tauS*(u[5] - u[3] - u[4])*(u[5] + u[3] + 3*u[4])) + ^(u[2],2)*(2*visc*(3*u[5] - u[3] + u[4]) - 3*(u[5] - u[3] - u[4])*(-(tau*sqrt(1 + ^(u[2],2))*(u[3] + u[4])) + tauS*(2*u[5] + u[3] + 4*u[4])))))))/(R*tau*^(1 + ^(u[2],2),1.5)*(3*dtp*tauB*tauS*^(u[2],2)*(dtp*u[1] + u[5] - u[3] - u[4]) + dtdtp*u[1]*(-3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) + 3*tauS*^(u[2],2)*zeta + 3*tauB*tauS*(-u[5] + u[3] + u[4]) + tauB*^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
-            
-            ,(u[7]*(3*dtp*tauB*tauS*^(u[2],2)*(dtp*u[1]*(tau*tauDiff*u[2] + R*(tau + tauDiff*sqrt(1 + ^(u[2],2)))) + tau*tauDiff*u[2]*(u[5] + u[3]) + R*tau*(u[5] - u[3] - u[4]) + R*tauDiff*sqrt(1 + ^(u[2],2))*(u[5] + u[4])) + dtdtp*u[1]*(-3*dtp*R*u[1]*tau*tauB*tauS*(1 + ^(u[2],2)) + tau*tauDiff*u[2]*(3*tauS*^(u[2],2)*zeta + 3*tauB*tauS*(2*u[3] + u[4]) + tauB*^(u[2],2)*(-2*visc + 3*tauS*(2*u[3] + u[4]))) + R*(tauDiff*^(u[2],2)*sqrt(1 + ^(u[2],2))*(-2*tauB*visc + 3*tauS*zeta + 3*tauB*tauS*(u[3] + 2*u[4])) + tau*(3*tauS*^(u[2],2)*(zeta + tauDiff*u[5]) + 3*tauB*tauS*(-u[5] + u[3] + u[4]) + tauB*^(u[2],2)*(4*visc - 3*(tauS*(u[5] - u[3] - u[4]) + tauDiff*(u[3] + u[4]))))))))/(R*tau*(3*dtp*tauB*tauS*^(u[2],2)*(dtp*u[1] + u[5] - u[3] - u[4]) + dtdtp*u[1]*(-3*dtp*u[1]*tauB*tauS*(1 + ^(u[2],2)) + 3*tauS*^(u[2],2)*zeta + 3*tauB*tauS*(-u[5] + u[3] + u[4]) + tauB*^(u[2],2)*(4*visc + 3*tauS*(-u[5] + u[3] + u[4])))))
+          #implement inversion of EOS ....
            )
             
         return (At,Ax, source)

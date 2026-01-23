@@ -2,6 +2,9 @@ struct HadronResonaceGas{T} <:EquationOfState
     particle_list::T
 end
 
+# Define a particle list, such as an array of particles (type T): particle_list = ["proton", "neutron", "pion"]
+# Create an instance of HadronResonanceGas with the particle list: hadron_gas = HadronResonanceGas(particle_list)
+
 struct HadronResonaceGasNew{T} <:EquationOfState
     particle_list::T
 end
@@ -48,6 +51,7 @@ end
 
 #read in resonances
 function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+#function HadronResonaceGas(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -85,7 +89,43 @@ function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmPart
 
 end
 
+
+#read in resonances
+function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_massorder.dat",Maxmass=3.2,Minmass=1.8,condition=x->true)
+    data     =readdlm(name_file,comment_char='#',comments=true)
+    ID          =convert.(Int64,data[:,1])
+    Name =convert.(String,data[:,2])
+    Mass =convert.(Float64,data[:,3])
+    Width =convert.(Float64,data[:,4])
+    Degeneracy =convert.(Int64,data[:,5]) 
+    Baryon =convert.(Int64,data[:,6])
+    Strangeness=convert.(Int64,data[:,7])
+    Charm=convert.(Int64,data[:,8])
+    Bottom=convert.(Int64,data[:,9])
+    Isospin=convert.(Float64,data[:,10])
+    ElectricCharge=convert.(Int64,data[:,11])
+    N_decay_channels=convert.(Int64,data[:,12])
+
+    fulllist=StructArray(NewParticle.(
+       ID,
+       Name, 
+       Mass ,
+       Width ,
+       Degeneracy, 
+       Baryon,
+       Strangeness,
+       Charm,
+       Bottom,
+       Isospin,
+       ElectricCharge,
+       N_decay_channels,
+       ))
+    filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Charm!=0&&condition(x)),fulllist)
+   HadronResonaceGasNew(filterlist)
+end
+
 function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+#function readresonancelist(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
 
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
@@ -124,40 +164,6 @@ function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmPart
 end
 
 
-#read in resonances
-function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_massorder.dat",Maxmass=3.2,Minmass=1.8,condition=x->true)
-    data     =readdlm(name_file,comment_char='#',comments=true)
-    ID          =convert.(Int64,data[:,1])
-    Name =convert.(String,data[:,2])
-    Mass =convert.(Float64,data[:,3])
-    Width =convert.(Float64,data[:,4])
-    Degeneracy =convert.(Int64,data[:,5]) 
-    Baryon =convert.(Int64,data[:,6])
-    Strangeness=convert.(Int64,data[:,7])
-    Charm=convert.(Int64,data[:,8])
-    Bottom=convert.(Int64,data[:,9])
-    Isospin=convert.(Float64,data[:,10])
-    ElectricCharge=convert.(Int64,data[:,11])
-    N_decay_channels=convert.(Int64,data[:,12])
-
-    fulllist=StructArray(NewParticle.(
-       ID,
-       Name, 
-       Mass ,
-       Width ,
-       Degeneracy, 
-       Baryon,
-       Strangeness,
-       Charm,
-       Bottom,
-       Isospin,
-       ElectricCharge,
-       N_decay_channels,
-       ))
-    filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Charm!=0&&condition(x)),fulllist)
-   HadronResonaceGasNew(filterlist)
-end
-
 #pretty printing
 function Base.show(io::IO, z::HadronResonaceGas)
     min ,max = extrema(z.particle_list.Mass)
@@ -168,7 +174,7 @@ function Base.show(io::IO, z::HadronResonaceGas)
 end
 
 
-function Base.show(io::IO, ::MIME"text/plain", z::HadronResonaceGas) 
+function Base.show(io::IO, ::MIME"text/plain", z::HadronResonaceGas) #where{T}
     min ,max = extrema(z.particle_list.Mass)
     print(io,"Hadron Resonace gas: ",length(z.particle_list)," particles with mass ⊆ ",min,"..",max,"GeV\n " )
     for part in z.particle_list
@@ -193,8 +199,10 @@ function Base.show(io::IO, z::HadronResonaceGas_ccbar)
 end
 
 
+#show(HadronResonaceGas())
 #condition to exclude particles, which are already included in Walecka model (also include neutrons?)
 waleckacondition(x)=x.Name != "f00600zer"&&x.Name !="om0782zer"&& x.Name != "pr0938plu"  && x.Name !="pr0938plb" && x.Name !="ne0939zer" && x.Name != "ne0939zrb"#remove neutrons
+#prova=HadronResonaceGas(name_file="EquationofState/particles.data",condition=waleckacondition)
 
 
 
@@ -209,9 +217,11 @@ waleckacondition(x)=x.Name != "f00600zer"&&x.Name !="om0782zer"&& x.Name != "pr0
 
 
 """
-Density of hadron resonance gas of charm 
+    thermodynamic(T,μ,x::HadronResonaceGas{L})  where {L}
+
+TBW test test hello
 """
-function thermodynamic(T,μ,x::HadronResonaceGas{L})  where {L}
+function thermodynamic(T,μ,x::HadronResonaceGas{L}; ccbar = 2.76)  where {L}
 
     if isless(T,zero(T))
         return Thermodynamic(zero(T),(zero(T),zero(T)),(zero(T),zero(T),zero(T)))
@@ -224,20 +234,29 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L})  where {L}
     n02=zero(T)
     n11=zero(T)
 
-    for i in eachindex(x) ## loop over all particles 
+    for i in eachindex(x) 
+        ## loop over all particles 
+        #QB = round((x[i].Nq+x[i].Ns+x[i].Nc-x[i].Naq-x[i].Nas-x[i].Nac)/3.0)
+        #QS = round(x[i].Nas-x[i].Ns)
         QC = round((x[i].Nc+x[i].Nac))
         m=x[i].Mass
         
         reducemass=m/T
+        Spin=x[i].Spin
         degeneracy=x[i].Degeneracy
         
         if reducemass<500*one(T)
            
-                b2 = besselkx(2,reducemass)
-                b1 = besselk1x(reducemass)
+                b2 = safe_besselkx(2,reducemass)
+                b1 = safe_besselkx(1,reducemass)
+                
+                
+                #b2 = besselk(2,m/T)
+                #b1 = besselk(1,m/T)
                 b3 = b1+4/(reducemass)*b2
                 ex=exp(QC* μ - reducemass)
                 fact = 1 #no correction factor in this case 
+
                 
                 density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
                 n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
@@ -245,63 +264,12 @@ function thermodynamic(T,μ,x::HadronResonaceGas{L})  where {L}
                 n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
             
         else 
-                density+= zero(T)
-                n01+= zero(T)
-                n10+= zero(T)
-                n11+= zero(T)
-        end
-    end
-
-    return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
-end
-
-
-"""
-    Density of hadron resonance gas of charm, considering the canonical correction factor
-"""
-function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
-    ccbar = x.ccbar
-    if isless(T,zero(T))
-        return Thermodynamic(zero(T),(zero(T),zero(T)),(zero(T),zero(T),zero(T)))
-    end
-
-    density=zero(T)
-    n10=zero(T)
-    n01=zero(T)
-    n20=zero(T)
-    n02=zero(T)
-    n11=zero(T)
-
-    for i in eachindex(x) ## loop over all particles 
-        QC = round((x[i].Nc+x[i].Nac))
-        m=x[i].Mass
-        
-        reducemass=m/T
-        degeneracy=x[i].Degeneracy
-        
-        if reducemass<500*one(T)
-           
-                b1 = besselk1x(reducemass)
-                b2 = besselkx(2,reducemass)
-                b3 = b1+4/(reducemass)*b2
-                ex=exp(QC* μ - reducemass)
-                
-                #correction factor due to canonical ensemble 
-                if QC == 1 
-                    fact = besseli(1, ccbar/2)./besseli(0, ccbar/2)
-                else 
-                    fact = 1
-                end   
-
-                density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
-                n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
-                n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
-                n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
-        else 
                     density+= zero(T)
                     n01+= zero(T)
                     n10+= zero(T)
+                    #p20+=zero(T)
                     n11+= zero(T)
+                    #p02+= zero(T)
 
         end
     end
@@ -309,8 +277,19 @@ function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
     return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
 end
 
+#using BenchmarkTools
+
+
+#@code_warntype thermodyanmics(0.1,0.1,prova)
+#@benchmark thermodyanmics(0.1,0.1,$prova)
+
+#@benchmark pressure(0.1,0.1,$prova)
+
+
 """
-    Density of hadron resonance gas of charm, considering relativistic (Bose-Einstein/Fermi-Dirac) dynamics  
+    thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
+
+TBW
 """
 function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
 
@@ -324,6 +303,7 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
     for i in eachindex(x) 
         ## loop over all particles 
         QB = x[i].Baryon
+        #QS = round(x[i].Nas-x[i].Ns)
         QC = round((x[i].Charm))
         m=x[i].Mass
         reducemass=m/T
@@ -333,8 +313,11 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
         if QB==0
           
             ## loop over mesons
-            b2 = besselkx(2,reducemass)
-            b1 = besselk1x(reducemass)
+            b2 = safe_besselkx(2,reducemass)
+            b1 = safe_besselkx(1,reducemass)
+            
+            #b2 = besselk(2,m/T)
+            #b1 = besselk(1,m/T)
             b3 = b1+4/(reducemass)*b2
             ex=exp(QC* μ - reducemass)
             density += QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3 added a QC term for J/Psi
@@ -344,8 +327,10 @@ function thermodynamic(T,μ,x::HadronResonaceGasNew{L})  where {L}
                
         else
             ## loop over barions 
-            b2 = besselkx(2,reducemass)
-            b1 = besselk1x(reducemass)
+            b2 = safe_besselkx(2,reducemass)
+            b1 = safe_besselkx(1,reducemass)
+            #b2 = besselk(2,m/T)
+            #b1 = besselk(1,m/T)
             b3 = b1+4/(reducemass)*b2
             ex=exp(QC* μ - reducemass)
             density += degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
@@ -361,9 +346,17 @@ end
 end
 
 
-function hq_pressure(T,μ;m=1.5)
-    n = 1
-    QC = 1
+"""
+    thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L})  where {L}
+
+Add correction factor
+"""
+function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
+    ccbar = x.ccbar
+    if isless(T,zero(T))
+        return Thermodynamic(zero(T),(zero(T),zero(T)),(zero(T),zero(T),zero(T)))
+    end
+
     density=zero(T)
     n10=zero(T)
     n01=zero(T)
@@ -371,17 +364,166 @@ function hq_pressure(T,μ;m=1.5)
     n02=zero(T)
     n11=zero(T)
 
-    reducemass=m/T
-    degeneracy= 6
+    for i in eachindex(x) 
+        ## loop over all particles 
+        QC = round((x[i].Nc+x[i].Nac))
+        m=x[i].Mass
+        
+        reducemass=m/T
+        Spin=x[i].Spin
+        degeneracy=x[i].Degeneracy
+        
+        if reducemass<500*one(T)
+           
+                b2 = safe_besselkx(2,reducemass)
+                b1 = safe_besselkx(1,reducemass)
+                
+                b3 = b1+4/(reducemass)*b2
+                ex=exp(QC* μ - reducemass)
+                #correction factor due to canonical ensemble 
+                if QC == 1 
+                    fact = besseli(1, ccbar/2)./besseli(0, ccbar/2)
 
-    b2 = besselkx(2,reducemass)
-    b1 = besselk1x(reducemass)
-    b3 = b1+4/(reducemass)*b2
-    ex=exp(QC* μ - reducemass)
-    density += degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
-    n10 += degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
-    n01+= degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
-    n11 +=degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
+                else 
+                    fact = 1
+                end   
 
-   return Thermodynamic(density,(n10,n01),(n20,n11,n02))
+                density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
+                n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
+                n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
+                n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
+            
+        else 
+                    density+= zero(T)
+                    n01+= zero(T)
+                    n10+= zero(T)
+                    n11+= zero(T)
+
+        end
+    end
+
+    return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
+end
+
+
+const LOG_F64_MAX = log(floatmax(Float64))
+
+@inline function _besselkx_asym(ν, x::Float64)
+    # asymptotic for scaled K: besselkx(ν,x) = exp(x)*Kν(x)
+    # besselkx ~ sqrt(pi/(2x)) * [1 + (μ-1)/(8x) + (μ-1)(μ-9)/(2!(8x)^2) + ...]
+    μ = 4.0 * (Float64(ν)^2)
+    t = 1.0 / (8.0*x)
+
+    a1 = (μ - 1.0) * t
+    a2 = (μ - 1.0) * (μ - 9.0)  * (t*t) / 2.0
+    a3 = (μ - 1.0) * (μ - 9.0)  * (μ - 25.0) * (t*t*t) / 6.0
+
+    return sqrt(pi/(2.0*x)) * (1.0 + a1 + a2 + a3)
+end
+
+@inline function safe_besselkx(ν, x::Float64)
+    if !isfinite(x) || x <= 0.0
+        return 0.0
+    end
+    ν < 0 && return safe_besselkx(-ν, x)
+
+    # Small-x: avoid Inf/NaN from the library in corner cases
+    if x < 1e-20
+        if ν == 0
+            return -log(x/2) - Base.MathConstants.γ
+        else
+            # Kν(x) ~ (ν-1)! * 2^{ν-1} * x^{-ν}; scaling exp(x)≈1
+            logv = logfactorial(ν-1) + (ν-1)*log(2.0) - ν*log(x)
+            return exp(min(logv, LOG_F64_MAX))
+        end
+    end
+
+    # Large-x: DO NOT call AMOS; use asymptotic of the *scaled* function
+    # (This is accurate already for x ≳ 30–50 and avoids your crash for huge x.)
+    if x > 2000.0
+        return _besselkx_asym(ν, x)
+    end
+
+    v = besselkx(ν, x)
+    return isfinite(v) ? v : _besselkx_asym(ν, x)  # last-resort fallback
+end
+
+function hq_density(T, α; m=1.5, g=6)
+    x = m/T
+    A = g*m^2/(2π^2)
+
+    K1x = safe_besselkx(1, x)
+    K2x = safe_besselkx(2, x)
+    K3x = safe_besselkx(3, x)
+
+    E = exp(α - x)              # <-- key fix
+
+    n  = A*T*E*K2x
+    nα = n
+
+    # with E = exp(α - x) the +x*K2x term disappears
+    nT = A*E*( K2x + 0.5*x*(K1x + K3x) )
+
+    return FieldData(n, (nT, nα), (zero(T), zero(T), zero(T)))
+end
+
+function hq_pressure(T, α; m=1.5, g=6)
+    x = m/T
+    A = g*m^2/(2π^2)
+
+    K0x = safe_besselkx(0, x)
+    K1x = safe_besselkx(1, x)
+    K2x = safe_besselkx(2, x)
+    K3x = safe_besselkx(3, x)
+    K4x = safe_besselkx(4, x)
+
+    E = exp(α - x)              # <-- key fix
+
+    P  = A*T^2*E*K2x
+    Pα = P
+    PT = A*E*( 2T*K2x + 0.5*m*(K1x + K3x) )   # <-- no +m*K2x term
+
+    Pαα = P
+    PTα = PT
+
+    # nice compact form with scaled Bessels:
+    PTT = A*E*( 2*K2x + x*(K1x + K3x) + (x^2/4)*(K0x + 2K2x + K4x) )
+
+    return Thermodynamic(P, (PT, Pα), (PTT, PTα, Pαα))
+end
+
+function hq_pressure_Tn(T, n; m=1.5, g=6)
+    x = m/T
+    A = g*m^2/(2π^2)
+
+    K0 = safe_besselkx(0, x)
+    K1 = safe_besselkx(1, x)
+    K2 = safe_besselkx(2, x)
+    K3 = safe_besselkx(3, x)
+    K4 = safe_besselkx(4, x)
+
+    # For single-species Boltzmann with your scaled Bessels:
+    # n = A*T*exp(α-x)*K2  ->  exp(α-x) = n/(A*T*K2)
+    # α = log(exp(α-x)) + x
+    α = (n > 0) ? (log(n/(A*T*K2)) + x) : -Inf
+
+    # Pressure in (T,n)
+    P  = n*T
+
+    # 2nd-variable derivative is w.r.t. n at fixed T
+    Pn = T
+    Pnn = 0.0
+
+    # 1st-variable derivative is w.r.t. T at fixed α (expressed via n)
+    # Using A*exp(α-x) = n/(T*K2)
+    pref = (n == 0) ? 0.0 : (n/(T*K2))
+
+    PT  = pref * ( 2T*K2 + 0.5*m*(K1 + K3) )
+    PTT = pref * ( 2*K2 + x*(K1 + K3) + (x^2/4)*(K0 + 2K2 + K4) )
+
+    # Mixed derivative in your requested sense: ∂/∂n|T ( ∂P/∂T|α )
+    # PT is linear in n, so PTn = PT/n (with safe n=0 handling)
+    PTn = (n == 0) ? ( (2T*K2 + 0.5*m*(K1 + K3)) / (T*K2) ) : (PT/n)
+
+    return Thermodynamic(P, (PT, Pn), (PTT, PTn, Pnn)), α
 end

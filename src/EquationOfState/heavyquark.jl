@@ -11,7 +11,10 @@ Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState
     c::T  = -1.0465330501411811
     d::T  = 0.09551531822245873
     hadron_list::HadronResonaceGas_ccbar{S,T}=readresonancelist()  
+    #hadron_list::HadronResonaceGas{S}=HadronResonaceGas()   
 end
+
+
 
 function Heavy_Quark(particle_list, ccbar)
     list = HadronResonaceGas_ccbar(particle_list, ccbar)
@@ -70,20 +73,22 @@ function free_charm(T,fug,x::Heavy_Quark)
     densityDerT = deg*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T))* fmGeV^3 ; #(*fm^-3/GeV*)
     densityDerμ= deg*(m^2* T /(2 *π^2)* ex* b2)* fmGeV^3+0.0001; #(*fm^-3/GeV*)
     densityDerTDerμ =deg*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T))* fmGeV^3 ;
+    #@show b2, m, T
     return (density,densityDerT,densityDerμ,densityDerTDerμ )
 end
 
-function free_hadron(T,μ,deg,q; m = 1.5)
+function free_hadron(m,deg,q,T,μ)
+    b2 = besselkx(2,m/T) #besselkx(2,m/T) = K2(m/T) * exp(m/T)
     b1 = besselk1x(m/T)
-    b2 = besselkx(2,m/T) 
     b3 = b1+4/(m/T)*b2
 
     ex = exp(q*μ - m/T)  
     density = deg*(T /(2 *π^2)*m^2* ex* b2)* fmGeV3; #fm-3
-    densityDerT = deg*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T))* fmGeV3 ; #(*fm^-3/GeV)
-    
+    densityDerT = deg*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T))* fmGeV3 ; #(*fm^-3/GeV*)
+    #densityDerμ= deg*(m^2/(2 *π^2)* ex* b2)* fmGeV3+0.0001; #(*fm^-3/GeV*)
     densityDerμ= density/T+0.0001;
     densityDerTDerμ =deg*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T))* fmGeV3 ;
+    
     return (density,densityDerT,densityDerμ,densityDerTDerμ)
 end
 
@@ -104,8 +109,6 @@ struct QGPViscosity{T}<:ShearViscosity
     ηs::T
     Cs::T
 end
-
-
 
 
 @inline function bulk_viscosity(T,entropy,y::SimpleBulkViscosity{N}) where {N}
@@ -170,7 +173,7 @@ function normalization(T,μ,x::Heavy_Quark)
         m = i.Mass
         deg = i.Degeneracy
         q = i.Nc + i.Nac
-        n = free_hadron(T,μ,deg,q; m = m)[1]
+        n = free_hadron(m,deg,q,T,μ)[1]
         norm += q^2*n
     end 
     return norm;    
@@ -187,15 +190,22 @@ function diffusion_hadron(T,μ,x::Heavy_Quark,y::HQdiffusion{M}) where {M}
     κ = y.DsT/T*normalization(T,μ,x)/fmGeV
 end
 
+function diffusion(T,n,x::HQdiffusion{M}) where {M}
+    density = n #fm-^3
+    #κ = x.DsT/T*density/fmGeV #fm^-2
+    Ds = x.DsT/T/fmGeV
+end
+
 
 
 function τ_diffusion(T,x::HQdiffusion{M}) where {M}
     m = x.mass
     funnyfuctor=x.tauD
   
-    b2 = besselkx(2,m/T)*exp(-m/T)
-    b1 = besselkx(1,m/T)*exp(-m/T)
-   
+    #b2 = besselkx(2,m/T)*exp(-m/T)
+    #b1 = besselkx(1,m/T)*exp(-m/T)
+    b2 = safe_besselkx(2,m/T)*exp(-m/T)
+    b1 = safe_besselkx(1,m/T)*exp(-m/T)
     b3 = b1+4/(m/T)*b2  
     b4 = b2 + 6/(m/T)*b3  
     b5 = b3+8/(m/T)*b4

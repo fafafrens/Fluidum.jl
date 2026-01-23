@@ -1,48 +1,52 @@
 # the convention here are T, ur,  \[Pi]phiphi, \[Pi]etaeta, \[Pi]B, α, nur
 
 function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
-        
-    T  = ϕ[1]
-    μQ = ϕ[6]
+    
+    
+    #@show t, ϕ
+    dpt = pressure_derivative(ϕ[1], Val(1), params.eos) #entropy
+    dptt = pressure_derivative(ϕ[1], Val(2), params.eos)
 
-    # EOS derivatives
-    dpt  = pressure_derivative(T, Val(1), params.eos)
-    dptt = pressure_derivative(T, Val(2), params.eos)
+    etaVisc = viscosity(ϕ[1], dpt, params.shear)
+    tauShear = τ_shear(ϕ[1], dpt, params.shear)
+    tauB    = τ_bulk(ϕ[1], dpt, dptt, params.bulk)
+    zeta    = bulk_viscosity(ϕ[1], dpt, params.bulk)
+    if free == true 
+        thermo = hq_density(ϕ[1],ϕ[6];m=params.diffusion.mass)
+            n = thermo.value
+    dtn, dmn = thermo.gradient
+    else 
+        thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
+            n = thermo.pressure
+    dtn, dmn = thermo.pressure_derivative
+    end
+    
 
-    etaVisc = viscosity(T, dpt, params.shear)
-    tauS    = τ_shear(T, dpt, params.shear)
-    tauB    = τ_bulk(T, dpt, dptt, params.bulk)
-    zeta    = bulk_viscosity(T, dpt, params.bulk)
 
-    if free
-        thermo = hq_density(T, μQ; m = params.diffusion.mass)
-        n        = thermo.value
-        dtn, dmn = thermo.gradient
-    else
-        thermo = thermodynamic(T, μQ, params.eos.hadron_list)
-        n        = thermo.pressure
-        dtn, dmn = thermo.pressure_derivative
+    if free == true 
+        Ds = diffusion(ϕ[1],n,params.diffusion)
+        tauDiff= τ_diffusion(ϕ[1],params.diffusion)
+    else 
+        Ds = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
+        tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
     end
 
-    dmn_eps = let s = get(ENV, "FLUIDUM_DMN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
-    dtn_eps = let s = get(ENV, "FLUIDUM_DTN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
+    pressure_field = hq_pressure(ϕ[1],ϕ[6];m=params.diffusion.mass)
+    dPhq_dT, dPhq_dmu = pressure_field.pressure_derivative
+    dPhq_dTdT,dPhq_dTdmu,ddp_dmudmu_HQ = pressure_field.pressure_hessian
 
-    dmn += dmn_eps
-    dtn += dtn_eps
+    dpt = dpt + dPhq_dT
+    dptt = dptt + dPhq_dTdT
+    dtn
+    dmn
+###############################################################################
+# Continue normally after the debug block → compute your fluxes, sources, etc.
+###############################################################################
 
-    if free
-        Ds      = diffusion(T, n, params.diffusion)
-        tauDiff = τ_diffusion(T, params.diffusion)
-    else
-        Ds      = diffusion_hadron(T, μQ, params.eos, params.diffusion)
-        tauDiff = τ_diffusion_hadron(T, μQ, params.eos, params.diffusion)
-    end
+    
+    dmp   = 0 #for now we don t have chemical potential in the eos
+    dtdmp = 0 
+    dmdmp = 0
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 
@@ -58,7 +62,7 @@ function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
     
     jgemvavx!(Source, Ainv,source)
     
-end 
+    end 
 
     
     function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)

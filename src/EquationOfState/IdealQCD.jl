@@ -89,10 +89,10 @@ end
 
 
 
-function thermodynamic(T::N,mu::S,x::IdealQCD) where {N,S}
-    Thermodynamic{promote_type(N,S),2,3}(pressure(T,mu,x),
-    (pressure_derivative(T,mu,Val{1}(),Val{0}(),x),pressure_derivative(T,mu,Val{0}(),Val{1}(),x)), 
-    (pressure_derivative(T,mu,Val{2}(),Val{0}(),x),pressure_derivative(T,mu,Val{1}(),Val{1}(),x),pressure_derivative(T,mu,Val{0}(),Val{2}(),x) ))
+function thermodynamic(T::N,α::S,x::IdealQCD) where {N,S}
+    Thermodynamic{promote_type(N,S),2,3}(pressure(T,α,x),
+    (pressure_derivative(T,α,Val{1}(),Val{0}(),x),pressure_derivative(T,α,Val{0}(),Val{1}(),x)), 
+    (pressure_derivative(T,α,Val{2}(),Val{0}(),x),pressure_derivative(T,α,Val{1}(),Val{1}(),x),pressure_derivative(T,α,Val{0}(),Val{2}(),x) ))
 end
 
 
