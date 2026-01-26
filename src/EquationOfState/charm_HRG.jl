@@ -124,6 +124,7 @@ function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_masso
    HadronResonaceGasNew(filterlist)
 end
 
+
 function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
 #function readresonancelist(;name_file=string(kernel_folder,"/FastReso_OC_kernels/particles_D0.data"),Maxmass=4,Minmass=1.0,condition=x->true)
 

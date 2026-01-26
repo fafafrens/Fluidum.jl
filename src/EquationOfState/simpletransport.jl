@@ -100,10 +100,11 @@ struct SimpleDiffusionCoefficient{T}<:Diffusion
 end
 
 struct ZeroDiffusion{T}<:Diffusion
-    mass::T = 1.5 #GeV
+    mass::T
 end
 
-
+ZeroDiffusion(; mass::T = 1.5) where {T<:Real} = ZeroDiffusion{T}(mass)
+ZeroDiffusion(mass::T) where {T<:Real} = ZeroDiffusion{T}(mass)
 
 
 

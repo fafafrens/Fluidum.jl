@@ -206,11 +206,10 @@ function initialize_fields_free_HQ(x::TabulatedData{A,B}, y::TabulatedData{C,D},
         temperature_profile = init_temp_profile
     end
 
-
     if init_fug_profile !== nothing
-        fugacity = init_fug_profile
+        fugacity = init_fug_profile(r)
     else
-        fugacity(r) = fug_free_charm(temperature_profile, nhard_profile, r;initial_params.rdrop)  
+        fugacity = r ->  fug_free_charm(temperature_profile, nhard_profile, r;initial_params.rdrop)  
     end
 
     ccbar_thermo,err= quadgk(x->2*pi*x*tau0*hq_density(temperature_profile(x),fugacity(x);m=m).value,0,rmax,rtol=0.00001) #integration to obtain the total number of charm

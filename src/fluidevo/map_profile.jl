@@ -70,21 +70,21 @@ end
 
 """
 Initialize a profile when both the entropy and the density of binary collision profiles are given"""
-function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset=0.005) where {A,B}
+function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset=0.005, xmax_temp = 8, xmax_ncoll = 5, offset_ncoll = 0.) where {A,B}
     #entropy profile
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_x)
     
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile)  
     temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
     
-    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = 8, offset = offset)
+    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = xmax_temp, offset = offset)
    # temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = 8, offset = 0.01)
     temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
     #ncoll profile
     r, ncoll_profile = get_profile(y, cent1, cent2; norm = norm_y)  
     ncoll_funct = linear_interpolation(r, ncoll_profile; extrapolation_bc=Flat()) 
    
-    ncoll_exp = exponential_tail_pointlike.(Ref(ncoll_funct), radius;xmax = 5, offset=0.)
+    ncoll_exp = exponential_tail_pointlike.(Ref(ncoll_funct), radius;xmax = xmax_ncoll, offset= offset_ncoll)
         
     ncoll_exp_funct = linear_interpolation(radius, ncoll_exp; extrapolation_bc=Flat()) 
     
@@ -98,7 +98,7 @@ end
 
 """
 Initialize when only one profile is given"""
-function Profiles(x::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm, xmax = maximum(radius), exp_tail = true, temperature_flag = true, offset = 0.01) where {A,B}
+function Profiles(x::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm, xmax = 8, exp_tail = true, temperature_flag = true, offset = 0.01) where {A,B}
     #entopy profile
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm)
     
@@ -109,7 +109,7 @@ function Profiles(x::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius,
         temperature_funct = linear_interpolation(r, entropy_profile; extrapolation_bc=Flat())
     end
 
-    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax, offset)
+    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = xmax, offset = offset)
     temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
         
     if exp_tail == true
@@ -128,7 +128,7 @@ function Profiles(x::TabulatedData{A,B};radius = range(0,30,100), norm_ = 1, xma
         
     if exp_tail == true
     
-        temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax)
+        temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = xmax)
         temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
         return temp_exp_funct
     else
