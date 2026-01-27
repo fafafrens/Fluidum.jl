@@ -425,6 +425,19 @@ function hq_density(T, α; m=1.5, g=6)
     return FieldData(n, (nT, nα), (zero(T), zero(T), zero(T)))
 end
 
+function invert_n_for_alpha(T, n; m=1.5, g=6)
+    x = m/T
+    A = g*m^2/(2π^2)
+
+    K2 = besselkx(2, x)
+
+    # For single-species Boltzmann with scaled Bessels:
+    # n = A*T*exp(α-x)*K2  ->  exp(α-x) = n/(A*T*K2)
+    # α = log(exp(α-x)) + x
+    α = (n > 0) ? (log(n/(A*T*K2)) + x) : -Inf
+
+    return α
+end
 
 function hq_pressure(T, α; m=1.5, g=6)
     x = m/T
@@ -450,39 +463,3 @@ function hq_pressure(T, α; m=1.5, g=6)
     return Thermodynamic(P, (PT, Pα), (PTT, PTα, Pαα))
 end
 
-
-function hq_pressure_Tn(T, n; m=1.5, g=6)
-    x = m/T
-    A = g*m^2/(2π^2)
-
-    K0 = besselkx(0, x)
-    K1 = besselkx(1, x)
-    K2 = besselkx(2, x)
-    K3 = besselkx(3, x)
-    K4 = besselkx(4, x)
-
-    # For single-species Boltzmann with scaled Bessels:
-    # n = A*T*exp(α-x)*K2  ->  exp(α-x) = n/(A*T*K2)
-    # α = log(exp(α-x)) + x
-    α = (n > 0) ? (log(n/(A*T*K2)) + x) : -Inf
-
-    # Pressure in (T,n)
-    P  = n*T
-
-    # 2nd-variable derivative is w.r.t. n at fixed T
-    Pn = T
-    Pnn = 0.0
-
-    # 1st-variable derivative is w.r.t. T at fixed α (expressed via n)
-    # Using A*exp(α-x) = n/(T*K2)
-    pref = (n == 0) ? 0.0 : (n/(T*K2))
-
-    PT  = pref * ( 2T*K2 + 0.5*m*(K1 + K3) )
-    PTT = pref * ( 2*K2 + x*(K1 + K3) + (x^2/4)*(K0 + 2K2 + K4) )
-
-    # Mixed derivative in your requested sense: ∂/∂n|T ( ∂P/∂T|α )
-    # PT is linear in n, so PTn = PT/n (with safe n=0 handling)
-    PTn = (n == 0) ? ( (2T*K2 + 0.5*m*(K1 + K3)) / (T*K2) ) : (PT/n)
-
-    return Thermodynamic(P, (PT, Pn), (PTT, PTn, Pnn)), α
-end

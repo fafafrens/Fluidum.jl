@@ -58,7 +58,7 @@ end
     )
 end 
 
-@inline function HQ_full_ideal_HQ_br_HQ_p_density_1d() 
+@inline function HQ_ideal_br_p_density_1d() 
     return Fields(
     NDField((:even,),(:ghost,),:temperature),
     NDField((:odd,),(:ghost,),:ur),
@@ -199,8 +199,8 @@ function initialize_fields_free_HQ(x::TabulatedData{A,B}, y::TabulatedData{C,D},
     rmax = grid_params.rmax
     gridpoints = grid_params.gridpoints
     tau0 = initial_params.tau0
-
-    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0, norm_y =2/tau0*dσ_QQdy, exp_tail)
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp =rmax, xmax_ncoll = rmax, norm_y =2/tau0*dσ_QQdy, exp_tail)
 
     if init_temp_profile !== nothing
         temperature_profile = init_temp_profile
@@ -217,7 +217,7 @@ function initialize_fields_free_HQ(x::TabulatedData{A,B}, y::TabulatedData{C,D},
     #@show ccbar_thermo
         
     oned_visc_hydro = init_matrix
-    if oned_visc_hydro == HQ_viscous_BG_ideal_current_density_1d  || oned_visc_hydro == HQ_full_ideal_HQ_br_HQ_p_density_1d
+    if oned_visc_hydro == HQ_viscous_BG_ideal_current_density_1d  || oned_visc_hydro == HQ_ideal_br_p_density_1d
         disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
         disc_fields = DiscreteFields(oned_visc_hydro(),disc,Float64) 
         phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
