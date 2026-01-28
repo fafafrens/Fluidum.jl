@@ -216,6 +216,9 @@ end
     zero(promote_type(typeof(T),N))
 end
 
+@inline function bulk_viscosity_derivative(T,x::ThermodynamicPerturbation{N,1,1,1},y::SimpleBulkViscosity)  where {N}
+    -y.ζs/(1+((T-0.175)/0.024)^2)^2*2*((T-0.175)/0.024)*invfmGeV*x.pressure_derivative[1]+y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*x.pressure_hessian[1]
+end
 
 
 @inline function τ_bulk(T,μ,x::Thermodynamic{N,2,3},y::ZeroBulkViscosity)  where {N}
@@ -233,3 +236,12 @@ end
 @inline function τ_bulk_derivative(T,x::ThermodynamicPerturbation{N,1,1,1},y::ZeroBulkViscosity)  where {N}
     zero(promote_type(typeof(T),N))
 end
+
+@inline function τ_bulk_derivative(T,x::ThermodynamicPerturbation{N,1,1,1},y::SimpleBulkViscosity)  where {N}
+    cs2= x.pressure_derivative[1]/(T*x.pressure_hessian[1])
+    cs2_derivative = x.pressure_hessian[1]/(T*x.pressure_hessian[1])-x.pressure_derivative[1]/(T*x.pressure_hessian[1])^2*(x.pressure_hessian[1]+T*x.pressure_third[1])
+    
+    bulk_viscosity_derivative(T,x,y)/(T*x.pressure_derivative[1]*y.Cζ)*1/(1/3-cs2)^2
+    -bulk_viscosity(T,x,y)/(T*x.pressure_derivative[1]*y.Cζ)^2*(x.pressure_derivative[1]+T*x.pressure_hessian[1])*y.Cζ*1/(1/3-cs2)^2
+    +bulk_viscosity(T,x,y)/(T*x.pressure_derivative[1]*y.Cζ)*1/(1/3-cs2)^3*2*(1/3-cs2)*cs2_derivative
+    end
