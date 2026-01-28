@@ -3,7 +3,7 @@
 
 
 
-function matrxi1d_visc!(A_i,Source,ϕ,t,X,params)
+function matrix1d_visc!(A_i,Source,ϕ,t,X,params)
  
     p = pressure(ϕ[1],params.eos) #entropy
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
@@ -33,7 +33,7 @@ function matrxi1d_visc!(A_i,Source,ϕ,t,X,params)
 
 
 
-function matrxi1d_visc(ϕ,t,X,params)
+function matrix1d_visc(ϕ,t,X,params)
  
 
     p = pressure(ϕ[1],Val(1),params.eos) #entropy
