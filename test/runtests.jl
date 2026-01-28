@@ -135,7 +135,7 @@ tspan=(0.4,20)
 
 
 # this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrix2d_visc!,fluidpropery,phi,tspan)
 
 #plot the solution 
 
@@ -180,7 +180,7 @@ end
     set_array!(phi,(x)->-3. *temperature(x),:mu,disc_fields); 
 
     tspan = (0.4,10);
-    field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrxi1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
+    field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrix1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
  
     iszero(field_results_Ds)
 
