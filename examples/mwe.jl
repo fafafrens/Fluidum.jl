@@ -42,9 +42,9 @@ bulk = SimpleBulkViscosity(0.083,15.0); #or, ZeroBulkViscosity();
 diffusion_Ds = HQdiffusion(0.1, 1.5);
 params_Ds=Fluidum.FluidProperties(eos,viscosity,bulk,diffusion_Ds);
 
-#fo_Ds = freeze_out_routine(fields.discrete_field, Fluidum.matrxi1d_visc_HQ!, params_Ds, fields.initial_field, tspan; Tfo = 0.156);
-field_results_Ds = oneshoot(fields.discrete_field, Fluidum.matrxi1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8);
-iszero(Fluidum.oneshoot_debug(fields.discrete_field, Fluidum.matrxi1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8))
+#fo_Ds = freeze_out_routine(fields.discrete_field, Fluidum.matrix1d_visc_HQ!, params_Ds, fields.initial_field, tspan; Tfo = 0.156);
+field_results_Ds = oneshoot(fields.discrete_field, Fluidum.matrix1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8);
+iszero(Fluidum.oneshoot_debug(fields.discrete_field, Fluidum.matrix1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8))
 
 
 

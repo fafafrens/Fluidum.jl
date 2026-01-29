@@ -77,6 +77,7 @@ include("fluidevo/detector_struct.jl")
 include("fluidevo/inverse_function.jl")
 
 
+
 include("fluidevo/discretization.jl") 
 include("fluidevo/picewisefunction.jl") 
 include("fluidevo/discreteFields.jl")  
@@ -94,11 +95,13 @@ include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_viscous_HQ_cilindrical_gamma.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_density.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_fugacity.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_p_br_density.jl")
 include("Matrix/1d_ideal_HQ_cilindrical_p_br_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
+
 include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
 

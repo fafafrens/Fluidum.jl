@@ -165,8 +165,6 @@ end
 struct ZeroBulkViscosity<:BulkViscosity
 end
 
-
-
 #@inline @fastmath function speed_of_sound_squared(T,x::EquationOfState)
 #    pressure_derivative(T,Val(1),x)/(T*pressure_derivative(T,Val(2),x)) 
 #end
@@ -178,8 +176,6 @@ end
     cs2= x.pressure_derivative[1]/(T*x.pressure_hessian[1])
     bulk_viscosity(T,x,y)/(T*x.pressure_derivative[1]*y.Cζ)*1/(1/3-cs2)^2+0.1
 end
-
-
 
 @inline function bulk_viscosity(T,x::ThermodynamicPerturbation{N,1,1,1},y::SimpleBulkViscosity{N}) where {N}
     y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*x.pressure_derivative[1]
