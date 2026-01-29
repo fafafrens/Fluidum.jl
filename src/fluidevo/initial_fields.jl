@@ -11,8 +11,58 @@ end
     NDField((:even,),(:ghost,),:piphiphi),
     NDField((:even,),(:ghost,),:pietaeta),
     NDField((:even,),(:ghost,),:piB),
-    NDField((:even,),(:ghost,),:mu), 
+    NDField((:even,),(:ghost,),:α), 
     NDField((:odd,),(:ghost,),:nur)
+    )
+end 
+
+@inline function HQ_viscous_no_bulk_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:piphiphi),
+    NDField((:even,),(:ghost,),:pietaeta),
+    NDField((:even,),(:ghost,),:α), 
+    NDField((:odd,),(:ghost,),:nur)
+    )
+end 
+
+
+@inline function HQ_viscous_BG_ideal_current_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:piphiphi),
+    NDField((:even,),(:ghost,),:pietaeta),
+    NDField((:even,),(:ghost,),:piB),
+    NDField((:even,),(:ghost,),:α)
+    )
+end 
+
+@inline function HQ_viscous_BG_ideal_current_density_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:piphiphi),
+    NDField((:even,),(:ghost,),:pietaeta),
+    NDField((:even,),(:ghost,),:piB),
+    NDField((:even,),(:ghost,),:n)
+    )
+end 
+
+@inline function HQ_ideal_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:α),
+    )
+end 
+
+@inline function HQ_ideal_br_p_density_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:n),
     )
 end 
 
@@ -128,19 +178,59 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::
     
     @show ccbar
     @show ccbar_out
+
     eos=Heavy_Quark(readresonancelist(), ccbar)
-    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params)  
+    fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
     ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure,0,rmax,rtol=0.00001) #integration to obtain the total number of charm
     @show ccbar_thermo
         
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
-    set_array!(phi,(x)->fugacity(x),:mu,disc_fields); #fugacity initialization
+    set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
     
-return DiscreteFields(disc,disc_fields,phi), ccbar
+return DiscreteInitialFields(disc,disc_fields,phi), ccbar
 end
+
+
+
+function initialize_fields_free_HQ(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params, dσ_QQdy, exp_tail = true,m,init_matrix = HQ_viscous_1d,init_temp_profile = nothing,init_fug_profile = nothing) where {A,B,C,D}
+    rmax = grid_params.rmax
+    gridpoints = grid_params.gridpoints
+    tau0 = initial_params.tau0
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp =rmax, xmax_ncoll = rmax, norm_y =2/tau0*dσ_QQdy, exp_tail)
+
+    if init_temp_profile !== nothing
+        temperature_profile = init_temp_profile
+    end
+
+    if init_fug_profile !== nothing
+        fugacity = init_fug_profile(r)
+    else
+        fugacity = r ->  fug_free_charm(temperature_profile, nhard_profile, r;initial_params.rdrop)  
+    end
+
+    ccbar_thermo,err= quadgk(x->2*pi*x*tau0*hq_density(temperature_profile(x),fugacity(x);m=m).value,0,rmax,rtol=0.00001) #integration to obtain the total number of charm
+
+    #@show ccbar_thermo
+        
+    oned_visc_hydro = init_matrix
+    if oned_visc_hydro == HQ_viscous_BG_ideal_current_density_1d  || oned_visc_hydro == HQ_ideal_br_p_density_1d
+        disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+        disc_fields = DiscreteFields(oned_visc_hydro(),disc,Float64) 
+        phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
+        set_array!(phi,(x)->hq_density(temperature_profile(x),fugacity(x);m=m).value,:n,disc_fields); #density initialization
+    else
+        disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
+        disc_fields = DiscreteFields(oned_visc_hydro(),disc,Float64) 
+        phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
+        set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
+    end 
+    return DiscreteInitialFields(disc,disc_fields,phi), ccbar_thermo
+end
+
 
 """
 Initialize fields when only the temperature profile is given

@@ -1073,8 +1073,6 @@ end
 
 
 
-
-
 #=struct surface_crossing{S,T,N_dim,N_field}
     t_1::T
     t_2::T

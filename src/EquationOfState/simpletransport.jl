@@ -99,8 +99,14 @@ struct SimpleDiffusionCoefficient{T}<:Diffusion
     Cκ::T
 end
 
-struct ZeroDiffusion<:Diffusion
+struct ZeroDiffusion{T}<:Diffusion
+    mass::T
 end
+
+ZeroDiffusion(; mass::T = 1.5) where {T<:Real} = ZeroDiffusion{T}(mass)
+ZeroDiffusion(mass::T) where {T<:Real} = ZeroDiffusion{T}(mass)
+
+
 
 @inline function diffusion(T,x::Thermodynamic{N,1,1},y::SimpleDiffusionCoefficient{N}) where{N}
     zero(typeof(T))
