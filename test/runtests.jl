@@ -154,7 +154,8 @@ end
 @testset "causality check" begin
     #define equation of state and transport coefficients
     ccbar = 30.
-    eos = Heavy_Quark(readresonancelist(), ccbar)   
+    #eos = Heavy_Quark(readresonancelist(), ccbar)
+    eos = Heavy_Quark(readresonancelist(), ccbar)
 
     viscosity = QGPViscosity(0.1,0.2); #or, ZeroViscosity();
     bulk = SimpleBulkViscosity(0.083,15.0); #or, ZeroBulkViscosity();   

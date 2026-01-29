@@ -62,6 +62,9 @@ include("EquationOfState/TransportCoefficienttype.jl")
 
 include("EquationOfState/IdealQCD.jl")
 include("EquationOfState/FluiduMEoS.jl")
+include("EquationOfState/conformalEOS.jl")
+include("EquationOfState/RunningConformalEOS.jl")
+include("EquationOfState/TanhGEffectiveEOS.jl")
 
 include("EquationOfState/charm_HRG.jl")
 include("EquationOfState/simpletransport.jl")
@@ -85,14 +88,20 @@ include("fluidevo/particle_dictionary.jl")
 
 
 include("fluidevo/spectra_fastreso_dict_HQ.jl")
-#include("fluidevo/spectra.jl")
+include("fluidevo/spectra.jl")
 
 include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_viscous_HQ_cilindrical_gamma.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_density.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_p_br_density.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_p_br_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
+
 include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
 
