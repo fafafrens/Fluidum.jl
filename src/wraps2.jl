@@ -253,9 +253,9 @@ end
 function set_initial_conditions(ini1::T,ini2::U,ini3::V,eos_HQ,tau0;gridpoints=500,rmax=30) where {T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
-    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature(x,ini3),:temperature,disc_fields); #temperature initialization
-    set_array!(phi,(x)->fugacity(x,tau0,ini1,ini2,ini3,eos_HQ),:mu,disc_fields); #fugacity initialization
+    set_array!(phi,(x)->fugacity(x,tau0,ini1,ini2,ini3,eos_HQ),:α,disc_fields); #fugacity initialization
     NQQ̄,err= quadgk(x->2*pi*x*tau0*thermodynamic(Fluidum.temperature(x,ini3),Fluidum.fugacity(x,tau0,ini1,ini2,ini3,Fluidum.HadronResonaceGas()),eos_HQ).pressure,0,rmax,rtol=0.00001)
     @show NQQ̄
     #@show phi
@@ -269,14 +269,14 @@ function runFluidum_fo(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{
     if fields.initial_field[1,1]<Tfo
         throw("Tfo = "*string(Tfo)*" MeV is larger than max temperature in the inital profile T0 = "*string(fields.initial_field[1,1]))
     end
-    return freeze_out_routine(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo)
+    return freeze_out_routine(fields.discrete_field,Fluidum.matrix1d_visc_HQ!,fluidproperties,fields.initial_field,tspan,Tfo=Tfo)
 end
 
 function runFluidum(ini1::T,ini2::U,ini3::V,fluidproperties::FluidProperties{A,B,C,D},eos_HQ,tau0;
     maxtime=30, gridpoints=500,rmax=30) where {A,B,C,D,T<:Step_Intial_Condition,U<:pQCD_Initial_Condition,V<:Trento_Intial_Condition}
     fields=set_initial_conditions(ini1,ini2,ini3,eos_HQ,tau0;gridpoints=gridpoints,rmax=rmax)
     tspan = (tau0,maxtime)
-    return oneshoot(fields.discrete_field,Fluidum.matrxi1d_visc_HQ!,fluidproperties,fields.initial_field,tspan)
+    return oneshoot(fields.discrete_field,Fluidum.matrix1d_visc_HQ!,fluidproperties,fields.initial_field,tspan)
 
 end
 

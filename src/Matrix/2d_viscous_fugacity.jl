@@ -1,7 +1,6 @@
 # the convention here are T, ux, uy, \[Pi]yy, \[Pi]zz, \[Pi]xy, \[Pi]B
 
-@inbounds @fastmath function matrxi2d_visc_HQ!(A_i,Source,ϕ,t,X,params)
- 
+@inbounds @fastmath function matrix2d_visc_HQ!(A_i,Source,ϕ,t,X,params)
 
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
     dptt = pressure_derivative(ϕ[1],Val(2),params.eos)

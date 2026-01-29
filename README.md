@@ -41,7 +41,7 @@ oned_visc_hydro = oned_visc_hydro=Fields(
     NDField((:even,),(:ghost,),:piB)
     )
     
-disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
 #define a example function for the temperature
 function temperature(r)
        0.4*1/(exp(r/7)+1 )+0.0001
@@ -51,7 +51,7 @@ phi=set_array((x)->temperature(x),:temperature,disc_fields);
 #define a time range for the evolution
 tspan = (0.2,1000)
 #evolve until freeze-out temperature Tfo
-freeze_out_routine(disc_fields,Fluidum.matrxi1d_visc!,params,phi,tspan;Tfo=0.1565)
+freeze_out_routine(disc_fields,Fluidum.matrix1d_visc!,params,phi,tspan;Tfo=0.1565)
 ```
 
 ## Example 2+1 dimension 
@@ -76,7 +76,7 @@ NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(50,25.),Fluidum.SymmetricInterval(50,25.))
 
 # we prepare the field with the discretization
-twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
+twod_visc_hydro_discrete=DiscreteFields(twod_visc_hydro,discretization,Float64)
 
  #we define some random intial condition 
 function temperature(r)
@@ -94,7 +94,7 @@ tspan=(0.4,20)
 
 
 # this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrix2d_visc!,fluidpropery,phi,tspan)
 
 #plot the solution 
 using Plots

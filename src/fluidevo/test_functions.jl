@@ -83,11 +83,11 @@ function fo_integral(fo::FreezeOutResult{A,B},eos;rtol=0.00001) where {A<:Spline
     return quadgk(alpha->fo_integrand(alpha,x,phi,eos),lb...,rb...,rtol=rtol)
 end
 """
-function freeze_out_routine(oned_visc_hydro_discrete,matrxi1d_visc_HQ!,fluidpropery,phi,tspan)
+function freeze_out_routine(oned_visc_hydro_discrete,matrix1d_visc_HQ!,fluidpropery,phi,tspan)
 returns freeze-out coordinates and fields values at freeze out
 """
-function freeze_out_routine(oned_visc_hydro_discrete,matrxi1d_visc_HQ!,fluidpropery,phi,tspan;Tfo=0.1565)
-    result=isosurface(oned_visc_hydro_discrete,matrxi1d_visc_HQ!,fluidpropery,phi,tspan,:temperature,Tfo);
+function freeze_out_routine(oned_visc_hydro_discrete,matrix1d_visc_HQ!,fluidpropery,phi,tspan;Tfo=0.1565)
+    result=isosurface(oned_visc_hydro_discrete,matrix1d_visc_HQ!,fluidpropery,phi,tspan,:temperature,Tfo);
     cha=Chart(Surface(result[:surface]),(t,x)->SVector{1}(atan(t,x)))
     return freezeout_interpolation(cha,sort_index=1)
 end

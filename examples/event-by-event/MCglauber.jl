@@ -55,7 +55,7 @@ function trento_event_eos(profile;norm=10,exp_tail = false, xgrid = -10:0.5:10, 
   
 end
 
-function set_array(phi::AbstractArray,express::S,disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function set_array(phi::AbstractArray,express::S,disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     array=Fluidum.get_array(disc)
     i=Fluidum.get_index(express,disc.fields)
     for I in disc.index_structure.interior
@@ -67,7 +67,7 @@ function set_array(phi::AbstractArray,express::S,disc::DiscreteFileds{T,total_di
     return array
 end
 
-function set_array!(array,phi::AbstractArray,express::S,disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function set_array!(array,phi::AbstractArray,express::S,disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     #array=zeros(T,(N_field,Sizes_ghosted...))
     i=Fluidum.get_index(express,disc.fields)
     for I in disc.index_structure.interior

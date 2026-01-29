@@ -119,7 +119,7 @@ NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(50,25.),Fluidum.SymmetricInterval(50,25.))
 
 # we prepare the field with the discretization
-twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
+twod_visc_hydro_discrete=DiscreteFields(twod_visc_hydro,discretization,Float64)
 
  #we define some random intial condition 
 function temperature(r)
@@ -135,7 +135,7 @@ tspan=(0.4,20)
 
 
 # this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc!,fluidpropery,phi,tspan)
+res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrix2d_visc!,fluidpropery,phi,tspan)
 
 #plot the solution 
 
@@ -169,7 +169,7 @@ end
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     #define the name and number of fields, with appropriate parity
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
-    disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     #define a example function for the temperature
     function temperature(r)
            0.4*1/(exp(r/7)+1 )+0.0001
@@ -177,10 +177,10 @@ end
 
     #set the temperature field
     phi=set_array((x)->temperature(x),:temperature,disc_fields); 
-    set_array!(phi,(x)->-3. *temperature(x),:mu,disc_fields); 
+    set_array!(phi,(x)->-3. *temperature(x),:α,disc_fields); 
 
     tspan = (0.4,10);
-    field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrxi1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
+    field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrix1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
  
     iszero(field_results_Ds)
 
