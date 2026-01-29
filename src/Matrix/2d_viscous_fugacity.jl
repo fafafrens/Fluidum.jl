@@ -51,7 +51,7 @@ end
 
 @inbounds @fastmath function two_d_viscous_HQ_matrix(u,tau,p,dtp,dtdtp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
 
-    #u is a vector of the form (T, ux, uy, \[Pi]yy, \[Pi]zz, \[Pi]xy, \[Pi]B, mu, nux, nuy)
+    #u is a vector of the form (T, ux, uy, \[Pi]yy, \[Pi]zz, \[Pi]xy, \[Pi]B, α, nux, nuy)
     #tau is the time step
     #p is the pressure
     #dtp is the first derivative of the pressure with respect to T

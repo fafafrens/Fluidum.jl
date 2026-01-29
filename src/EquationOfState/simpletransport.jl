@@ -181,12 +181,13 @@ end
  end
 
 
-@inline function bulk_viscosity(T,mu,x::Thermodynamic{N,2,3},y::SimpleBulkViscosity{N}) where {N}
+@inline function bulk_viscosity(T,α,x::Thermodynamic{N,2,3},y::SimpleBulkViscosity{N}) where {N}
     y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*x.pressure_derivative[1]
 end
-@inline function τ_bulk(T, mu,x::Thermodynamic{N,2,3},y::SimpleBulkViscosity{N}) where {N}
+
+@inline function τ_bulk(T, α,x::Thermodynamic{N,2,3},y::SimpleBulkViscosity{N}) where {N}
     cs2=0.2
-    bulk_viscosity(T,mu,x,y)/(T*x.pressure_derivative[1]*y.Cζ)*1/(1/3-cs2)^2
+    bulk_viscosity(T,α,x,y)/(T*x.pressure_derivative[1]*y.Cζ)*1/(1/3-cs2)^2
 end
 
 @inline function bulk_viscosity(T,μ,x::Thermodynamic{N,2,3},y::ZeroBulkViscosity)  where {N}

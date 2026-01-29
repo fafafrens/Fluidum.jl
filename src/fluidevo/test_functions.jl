@@ -11,15 +11,15 @@
 
 """
 function integral_cauchy(resultNofo,time,grid,eos)
-    mu(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[6,2:lastindex(grid)-1]; extrapolation_bc=Flat())
+    α(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[6,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     t(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[1,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     nu(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[7,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     u(time)=LinearInterpolation([grid[i][1] for i in 2:lastindex(grid)-1],resultNofo(time)[2,2:lastindex(grid)-1]; extrapolation_bc=Flat())
     ut(time,x) = sqrt(1+u(time)(x)*u(time)(x)) 
     nt(time,x) = u(time)(x)*nu(time)(x)/ut(time,x)
-    density(time,x) = thermodynamic(t(time)(x),mu(time)(x),eos.hadron_list).pressure
+    density(time,x) = thermodynamic(t(time)(x),α(time)(x),eos.hadron_list).pressure
     
-    #density(time,x)=federica(t(time)(x),mu(time)(x),Heavy_Quark())[1]
+    #density(time,x)=federica(t(time)(x),α(time)(x),Heavy_Quark())[1]
     
     return quadgk(x->2*pi*x*time*(density(time,x)* ut(time,x) +nt(time,x)),0,grid[end-1][1],rtol=0.00001)
 
