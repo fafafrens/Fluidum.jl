@@ -83,14 +83,6 @@ function fug(T, nhard_profile, r, eos; rdrop = 20, m = 1.5)
     end            
 end
 
-
-function fug_free_charm(T, nhard_profile, r; rdrop = 20, m = 1.5)       
-    if r<=rdrop
-        return log(nhard_profile(r)/(hq_density(T(r),0.0;m=m).value))
-        else return log(nhard_profile(rdrop)/(hq_density(T(rdrop),0.0;m=m).value))
-    end            
-end
-
 function fug_fs(T, ncoll_profile, r, eos;dσ_QQdy,tau_fs, tau0, m = 1.5)       
     return log(density_polar(T, ncoll_profile,r;dσ_QQdy, tau0,tau_fs, m)/(thermodynamic(T,0.0,eos).value))            
 end
@@ -154,14 +146,13 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, z::Tabu
 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
     
     set_array!(phi,(x)->nur_profile(x),:nur,disc_fields); #diffusion current initialization
 return DiscreteInitialFields(disc,disc_fields,phi), ccbar_thermo_fs
 end
-
 
 """
 Initialize the temperature and the fugacity 
@@ -183,10 +174,10 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::
     fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
     ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure,0,rmax,rtol=0.00001) #integration to obtain the total number of charm
     @show ccbar_thermo
-        
+
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
     
@@ -194,43 +185,24 @@ return DiscreteInitialFields(disc,disc_fields,phi), ccbar
 end
 
 
-
-function initialize_fields_free_HQ(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params, dσ_QQdy, exp_tail = true,m,init_matrix = HQ_viscous_1d,init_temp_profile = nothing,init_fug_profile = nothing) where {A,B,C,D}
+"""
+Get initial temperature and fugacity profiles from tabulated data
+"""
+function get_initial_T_α_n_from_tabulated_data(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params, eos,dσ_QQdy, exp_tail = true) where {A,B,C,D}
     rmax = grid_params.rmax
     gridpoints = grid_params.gridpoints
     tau0 = initial_params.tau0
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #
+
     temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp =rmax, xmax_ncoll = rmax, norm_y =2/tau0*dσ_QQdy, exp_tail)
+ 
+    fugacity= r-> fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
 
-    if init_temp_profile !== nothing
-        temperature_profile = init_temp_profile
-    end
-
-    if init_fug_profile !== nothing
-        fugacity = init_fug_profile(r)
-    else
-        fugacity = r ->  fug_free_charm(temperature_profile, nhard_profile, r;initial_params.rdrop)  
-    end
-
-    ccbar_thermo,err= quadgk(x->2*pi*x*tau0*hq_density(temperature_profile(x),fugacity(x);m=m).value,0,rmax,rtol=0.00001) #integration to obtain the total number of charm
-
-    #@show ccbar_thermo
-        
-    oned_visc_hydro = init_matrix
-    if oned_visc_hydro == HQ_viscous_BG_ideal_current_density_1d  || oned_visc_hydro == HQ_ideal_br_p_density_1d
-        disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-        disc_fields = DiscreteFields(oned_visc_hydro(),disc,Float64) 
-        phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
-        set_array!(phi,(x)->hq_density(temperature_profile(x),fugacity(x);m=m).value,:n,disc_fields); #density initialization
-    else
-        disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-        disc_fields = DiscreteFields(oned_visc_hydro(),disc,Float64) 
-        phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
-        set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
-    end 
-    return DiscreteInitialFields(disc,disc_fields,phi), ccbar_thermo
+    return Dict(
+        :temperature     => temperature_profile,
+        :α => fugacity,
+        :n     => nhard_profile,
+    )
 end
-
 
 """
 Initialize fields when only the temperature profile is given
@@ -245,7 +217,7 @@ function initialize_fields(x::TabulatedData{A,B}, cent1::Integer, cent2::Integer
 
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     oned_visc_hydro = Fluidum.viscous_1d()
-    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     
@@ -285,7 +257,7 @@ function initialize_fields(x::TabulatedData{A,B},list; tau0 = 0.4, gridpoints=50
     
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
     
@@ -306,7 +278,7 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::
 
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
-    disc_fields = DiscreteInitialFields(oned_visc_hydro,disc,Float64) 
+    disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
     phi=set_array((x)->temperature_profile(x),:temperature,disc_fields); #temperature initialization
     set_array!(phi,(x)->fugacity(x),:α,disc_fields); #fugacity initialization
     
