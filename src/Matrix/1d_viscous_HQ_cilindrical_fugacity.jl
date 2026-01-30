@@ -1,6 +1,6 @@
 # the convention here are T, ur,  \[Pi]phiphi, \[Pi]etaeta, \[Pi]B, α, nur
 
-function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
+function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
         
     T  = ϕ[1]
     μQ = ϕ[6]
@@ -14,27 +14,12 @@ function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;free=true)
     tauB    = τ_bulk(T, dpt, dptt, params.bulk)
     zeta    = bulk_viscosity(T, dpt, params.bulk)
 
-    if free
-        thermo = hq_density(T, μQ; m = params.diffusion.mass)
-        n        = thermo.value
-        dtn, dmn = thermo.gradient
-    else
-        thermo = thermodynamic(T, μQ, params.eos.hadron_list)
-        n        = thermo.pressure
-        dtn, dmn = thermo.pressure_derivative
-    end
+    thermo = thermodynamic(T, μQ, params.eos.hadron_list)
+    n        = thermo.pressure
+    dtn, dmn = thermo.pressure_derivative
 
-    dmn_eps = let s = get(ENV, "FLUIDUM_DMN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
-    dtn_eps = let s = get(ENV, "FLUIDUM_DTN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
-
-    dmn += dmn_eps
-    dtn += dtn_eps
+    dmn += 1e-6
+    dtn += 1e-6
 
     if free
         Ds      = diffusion(T, n, params.diffusion)
