@@ -63,8 +63,6 @@ include("EquationOfState/TransportCoefficienttype.jl")
 include("EquationOfState/IdealQCD.jl")
 include("EquationOfState/FluiduMEoS.jl")
 include("EquationOfState/conformalEOS.jl")
-include("EquationOfState/RunningConformalEOS.jl")
-include("EquationOfState/TanhGEffectiveEOS.jl")
 
 include("EquationOfState/charm_HRG.jl")
 include("EquationOfState/simpletransport.jl")
