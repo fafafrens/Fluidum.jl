@@ -48,7 +48,7 @@ gridpoints=100
 xmax = 20.
 discretization=CartesianDiscretization(Fluidum.SymmetricInterval(gridpoints,xmax),Fluidum.SymmetricInterval(gridpoints,xmax))
 # we prepare the field with the discretization
-twod_visc_hydro_discrete=DiscreteFileds(twod_visc_hydro,discretization,Float64)
+twod_visc_hydro_discrete=DiscreteFields(twod_visc_hydro,discretization,Float64)
 #nuclear parameters
 n1= TabulatedEvent(pwd()*"/examples/event-by-event/NLEFT_dmin_0.5fm_positiveweights_O.h5")
 n2= n1
@@ -125,7 +125,7 @@ function run_event(participants,twod_visc_hydro_discrete,norm;eta_p=0.0,
         wavenum_m = wavenum_m
     )
 
-    result=Fluidum.isosurface(twod_visc_hydro_discrete,Fluidum.matrxi2d_visc_HQ!,fluidproperty,phi,tspan,:temperature,Tfo)
+    result=Fluidum.isosurface(twod_visc_hydro_discrete,Fluidum.matrix2d_visc_HQ!,fluidproperty,phi,tspan,:temperature,Tfo)
     cha=Fluidum.Chart(Fluidum.Surface(result[:surface]),(t,x,y)->Fluidum.SVector{2}(atan(t,hypot(y,x)),atan(y,x)))
     if length(cha.points)==0
         return null_observable(wavenum_m,species_list), simulation_pars

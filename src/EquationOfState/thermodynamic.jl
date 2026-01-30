@@ -5,6 +5,15 @@ struct Thermodynamic{T,N,M}
     pressure_hessian::NTuple{M,T}
 end
 
+struct FieldData{T,N,M}
+    value::T
+    gradient::NTuple{N,T}
+    hessian::NTuple{M,T}
+end
+
+
+
+
 #just ways how to show thermodynamics. Calling println I will automatically call this Base.show
 function Base.show(io::IO, z::Thermodynamic{T,N,M} ) where {T,N,M}
     print(io,"p(x_1,..,x_$N)" , z.pressure, "∇p(x_1,..,x_$N)" ,pressure_derivative,"∇²p(x_1,..,x_$N)" ,pressure_hessian  )

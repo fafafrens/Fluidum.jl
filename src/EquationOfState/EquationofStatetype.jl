@@ -141,30 +141,30 @@ end
 
 
 
- thermodynamic(T,mu,x::SumEquationOfState)= thermodynamic(T,mu,x.equation_of_state_1)+thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::DifferenceEquationOfState)= thermodynamic(T,mu,x.equation_of_state_1)-thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::ProductEquationOfState)= thermodynamic(T,mu,x.equation_of_state_1)*thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::DivisionEquationOfState)= thermodynamic(T,mu,x.equation_of_state_1)/thermodynamic(T,mu,x.equation_of_state_2)
+ thermodynamic(T,α,x::SumEquationOfState)= thermodynamic(T,α,x.equation_of_state_1)+thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::DifferenceEquationOfState)= thermodynamic(T,α,x.equation_of_state_1)-thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::ProductEquationOfState)= thermodynamic(T,α,x.equation_of_state_1)*thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::DivisionEquationOfState)= thermodynamic(T,α,x.equation_of_state_1)/thermodynamic(T,α,x.equation_of_state_2)
  
- thermodynamic(T,mu,x::NumberSumEquationOfState)= x.num+thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::NumberDifferenceEquationOfState)= x.num-thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::NumberProductEquationOfState)= x.num*thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::NumberDivisionEquationOfState)= x.num/thermodynamic(T,mu,x.equation_of_state_2)
- thermodynamic(T,mu,x::OppositeEquationOfState)= -thermodynamic(T,mu,x.equation_of_state)
+ thermodynamic(T,α,x::NumberSumEquationOfState)= x.num+thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::NumberDifferenceEquationOfState)= x.num-thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::NumberProductEquationOfState)= x.num*thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::NumberDivisionEquationOfState)= x.num/thermodynamic(T,α,x.equation_of_state_2)
+ thermodynamic(T,α,x::OppositeEquationOfState)= -thermodynamic(T,α,x.equation_of_state)
 
 
 
- pressure(T,mu,wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure
+ pressure(T,α,wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure
 
- pressure_derivative(T,mu,::Val{1},::Val{0},wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure_derivative[1]
- pressure_derivative(T,mu,::Val{0},::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure_derivative[2]
- pressure_derivative(T,mu,::Val{2},::Val{0},wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure_hessian[1]
- pressure_derivative(T,mu,::Val{1},::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure_hessian[2]
- pressure_derivative(T,mu,::Val{0},::Val{2},wal::N) where {N<:EquationOfState}= thermodynamic(T,mu,wal).pressure_hessian[3]
+ pressure_derivative(T,α,::Val{1},::Val{0},wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure_derivative[1]
+ pressure_derivative(T,α,::Val{0},::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure_derivative[2]
+ pressure_derivative(T,α,::Val{2},::Val{0},wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure_hessian[1]
+ pressure_derivative(T,α,::Val{1},::Val{1},wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure_hessian[2]
+ pressure_derivative(T,α,::Val{0},::Val{2},wal::N) where {N<:EquationOfState}= thermodynamic(T,α,wal).pressure_hessian[3]
     
-function energy_density(T,mu,wal::N) where {N<:EquationOfState}
-    x=thermodynamic(T,mu,wal)
-     -x.pressure+T*x.pressure_derivative[1]+mu*x.pressure_derivative[2]
+function energy_density(T,α,wal::N) where {N<:EquationOfState}
+    x=thermodynamic(T,α,wal)
+     -x.pressure+T*x.pressure_derivative[1]+α*x.pressure_derivative[2]
 end
 
  struct OneDPicewiseEquationOfState{A<:EquationOfState,B<:AbstractInterval ,C<:EquationOfState,D<:AbstractInterval} <:CompositeEquationOfState
@@ -284,14 +284,14 @@ end
 end
 
 
-function thermodynamic(T::S,mu::G,x::TwoDPicewiseEquationOfState{A,B,C,D})::Thermodynamic{promote_type(S,G),2,3} where {S<:Number,G<:Number,A<:EquationOfState,B,C<:EquationOfState,D} 
+function thermodynamic(T::S,α::G,x::TwoDPicewiseEquationOfState{A,B,C,D})::Thermodynamic{promote_type(S,G),2,3} where {S<:Number,G<:Number,A<:EquationOfState,B,C<:EquationOfState,D} 
     
-    if all( (T, mu) .∈  x.range_1 ) 
-        return thermodynamic(T,mu,x.equation_of_state_1)
+    if all( (T, α) .∈  x.range_1 ) 
+        return thermodynamic(T,α,x.equation_of_state_1)
     end 
     
-    if all( (T, mu) .∈  x.range_2 ) 
-        return thermodynamic(T,mu,x.equation_of_state_2)
+    if all( (T, α) .∈  x.range_2 ) 
+        return thermodynamic(T,α,x.equation_of_state_2)
     end 
 
     return Thermodynamic{promote_type(S,G),2,3}(0,(0,0),(0,0,0))
