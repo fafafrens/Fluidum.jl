@@ -2,15 +2,15 @@
 nhard_profile(x,y,ncoll;rmax=8)
 distributes ncoll with a gaussian
 """
-function nhard_profile(x,y,ncoll;rmax=8,norm = 2*0.4087/(70.)/0.4)
-        norm*exp(- (x^2 + y^2)/(2*(rmax/2)^2))*ncoll/(2*pi*(rmax/2)^2) #2d-gaussian with σ=rmax/2      
+function nhard_profile(x,y,ncoll;rmax=4,ncoll_norm = 2*0.4087/(70.)/0.4)
+        ncoll_norm*exp(- (x^2 + y^2)/(2*(rmax/2)^2))*ncoll/(2*pi*(rmax/2)^2) #2d-gaussian with σ=rmax/2      
 end
 
-function charm_number_hard(ncoll;xmax=20.,norm = 2*0.4087/(70.)/0.4)
+function charm_number_hard(ncoll;xmax=20.,ncoll_norm = 2*0.4087/(70.)/0.4)
     domain = ([-xmax,-xmax],[xmax,xmax])
     function f(u,p) 
         ncoll = p
-        nhard_profile(u[1],u[2],ncoll,norm=norm)
+        nhard_profile(u[1],u[2],ncoll,ncoll_norm=ncoll_norm)
     end
     p = (ncoll)
     prob = IntegralProblem(f,domain,p)
@@ -19,8 +19,8 @@ function charm_number_hard(ncoll;xmax=20.,norm = 2*0.4087/(70.)/0.4)
 end
 
 
-function fug_(profile, ncoll, eos, discretization; norm = 2*0.4087/(70.)/0.4)   
-    fugacity(x,y,T)=log(nhard_profile(x, y, ncoll; norm = norm)/(thermodynamic(T,0.0,eos.hadron_list).pressure))
+function fug_(profile, ncoll, eos, discretization; ncoll_norm = 2*0.4087/(70.)/0.4)   
+    fugacity(x,y,T)=log(nhard_profile(x, y, ncoll; ncoll_norm = ncoll_norm)/(thermodynamic(T,0.0,eos.hadron_list).pressure))
     fug_map = map(zip(discretization.grid,profile)) do x
             return fugacity(x[1][1],x[1][2],x[2])
 
