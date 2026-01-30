@@ -412,24 +412,59 @@ function hq_pressure(T,μ;m=1.5)
     return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
 end
 
+function hq_pressure(T,α;m=1.5)
+    n = 1
+    QC = 1
+    density=zero(T)
+    n10=zero(T)
+    n01=zero(T)
+    n20=zero(T)
+    n02=zero(T)
+    n11=zero(T)
 
-function hq_density(T, α; m=1.5, g=6)
-    x = m/T
-    A = g*m^2/(2π^2)
+    for i in eachindex(x) 
+        ## loop over all particles 
+        QC = round((x[i].Nc+x[i].Nac))
+        m=x[i].Mass
+        
+        reducemass=m/T
+        Spin=x[i].Spin
+        degeneracy=x[i].Degeneracy
+        
+        if reducemass<500*one(T)
+           
+                b2 = besselkx(2,reducemass)
+                b1 = besselkx(1,reducemass)
+                
+                b3 = b1+4/(reducemass)*b2
+                ex=exp(QC* α - reducemass)
+                #correction factor due to canonical ensemble 
+                if QC == 1 
+                    fact = besseli(1, ccbar/2)./besseli(0, ccbar/2)
 
-    K1x = besselkx(1, x)
-    K2x = besselkx(2, x)
-    K3x = besselkx(3, x)
+                else 
+                    fact = 1
+                end   
 
-    E = exp(α - x)            
+                density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
+                n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
+                n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
+                n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
+            
+        else 
+                    density+= zero(T)
+                    n01+= zero(T)
+                    n10+= zero(T)
+                    n11+= zero(T)
 
-    n  = A*T*E*K2x
-    nα = n
+        end
+    end
 
-    nT = A*E*( K2x + 0.5*x*(K1x + K3x) )
-
-    return FieldData(n, (nT, nα), (zero(T), zero(T), zero(T)))
+    return Thermodynamic(density*fmGeV3,(n10*fmGeV3,n01*fmGeV3),(n20*fmGeV3,n11*fmGeV3,n02*fmGeV3))
 end
+
+
+
 
 function invert_n_for_alpha(T, n; m=1.5, g=6)
     x = m/T
