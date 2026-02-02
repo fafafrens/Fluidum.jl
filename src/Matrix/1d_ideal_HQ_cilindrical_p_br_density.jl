@@ -12,18 +12,15 @@ function matrix1d_ideal_HQ_br_p_density!(A_i, Source, ϕ, t, X, params;free=true
 
 
 
-    if free == true 
         α = invert_n_for_alpha(ϕ[1], ϕ[3]; m=params.diffusion.mass)
-        therm = hq_pressure(ϕ[1], α; m=params.diffusion.mass)    
+
+        therm = thermodynamic(ϕ[1], α, params.eos.hadron_list)
+
+     
         dPhq_dT, dPhq_dalpha = therm.pressure_derivative
         ddPhq_dTdT, ddPhq_dTdalpha, ddPhq_dalphadalpha = therm.pressure_hessian
 
-        #therm ,_ = hq_pressure_Tn(ϕ[1], ϕ[3]; m=params.diffusion.mass)    
-        #dPhq_dT, dPhq_dn = therm.pressure_derivative
-        #ddPhq_dTdT, ddPhq_dTdn, ddPhq_dndn = therm.pressure_hessian
-    else 
-       @warn "not free ideal not implemented."
-    end
+
 
     (At, Ax, source) = one_d_ideal_matrix_ruwen6(ϕ, t, X[1],dP_dT, dP_dTdT,dPhq_dT,dPhq_dalpha, ddPhq_dTdT, ddPhq_dTdalpha,ddPhq_dalphadalpha)
 

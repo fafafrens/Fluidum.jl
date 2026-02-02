@@ -12,26 +12,14 @@ function matrix1d_ideal_HQ_br_p_fugacity!(A_i, Source, ϕ, t, X, params;free=tru
 
 
 
-    if free == true 
-        therm = hq_pressure(ϕ[1], ϕ[3]; m=params.diffusion.mass)    
+
+        
+        therm = thermodynamic(ϕ[1], ϕ[3], params.eos.hadron_list)
+ 
         dPhq_dT, dPhq_dalpha = therm.pressure_derivative
         ddPhq_dTdT, ddPhq_dTdalpha, ddPhq_dalphadalpha = therm.pressure_hessian
 
-        thermo = hq_density(ϕ[1], ϕ[3]; m=params.diffusion.mass)
-        n = thermo.value
-        dn_dT, dn_dmu = thermo.gradient
-    else
-       @warn "not free ideal not implemented."
-    end
 
-    dmn_eps = let s = get(ENV, "FLUIDUM_DMN_EPS", "1e-4")
-    v = tryparse(Float64, s)
-    v === nothing ? 1e-4 : v
-    end
-    dtn_eps = let s = get(ENV, "FLUIDUM_DTN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-4 : v
-    end
 
     #dn_dmu += dmn_eps
     #dn_dT += dtn_eps

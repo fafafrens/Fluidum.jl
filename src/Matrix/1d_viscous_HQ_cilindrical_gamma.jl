@@ -14,35 +14,18 @@ function matrix1d_visc_gamma_HQ!(A_i,Source,ϕ,t,X,params;free=true)
     tauB    = τ_bulk(T, dpt, dptt, params.bulk)
     zeta    = bulk_viscosity(T, dpt, params.bulk)
 
-    if free
-        thermo = hq_density(T, 1e-5; m = params.diffusion.mass)
-        n0        = thermo.value
-        dtn, dmn = thermo.gradient
-    else
-        thermo = thermodynamic(T, μQ, params.eos.hadron_list)
-        n        = thermo.pressure
-        dtn, dmn = thermo.pressure_derivative
-    end
 
-    dmn_eps = let s = get(ENV, "FLUIDUM_DMN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-6 : v
-    end
-    dtn_eps = let s = get(ENV, "FLUIDUM_DTN_EPS", "1e-4")
-        v = tryparse(Float64, s)
-        v === nothing ? 1e-6 : v
-    end
+    thermo = thermodynamic(T, 0., params.eos.hadron_list)
+    n0        = thermo.pressure
+    dtn, dmn = thermo.pressure_derivative
 
-    dmn += dmn_eps
-    dtn += dtn_eps
 
-    if free
-        Ds      = diffusion(T, n0, params.diffusion)
-        tauDiff = τ_diffusion(T, params.diffusion)
-    else
+    dmn += 1e-6
+    dtn += 1e-6
+
         Ds      = diffusion_hadron(T, μQ, params.eos, params.diffusion)
         tauDiff = τ_diffusion_hadron(T, μQ, params.eos, params.diffusion)
-    end
+
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 

@@ -21,13 +21,9 @@ function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     dmn += 1e-6
     dtn += 1e-6
 
-    if free
-        Ds      = diffusion(T, n, params.diffusion)
-        tauDiff = τ_diffusion(T, params.diffusion)
-    else
         Ds      = diffusion_hadron(T, μQ, params.eos, params.diffusion)
         tauDiff = τ_diffusion_hadron(T, μQ, params.eos, params.diffusion)
-    end
+
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 

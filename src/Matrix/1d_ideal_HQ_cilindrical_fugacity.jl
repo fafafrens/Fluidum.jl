@@ -4,21 +4,15 @@
 # The fields are stored in the order : T, ur, alpha
 #
 
-function matrix1d_ideal_HQ_fugacity!(A_i, Source, ϕ, t, X, params;free=true)
+function matrix1d_ideal_HQ_fugacity!(A_i, Source, ϕ, t, X, params)
 
     #@show t, ϕ
     dP_dT = pressure_derivative(ϕ[1], Val(1), params.eos) #entropy
     dP_dTdT = pressure_derivative(ϕ[1], Val(2), params.eos)
 
-
-
-    if free == true
-        thermo = hq_density(ϕ[1], ϕ[3]; m=params.diffusion.mass)
+        thermo = thermodynamic(ϕ[1], ϕ[3], params.eos.hadron_list)
         n = thermo.value
         dn_dT, dn_dalpha = thermo.gradient
-    else 
-       @warn "not free ideal not implemented."
-    end
 
     (At, Ax, source) = one_d_ideal_matrix_ruwen5(ϕ, t, X[1],dP_dT, dP_dTdT,n,dn_dT,dn_dalpha)
 
