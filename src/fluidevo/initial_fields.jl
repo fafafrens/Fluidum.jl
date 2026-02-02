@@ -188,19 +188,27 @@ end
 """
 Get initial temperature and fugacity profiles from tabulated data
 """
-function get_initial_T_α_n_from_tabulated_data(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params, eos,dσ_QQdy, exp_tail = true) where {A,B,C,D}
+function get_initial_T_n_from_tabulated_data(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params,dσ_QQdy, exp_tail = true) where {A,B,C,D}
     rmax = grid_params.rmax
     gridpoints = grid_params.gridpoints
     tau0 = initial_params.tau0
 
     temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp =rmax, xmax_ncoll = rmax, norm_y =2/tau0*dσ_QQdy, exp_tail)
- 
-    fugacity= r-> fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
+    return Dict{Symbol,Function}(
+        :temperature => (x -> temperature_profile(x)),
+        :n           => (x -> nhard_profile(x)),
+    )
+end
+
+"""
+Get initial fugacity profile from temperature and density profiles
+"""
+function get_initial_α_from_T_and_n(temperature_profile, nhard_profile, eos, initial_params)
+
+    fugacity = r -> fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
 
     return Dict(
-        :temperature     => temperature_profile,
         :α => fugacity,
-        :n     => nhard_profile,
     )
 end
 
