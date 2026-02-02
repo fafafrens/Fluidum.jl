@@ -731,35 +731,23 @@ end
 end
 
 
-function problem(
-    two_ideal_hydro_discrete::DiscreteFields{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes, Lengths, DXS, M, S, N_field2},
-    matrix_eq,
-    cs,
-    init,
-    tspan;
-    upwinding_type::Symbol = :basic,   # :basic or :cheb
-) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes, Lengths, DXS, M, S, N_field2}
 
-    NewT = eltype(init)
-    two_ideal_hydro_discrete = convert_field(NewT, two_ideal_hydro_discrete)
-    u0 = NewT.(init)
 
-    f! = if upwinding_type in (:basic, :basicupwinding)
-        (du,u,p,t) -> basicupwinding(du, u, t, two_ideal_hydro_discrete, matrix_eq, cs)
-    elseif upwinding_type in (:cheb, :chebupwinding)
-        (du,u,p,t) -> chebupwinding(du, u, t, two_ideal_hydro_discrete, matrix_eq, cs)
-    else
-        error("Unknown upwinding_type=$(upwinding_type). Use :basic or :cheb.")
-    end
-
-    return ODEProblem(f!, u0, tspan)
+function problem(two_ideal_hydro_discrete::DiscreteFields{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes, Lengths, DXS, M, S, N_field2},matrix_eq,cs,init,tspan) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}
+    #NewT=promote_type(eltype(init), typeof(cs))
+    NewT=eltype(init)
+    
+    two_ideal_hydro_discrete=convert_field(NewT,two_ideal_hydro_discrete)
+        
+    ODEProblem((du,u,p,t)->basicupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
+    #ODEProblem((du,u,p,t)->chebupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
 end
 
-function oneshoot(two_ideal_hydro_discrete, ideal_matrix_equation_2d!, cs, phi, tspan, args...; upwinding_type::Symbol=:basic, kwargs...)
-    prob = problem(two_ideal_hydro_discrete, ideal_matrix_equation_2d!, cs, phi, tspan;
-                   upwinding_type=upwinding_type)
-    return solve(prob, Tsit5(), args...; kwargs..., dtmax=0.01)
+function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan,args...;kwargs...)
+    prob=problem(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan)
+    solve(prob,Tsit5(),args...;kwargs..., dtmax = 0.01)
 end
+
 
 """
 Debug function to check the eigenvalues of the system at each time step and spatial point. Return a warning if the imaginary part of any eigenvalue exceeds 1e-5 or if the real part exceeds 1.
