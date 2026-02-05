@@ -2,7 +2,11 @@
 
 #THIS IS THE MATRIX THAT DID NOT CREATE PROBLEMS WITH THE BUMP (GUBSER)
 
-function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
+function matrix1d_visc_gamma_HQ!(;dmn_eps=1e-6)
+    (A_i, Source, ϕ, t, X, params) -> matrix1d_visc_gamma_HQ!(A_i, Source, ϕ, t, X, params;dmn_eps=dmn_eps)
+end
+
+function matrix1d_visc_gamma_HQ!(A_i,Source,ϕ,t,X,params;dmn_eps = 1e-6)
 
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
     dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
@@ -15,7 +19,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     thermo = thermodynamic(ϕ[1],0.0,params.eos.hadron_list)
     n=thermo.pressure
     dtn, dmn = thermo.pressure_derivative
-    dmn+=0.0001
+    dmn+=dmn_eps
     #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
     # @show n, dtn, dmn
 

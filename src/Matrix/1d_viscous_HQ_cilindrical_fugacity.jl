@@ -1,8 +1,12 @@
 # the convention here are T, ur,  \[Pi]phiphi, \[Pi]etaeta, \[Pi]B, mu, nur
 
-#THIS IS THE MATRIX THAT DID NOT CREATE PROBLEMS WITH THE BUMP (GUBSER)
+function matrix1d_visc_HQ!(;dmn_eps=1e-6)
+    (A_i, Source, ϕ, t, X, params) -> matrix1d_visc_HQ!(A_i, Source, ϕ, t, X, params;dmn_eps=dmn_eps)
+end
 
-function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
+
+#THIS IS THE MATRIX THAT DID NOT CREATE PROBLEMS WITH THE BUMP (GUBSER)
+function matrix1d_visc_HQ!(A_i,Source,ϕ,t,X,params;dmn_eps=1e-6)
 
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
     dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
@@ -15,7 +19,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
     thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
     n=thermo.pressure
     dtn, dmn = thermo.pressure_derivative
-    dmn+=0.0001
+    dmn+= dmn_eps
     #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
     # @show n, dtn, dmn
 
@@ -32,7 +36,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
     #(At,Ax, source)=one_d_viscous_HQ_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
-    (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
+    (At,Ax, source)=one_d_viscous_matrix_fugacity(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
 
         
     Ainv= inv(At)
@@ -49,7 +53,7 @@ function matrxi1d_visc_HQ!(A_i,Source,ϕ,t,X,params)
 
 
 
-function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,dmp,dtdmp,dmdmp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
+function one_d_viscous_matrix_fugacity(u,tau,R,p,dtp,dtdtp,dmp,dtdmp,dmdmp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
     #these are the matrices from 1d viscous hydro
     At=SMatrix{7,7}(
         dtdtp*u[1] + (dtp + dtdtp*u[1])*^(u[2],2)

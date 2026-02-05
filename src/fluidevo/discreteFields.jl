@@ -225,7 +225,7 @@ end
 
 
 
-struct DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
+struct DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
     fields::Fields{N_field,space_dimension,S}
     discretization::CartesianDiscretization{space_dimension,Sizes,Lengths,DXS,M}     #Ninterval{space_dimension,Sizes,DXS,M}
     index_structure::IndexStructure{total_dimensions,space_dimension,N_field,Sizes_ghosted}
@@ -237,11 +237,11 @@ end
 
 
 """
-    DiscreteFileds(fields::Fields,discretization::CartesianDiscretization,type::Type{T},N_copies::Int=4) 
+    DiscreteFields(fields::Fields,discretization::CartesianDiscretization,type::Type{T},N_copies::Int=4) 
 
 Collect the information of the field and the space-doiscretization in one data type. 
 """
-function DiscreteFileds(fields::Fields{N_field,space_dimension,S}
+function DiscreteFields(fields::Fields{N_field,space_dimension,S}
 ,discretization::CartesianDiscretization{space_dimension,Sizes,Lengths,DXS,M},type::Type{T},N_copies::Int=6) where {N_field,space_dimension,S,Sizes,Lengths,DXS,M,T}
 if N_copies<6 
     N_copies=6
@@ -254,27 +254,27 @@ right_parity=get_right_parity(fields)
 periodicity=get_periodicity(fields)
 cache=FieldsCache(T,fields,N_copies)
 
-DiscreteFileds{T,1+space_dimension,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field*N_field}(
+DiscreteFields{T,1+space_dimension,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field*N_field}(
 fields,discretization,idx,left_parity,right_parity,periodicity,cache
 )
 
 end 
 
-function convert_field(type::Type{T},x::DiscreteFileds{T2,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,T2,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
-    DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}(x.fields,x.discretization,x.index_structure,x.left_parity,x.right_parity,x.periodicity,convert_cache(T,x.cache))
+function convert_field(type::Type{T},x::DiscreteFields{T2,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,T2,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
+    DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}(x.fields,x.discretization,x.index_structure,x.left_parity,x.right_parity,x.periodicity,convert_cache(T,x.cache))
 end
 
-function get_array(disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
+function get_array(disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}
     zeros(T,(N_field,Sizes_ghosted...))
 end
 
 
 """
-    set_array!(array,fun,express::S,disc::DiscreteFileds) 
+    set_array!(array,fun,express::S,disc::DiscreteFields) 
 
 Set an array in place at the given field component specified by the espression with the function fun.
 """
-function set_array!(array,fun,express::S,disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function set_array!(array,fun,express::S,disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     #array=zeros(T,(N_field,Sizes_ghosted...))
     i=get_index(express,disc.fields)
     for I in disc.index_structure.interior
@@ -289,11 +289,11 @@ function set_array!(array,fun,express::S,disc::DiscreteFileds{T,total_dimensions
 end
 
 """
-    set_array(fun,express::S,disc::DiscreteFileds) 
+    set_array(fun,express::S,disc::DiscreteFields) 
 
 Set an array out of place at the given field component specified by the espression with the function fun.
 """
-function set_array(fun,express::S,disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function set_array(fun,express::S,disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {S,T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     array=get_array(disc)
     i=get_index(express,disc.fields)
     for I in disc.index_structure.interior
@@ -306,7 +306,7 @@ function set_array(fun,express::S,disc::DiscreteFileds{T,total_dimensions,space_
 end
 
 
-function Base.getindex(phi::AbstractArray,index::Int,I::CartesianIndex{space_dimension},disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {space_dimension,S,T,total_dimensions,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function Base.getindex(phi::AbstractArray,index::Int,I::CartesianIndex{space_dimension},disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {space_dimension,S,T,total_dimensions,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     
     for ndim in SOneTo(space_dimension)
         if I[ndim]==1
@@ -330,7 +330,7 @@ end
 
 
  
-function Base.getindex(phi::AbstractArray,I::CartesianIndex{space_dimension},disc::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {space_dimension,S,T,total_dimensions,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
+function Base.getindex(phi::AbstractArray,I::CartesianIndex{space_dimension},disc::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {space_dimension,S,T,total_dimensions,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,N_field2}
     
     for ndim in SOneTo(space_dimension)
         if I[ndim]==1
@@ -377,12 +377,12 @@ function boundary_condition!(phi,
 end
 
 
-boundary_condition!(phi,discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}= 
+boundary_condition!(phi,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Lengths,DXS,M,S,N_field2}= 
 boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_parity,discrete_fields.right_parity,discrete_fields.periodicity)
 
 
 # this function is obsolate 
-#function get_ghosted(discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,DXS,M,S,N_field2}
+#function get_ghosted(discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,DXS,M,S,N_field2}) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,DXS,M,S,N_field2}
 #    grid=zeros(SVector{space_dimension,M},Sizes_ghosted)
 #    non_ghosted=discrete_fields.discretization
 #    
@@ -410,7 +410,7 @@ boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_par
 #end
 
 
-@inbounds function basicupwinding(dphi,phi,t,discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
+@inbounds function basicupwinding(dphi,phi,t,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
     #this is the discretization
     #@show t
     X=discrete_fields.discretization
@@ -446,6 +446,8 @@ boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_par
         # now is a N_field vector here i do not allocate nothing  
         ϕ=@views phi[:,I]
         dϕ=@views dphi[:,I]
+        
+        
         #here we compute all the matrices (matrices,Source,phi,t,x,params) 
         matrix_equation!(A_i,Source,ϕ,t,X[I],params)
         #now that we have the matrices in A_i as a tuple we loop over the dimension 
@@ -591,7 +593,7 @@ function cheb_upwinding_flux!(diffusion,nabla,A,N,T2=similar(A),T2k=similar(diff
     mul!(diffusion,A,nabla,1,-1/2)
 end
 
-@inbounds function chebupwinding(dphi,phi,t,discrete_fields::DiscreteFileds{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
+@inbounds function chebupwinding(dphi,phi,t,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
     #this is the discretization
     #@show t
     X=discrete_fields.discretization
@@ -729,7 +731,9 @@ end
 end
 
 
-function problem(two_ideal_hydro_discrete::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes, Lengths, DXS, M, S, N_field2},matrix_eq,cs,init,tspan) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}
+
+
+function problem(two_ideal_hydro_discrete::DiscreteFields{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes, Lengths, DXS, M, S, N_field2},matrix_eq,cs,init,tspan) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}
     #NewT=promote_type(eltype(init), typeof(cs))
     NewT=eltype(init)
     
@@ -744,6 +748,7 @@ function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspa
     solve(prob,Tsit5(),args...;kwargs..., dtmax = 0.01)
 end
 
+
 """
 Debug function to check the eigenvalues of the system at each time step and spatial point. Return a warning if the imaginary part of any eigenvalue exceeds 1e-5 or if the real part exceeds 1.
 """
@@ -755,56 +760,56 @@ function oneshoot_debug(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,param
     causal = 0
     @inbounds for (uprev,tprev,u,t) in intervals(integrator)
         @inbounds for I in two_ideal_hydro_discrete.index_structure.interior
-        ϕ=@views u[:,I]
-        #@show X[I][1], t, ϕ[1]
-        dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
-        dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
+            ϕ=@views u[:,I]
+            #@show X[I][1], t, ϕ[1]
+            dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
+            dptt = pressure_derivative(ϕ[1],Val(2),params.eos)
 
-        etaVisc=viscosity(ϕ[1],dpt,params.shear)
-        tauS=τ_shear(ϕ[1],dpt,params.shear)
-        tauB=τ_bulk(ϕ[1],dpt,dptt,params.bulk)
-        zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
-        
-        thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
-        n=thermo.pressure
-        dtn, dmn = thermo.pressure_derivative
-        dmn+=0.0001
-        #dtn+=0.0001
-        #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
-        
-        Ds = diffusion(ϕ[1],n,params.diffusion)
-        tauDiff=τ_diffusion(ϕ[1],params.diffusion)
+            etaVisc=viscosity(ϕ[1],dpt,params.shear)
+            tauS=τ_shear(ϕ[1],dpt,params.shear)
+            tauB=τ_bulk(ϕ[1],dpt,dptt,params.bulk)
+            zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
+            
+            thermo = thermodynamic(ϕ[1],ϕ[6],params.eos.hadron_list)
+            n=thermo.pressure
+            dtn, dmn = thermo.pressure_derivative
+            dmn+=0.0001
+            #dtn+=0.0001
+            #dttn, dtdmn, dmmn = thermodynamic(ϕ[1],ϕ[6],HadronResonaceGasNew()).pressure_hessian.* fmGeV^3
+            
+            Ds = diffusion(ϕ[1],n,params.diffusion)
+            tauDiff=τ_diffusion(ϕ[1],params.diffusion)
 
-        #κ = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
-        #tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
-        
-        dmp = 0 #for now we don t have chemical potential in the eos
-        dtdmp = 0 
-        dmdmp = 0
+            #κ = diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #diffusion coefficient for hadrons
+            #tauDiff=τ_diffusion_hadron(ϕ[1],ϕ[6],params.eos,params.diffusion) #tau diffusion for hadrons
+            
+            dmp = 0 #for now we don t have chemical potential in the eos
+            dtdmp = 0 
+            dmdmp = 0
 
-        #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
+            #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
 
-        #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
-        #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
-        (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[I][1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
-        
-        ev = eigvals(Ax, At)
-        max_im = maximum(abs.(imag.(ev)))
-        if max_im > 1e-5
-            @warn "Imaginary parts of eigenvalues exceed 1e-5" max_im = max_im t = t I = I
-            causal = 1
-        end
-        max_re = maximum(abs.(real.(ev)))
-        if max_re > 1.
-            @warn "Real part of eigenvalues exceed 1" max_re = max_re t = t I = I
-            causal = 1
+            #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+            #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
+            (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[I][1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+            
+            ev = eigvals(Ax, At)
+            max_im = maximum(abs.(imag.(ev)))
+            if max_im > 1e-5
+                @warn "Imaginary parts of eigenvalues exceed 1e-5" max_im = max_im t = t I = I
+                causal = 1
+            end
+            max_re = maximum(abs.(real.(ev)))
+            if max_re > 1.
+                @warn "Real part of eigenvalues exceed 1" max_re = max_re t = t I = I
+                causal = 1
+            end
         end
     end
-end
-return causal
+    return causal
 end
 
-function isosurface(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
+function isosurface(disc::DiscreteFields{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
     ideal_matrix_equation_2d!,cs,phi,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2}
     
     prob=problem(disc,ideal_matrix_equation_2d!,cs,phi,tspan)
@@ -899,8 +904,8 @@ function isosurface(disc::DiscreteFileds{T, total_dimensions, space_dimension, N
    return (;surface, surface_list, surf ,integrator)
 end
 
-function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
-    disc_pert::DiscreteFileds{T_pert, total_dimensions_pert, space_dimension, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert},
+function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2},
+    disc_pert::DiscreteFields{T_pert, total_dimensions_pert, space_dimension, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert},
     prob,tspan,express::Symbol,surf) where {T, total_dimensions, space_dimension, N_field, Sizes_ghosted, Sizes,Lengths, DXS, M, S, N_field2,T_pert, total_dimensions_pert, N_field_pert, Sizes_ghosted_pert, Sizes_pert,Lengths_pert, DXS_pert, M_pert, S_pert, N_field2_pert}
    # @show space_dimension,total_dimensions,N_field,total_dimensions_pert,N_field_pert
     integrator = init(prob,Tsit5();save_everystep=false) #fine
@@ -1053,8 +1058,6 @@ function isosurface_retarded(disc::DiscreteFileds{T, total_dimensions, space_dim
     return (;surface, surface_list, surface_pert, surface_list_pert, surf ,integrator)
  
 end
-
-
 
 
 

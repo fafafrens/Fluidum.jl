@@ -62,6 +62,7 @@ include("EquationOfState/TransportCoefficienttype.jl")
 
 include("EquationOfState/IdealQCD.jl")
 include("EquationOfState/FluiduMEoS.jl")
+include("EquationOfState/conformalEOS.jl")
 
 include("EquationOfState/charm_HRG.jl")
 include("EquationOfState/simpletransport.jl")
@@ -85,14 +86,20 @@ include("fluidevo/particle_dictionary.jl")
 
 
 include("fluidevo/spectra_fastreso_dict_HQ.jl")
-#include("fluidevo/spectra.jl")
+include("fluidevo/spectra.jl")
 
 include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_viscous_HQ_cilindrical_gamma.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_density.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_fugacity.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_p_br_density.jl")
+include("Matrix/1d_ideal_HQ_cilindrical_p_br_fugacity.jl")
 include("Matrix/1d_viscous_cilindrical.jl")
+
 include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
 
@@ -112,14 +119,10 @@ const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
  
 export detector_collection,detector_dict
 
-export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFileds
+export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
-export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult
-export set_array, set_array!, freeze_out_routine, jgemvavx!, oneshoot, SplineInterp, spectra_analitic
-export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedTrento, initialize_fields, FreezeOutResult, FreezeOutResultPerturbation
+export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult, initialize_fields_free_HQ, FreezeOutResultPerturbation
 export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
-
-
 
 """
 

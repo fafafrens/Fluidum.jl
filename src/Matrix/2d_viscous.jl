@@ -1,6 +1,6 @@
 # the convention here are T, ux, uy, \[Pi]yy, \[Pi]zz, \[Pi]xy, \[Pi]B
 
-@inbounds @fastmath function matrxi2d_visc!(A_i,Source,ϕ,t,X,params)
+@inbounds @fastmath function matrix2d_visc!(A_i,Source,ϕ,t,X,params)
  
 
     therm=thermodynamic(ϕ[1],params)

@@ -47,7 +47,7 @@ params_Ds=Fluidum.FluidProperties(eos,viscosity,bulk,diffusion_Ds);
 
 
 
-field_results_Ds = Fluidum.oneshoot_debug(fields.discrete_field, Fluidum.matrxi1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8);
+field_results_Ds = Fluidum.oneshoot_debug(fields.discrete_field, Fluidum.matrix1d_visc_HQ!, params_Ds, fields.initial_field, tspan; reltol = 1e-8);
 
 # If you do NOT have initial conditions tabulated data, you can use this script to test the causality of the evolution
 using Fluidum
@@ -68,7 +68,7 @@ grid_params = Fluidum.GridParameters(rmax, gridpoints);
 disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
 #define the name and number of fields, with appropriate parity
 oned_visc_hydro = Fluidum.HQ_viscous_1d()
-disc_fields = DiscreteFileds(oned_visc_hydro,disc,Float64) 
+disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
 #define a example function for the temperature
 function temperature(r)
        0.4*1/(exp(r/7)+1 )+0.0001
@@ -79,4 +79,4 @@ phi=set_array((x)->temperature(x),:temperature,disc_fields);
 set_array!(phi,(x)->-3. *temperature(x),:mu,disc_fields); 
     
 tspan = (0.4,10);
-field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrxi1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
+field_results_Ds = Fluidum.oneshoot_debug(disc_fields, Fluidum.matrix1d_visc_HQ!, params_Ds, phi, tspan; reltol = 1e-8);
