@@ -791,7 +791,7 @@ function oneshoot_debug(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,param
 
             #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
             #(At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,κ)
-            (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[I][1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
+            (At,Ax, source)=one_d_viscous_matrix_fugacity(ϕ,t,X[I][1],dpt,dpt,dptt,0,0,0,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
             
             ev = eigvals(Ax, At)
             max_im = maximum(abs.(imag.(ev)))

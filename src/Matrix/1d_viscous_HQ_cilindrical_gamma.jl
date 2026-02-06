@@ -36,7 +36,7 @@ function matrix1d_visc_gamma_HQ!(A_i,Source,ϕ,t,X,params;dmn_eps = 1e-6)
 
     #actually our equations don t depend on p: we can just put as entry dpt instead, in any case it will not be used (but in the future maybe it will be )
     #(At,Ax, source)=one_d_viscous_HQ_matrix(ϕ,t,X[1],dpt,dpt,dptt,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,Ds)
-    (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
+    (At,Ax, source)=one_d_viscous_matrix_gamma(ϕ,t,X[1],dpt,dpt,dptt,dmp,dtdmp,dmdmp,zeta,etaVisc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
 
         
     Ainv= inv(At)
@@ -53,7 +53,7 @@ function matrix1d_visc_gamma_HQ!(A_i,Source,ϕ,t,X,params;dmn_eps = 1e-6)
 
 
 
-function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,dmp,dtdmp,dmdmp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
+function one_d_viscous_matrix_gamma(u,tau,R,p,dtp,dtdtp,dmp,dtdmp,dmdmp,zeta,visc,tauS,tauB,n,dtn,dmn,tauDiff,kappa)
     #these are the matrices from 1d viscous hydro
     At=SMatrix{7,7}(
         dtdtp*u[1] + (dtp + dtdtp*u[1])*^(u[2],2)
@@ -276,12 +276,4 @@ function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,dmp,dtdmp,dmdmp,zeta,visc,tauS
     return (At,Ax, source)
 end
 
-function A_mul_B!(C, A, B)
-    @turbo for n ∈ indices((C,B), 2), m ∈ indices((C,A), 1)
-        Cmn = zero(eltype(C))
-        for k ∈ indices((A,B), (2,1))
-            Cmn += A[m,k] * B[k,n]
-        end
-        C[m,n] = Cmn
-    end
-end
+
