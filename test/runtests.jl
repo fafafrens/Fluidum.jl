@@ -28,7 +28,7 @@ end
 
 @testset "fluid_properties" begin
     eos = FluiduMEoS()
-    @test det(Fluidum.one_d_viscous_matrix([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
+    @test det(Fluidum.one_d_viscous_matrix_fugacity([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
     params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
     dpt = pressure_derivative(1.0,Val(1),params.eos)
     @test Fluidum.viscosity(1.0,dpt,params.shear)!=0
