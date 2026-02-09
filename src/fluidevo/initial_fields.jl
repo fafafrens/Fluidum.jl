@@ -14,6 +14,18 @@ end
     NDField((:even,),(:ghost,),:α), 
     NDField((:odd,),(:ghost,),:nur)
     )
+end
+
+@inline function HQ_viscous_gamma_1d() 
+    return Fields(
+    NDField((:even,),(:ghost,),:temperature),
+    NDField((:odd,),(:ghost,),:ur),
+    NDField((:even,),(:ghost,),:piphiphi),
+    NDField((:even,),(:ghost,),:pietaeta),
+    NDField((:even,),(:ghost,),:piB),
+    NDField((:even,),(:ghost,),:γ), 
+    NDField((:odd,),(:ghost,),:nur)
+    )
 end 
 
 @inline function HQ_viscous_no_bulk_1d() 
@@ -82,6 +94,23 @@ function fug(T, nhard_profile, r, eos; rdrop = 20, m = 1.5)
         else return log(nhard_profile(rdrop)/(thermodynamic(T(rdrop),0.0,eos).pressure))
     end            
 end
+
+function gamma(T, nhard_profile, r, eos; rdrop = 20, m = 1.5)       
+    if r<=rdrop
+        @show nhard_profile(10)
+        @show thermodynamic(T(10),0.0,eos).pressure
+        return nhard_profile(r)/(thermodynamic(T(r),0.0,eos).pressure)
+        else return nhard_profile(rdrop)/(thermodynamic(T(rdrop),0.0,eos).pressure)
+    end            
+end
+
+function gamma_limit_one(T, nhard_profile, r, eos; rdrop = 20, m = 1.5)       
+    if r<=rdrop
+        return (nhard_profile(r)+r/30*(thermodynamic(T(r),0.0,eos).pressure-nhard_profile(r)))/(thermodynamic(T(r),0.0,eos).pressure)
+        else return nhard_profile(rdrop)/(thermodynamic(T(rdrop),0.0,eos).pressure)
+    end            
+end
+
 
 function fug_fs(T, ncoll_profile, r, eos;dσ_QQdy,tau_fs, tau0, m = 1.5)       
     return log(density_polar(T, ncoll_profile,r;dσ_QQdy, tau0,tau_fs, m)/(thermodynamic(T,0.0,eos).value))            
@@ -188,12 +217,21 @@ end
 """
 Get initial temperature and fugacity profiles from tabulated data
 """
-function get_initial_T_n_from_tabulated_data(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params,dσ_QQdy, exp_tail = true) where {A,B,C,D}
+function get_initial_T_n_from_tabulated_data(x::TabulatedData{A,B}, y::TabulatedData{C,D}, cent1::Integer, cent2::Integer; grid_params, initial_params,dσ_QQdy, exp_tail = false) where {A,B,C,D}
     rmax = grid_params.rmax
     gridpoints = grid_params.gridpoints
     tau0 = initial_params.tau0
 
-    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp =rmax, xmax_ncoll = rmax, norm_y =2/tau0*dσ_QQdy, exp_tail)
+    temperature_profile, nhard_profile = Profiles(x,y,cent1,cent2; radius = range(0, rmax, gridpoints), norm_x = initial_params.norm/tau0,xmax_temp = 8, xmax_ncoll = 5, norm_y =2/tau0*dσ_QQdy, exp_tail)
+
+    #@show temperature_profile(8.1)
+    #@show nhard_profile(5.1)
+    #temperature10 = quadgk(x->temperature_profile(x),0,10,rtol=0.00001)[1]
+    #@show temperature10
+    #temperaturermax = quadgk(x->temperature_profile(x),0,rmax,rtol=0.00001)[1]
+    #@show temperaturermax
+    #ccbar = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=0.00001)[1]
+    #@show ccbar
     return Dict{Symbol,Function}(
         :temperature => (x -> temperature_profile(x)),
         :n           => (x -> nhard_profile(x)),
@@ -206,10 +244,55 @@ Get initial fugacity profile from temperature and density profiles
 function get_initial_α_from_T_and_n(temperature_profile, nhard_profile, eos, initial_params)
 
     fugacity = r -> fug(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
-
+    #fug10 = quadgk(x->fugacity(x),0,10.,rtol=1e-7)[1]
+    #@show fugacity(10)
+    #@show fug10
+    #fugrmax = quadgk(x->fugacity(x),0,30.,rtol=1e-7)[1]
+    #@show fugrmax
     return Dict(
         :α => fugacity,
     )
+end
+
+function get_initial_γ_from_T_and_n(temperature_profile, nhard_profile, eos, initial_params)
+
+    fugacity = r -> gamma_limit_one(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
+    #fug10 = quadgk(x->fugacity(x),0,10.,rtol=1e-7)[1]
+    #@show fugacity(10)
+    #@show fug10
+    #fugrmax = quadgk(x->fugacity(x),0,30.,rtol=1e-7)[1]
+    #@show fugrmax
+    return Dict(
+        :α => fugacity,
+    )
+end
+
+"""
+initialize fields given an dict of initialization functions
+"""
+function initialize_fields(init_fun_dict, field_initializer, grid_params)
+    rmax = grid_params.rmax
+    gridpoints = grid_params.gridpoints
+
+    oned_visc_hydro = field_initializer
+    disc = Fluidum.CartesianDiscretization(OriginInterval(gridpoints, rmax))
+    disc_fields = Fluidum.DiscreteFields(oned_visc_hydro(), disc, Float64)
+
+    phi = Fluidum.set_array((x) -> init_fun_dict[:temperature](x), :temperature, disc_fields) #temperature initialization
+
+    try
+        Fluidum.set_array!(phi, x -> init_fun_dict[:α](x), :α, disc_fields) #fugacity initialization
+    catch
+    end 
+    try 
+        Fluidum.set_array!(phi, x -> init_fun_dict[:γ](x), :γ, disc_fields) # gamma initialization
+    catch
+    end
+    try
+        Fluidum.set_array!(phi, x -> init_fun_dict[:n](x), :n, disc_fields) #density initialization
+    catch
+    end
+    return Fluidum.DiscreteInitialFields(disc, disc_fields, phi)
 end
 
 """
