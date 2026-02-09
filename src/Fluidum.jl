@@ -111,9 +111,11 @@ RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
 ALICE1 =detector("ALICE1",     6.62 ,    7.00 ,        0.0463,	"Pb_Pb")
 )
 
-const detector_dict=Dict(:ALICE=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
+const detector_dict=Dict(
+:ALICE_NNPDF=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
+:ALICE_CTEQ =>detector(:ALICE,6.62,7.00 ,0.0463,:Pb_Pb),
+:ALICE_average =>detector(:ALICE,6.62,7.00, 0.061,:Pb_Pb),
 :RHIC =>detector(:RHIC ,7.,4.23,0.005968,:Au_Au),
-:ALICE1 =>detector(:ALICE1,     6.62 ,    7.00 ,        0.0463,	:Pb_Pb)
 )
 
  
