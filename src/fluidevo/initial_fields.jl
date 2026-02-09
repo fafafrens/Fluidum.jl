@@ -23,7 +23,7 @@ end
     NDField((:even,),(:ghost,),:piphiphi),
     NDField((:even,),(:ghost,),:pietaeta),
     NDField((:even,),(:ghost,),:piB),
-    NDField((:even,),(:ghost,),:γ), 
+    NDField((:even,),(:ghost,),:γ),
     NDField((:odd,),(:ghost,),:nur)
     )
 end 
@@ -256,14 +256,14 @@ end
 
 function get_initial_γ_from_T_and_n(temperature_profile, nhard_profile, eos, initial_params)
 
-    fugacity = r -> gamma_limit_one(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
+    gamma = r -> gamma_limit_one(temperature_profile, nhard_profile, r, eos.hadron_list;initial_params.rdrop)  
     #fug10 = quadgk(x->fugacity(x),0,10.,rtol=1e-7)[1]
     #@show fugacity(10)
     #@show fug10
     #fugrmax = quadgk(x->fugacity(x),0,30.,rtol=1e-7)[1]
     #@show fugrmax
     return Dict(
-        :α => fugacity,
+        :γ => gamma,
     )
 end
 
