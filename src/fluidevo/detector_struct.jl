@@ -19,9 +19,9 @@ struct InitialParameters{S}
 end
 
 
-struct GridParameters{S}
-    rmax::S
-    gridpoints::S
+struct GridParameters{}
+    rmax::Float64
+    gridpoints::Int64
 end
 
 

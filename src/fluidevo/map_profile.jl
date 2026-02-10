@@ -45,7 +45,7 @@ function get_profile(x::TabulatedData{A,B}; norm = 1) where {A,B}
     return radius, norm.*mean_profile
 end
 
-function exponential_tail_pointlike(function_profile,x;xmax = 8, offset = 0.015)
+function exponential_tail_pointlike(function_profile,x;xmax, offset)
     a = ForwardDiff.derivative(function_profile, xmax) / (function_profile(xmax) - offset)
     b = log(function_profile(xmax) - offset) 
     if x-xmax < 0
@@ -93,14 +93,19 @@ end
 
 """
 Initialize a profile when both the entropy and the density of binary collision profiles are given"""
-function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset=0.005, xmax_temp = 8, xmax_ncoll = 5, offset_ncoll = 0.) where {A,B}
+function Profiles(x::TabulatedData{A,B}, y::TabulatedData{A,B}, cent1::Integer, cent2::Integer; radius, norm_x, norm_y, exp_tail = true,offset_temp=0.01, xmax_temp = 8, xmax_ncoll = 5, offset_ncoll = 0.) where {A,B}
     #entropy profile
     r, entropy_profile = get_profile(x, cent1, cent2; norm = norm_x)
     
+    #@show offset_temp 
+    #@show xmax_temp
+    #@show offset_ncoll
+    #@show xmax_ncoll
+
     temperature_profile = InverseFunction(x->pressure_derivative(x,Val(1),FluiduMEoS())).(entropy_profile)  
     temperature_funct = linear_interpolation(r, temperature_profile; extrapolation_bc=Flat())
-    
-    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = xmax_temp, offset = offset)
+    #temperature_funct = Dierckx.Spline1D(r, temperature_profile, k=1)  
+    temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = xmax_temp, offset = offset_temp)
    # temp_exp = exponential_tail_pointlike.(Ref(temperature_funct), radius; xmax = 8, offset = 0.01)
     temp_exp_funct = linear_interpolation(radius, temp_exp; extrapolation_bc=Flat()) 
     #ncoll profile
