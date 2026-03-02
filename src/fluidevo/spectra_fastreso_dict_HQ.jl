@@ -112,10 +112,6 @@ function spectra(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},pt::
 
 end
 
-function multiplicity(pt,spectra)
-    f = [spectra[i][1]*pt[i] for i in 1:length(pt)]
-    2.0*π*NumericalIntegration.integrate(pt,f)
-end
 
 
 function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V},eos;rtol=1000*sqrt(eps()),decays=true, delta_f = false, rightbound=100,pt_min=0.,pt_max=10.0) where {A<:SplineInterp,B<:SplineInterp,S,R,U,V}

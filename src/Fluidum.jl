@@ -17,7 +17,6 @@ using Artifacts
 
 #pkg used by the fluid evolution. 
 using Interpolations
-#using DifferentialEquations
 using OrdinaryDiffEq
 using Statistics
 using JLD2
@@ -32,7 +31,6 @@ using FastChebInterp
 
 
 using TensorCast
-using NumericalIntegration
 using SimpleNonlinearSolve
 
 using QuadGK
@@ -40,7 +38,6 @@ using QuadGK
 using HCubature
 using UnPack
 
-#using PyPlot
 
 
 const root_particle_lists=artifact"particle_lists"
