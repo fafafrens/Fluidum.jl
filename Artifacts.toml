@@ -1,9 +1,17 @@
+[kernels]
+git-tree-sha1 = "6a20664ffc0ee1fac9b1a87b6acbcc24024348b2"
+
+    [[kernels.download]]
+    sha256 = "8338751e2c5bc5c773276e71c828053a1a55ecf7ea36c4f6ff488741b197f4d7"
+    url = "https://github.com/federicacapellino/2d_hic_simulation/releases/download/v1.0.0/fastreso_Fj_kernels.tar.gz"
+
 [particle_lists]
 git-tree-sha1 = "701f869b6932dc4e2dc997a8db369bc6aaf4ce3f"
 
     [[particle_lists.download]]
     sha256 = "2dfb36bc8945f8e24ae67edb71ad8f7d687145df9d3a8d032f3db940c59a1060"
     url = "https://gist.github.com/fafafrens/90a3954aaf422a78f8432d15cf33b78f/raw/701f869b6932dc4e2dc997a8db369bc6aaf4ce3f.tar.gz"
+
 
 
 
