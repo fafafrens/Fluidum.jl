@@ -189,6 +189,6 @@ end
 
 @testset "artifacts" begin
     @test isfile(joinpath(Fluidum.root_kernels, "./kernels/PDGid_211_total_T0.1560_Fj.out"))
-    @test isfile(joinpath(Fluidum.root_particle_lists, "/particles.data"))
+    @test isfile(joinpath(Fluidum.root_particle_lists, "./particles.data"))
 end
 
