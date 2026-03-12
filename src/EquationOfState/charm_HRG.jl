@@ -293,21 +293,11 @@ function thermodynamic(T,μ,x::HadronResonaceGas_ccbar{L,M})  where {L,M}
                     fact = 1
                 end   
 
-                #density += fact*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #fm-3
                 density += fact*QC*degeneracy*(ex*m^2*T*b2)/(2*pi^2); #fm-3
-
-
-
+                n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
+                n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
+                n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
                 
-                n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #dn/dT (fm^-3/GeV)
-                n01+= QC*density; #dn/dfug (fm^-3/GeV)
-                n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T)); #dn/dTdfug (fm^-3/GeV)
-
-
-
-                #n10 += fact*QC*degeneracy*((ex*m^2*(m*b1 +2*T*b2 + m*b3))/(4*π^2*T)); #(*fm^-3/GeV*)
-                #n01+= fact*QC*QC*degeneracy*(m^2* T /(2 *π^2)* ex* b2); #(*fm^-3/GeV*)
-                #n11 +=fact*QC*QC*degeneracy*(ex*m^2*(m*b1 + 2*T*b2 + m*b3)/(4*π^2*T));
         else 
                     density+= zero(T)
                     n01+= zero(T)
