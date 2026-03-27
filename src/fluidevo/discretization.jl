@@ -1,12 +1,10 @@
-
-
 struct CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}
     grid::Array{NTuple{N_dim,T},N_dim}
 end 
 
 
 function CartesianDiscretization(Sizes::NTuple{N,T},Lengths::NTuple{N,NTuple{2,S}}) where {N,T,S}
-    
+
     ranges= Base.OneTo.(2 .+Sizes)
     lefts=Tuple( Lengths[i][1] for i in SOneTo{N}())
     rights=Tuple( Lengths[i][2] for i in SOneTo{N}())
@@ -18,15 +16,30 @@ function CartesianDiscretization(Sizes::NTuple{N,T},Lengths::NTuple{N,NTuple{2,S
 end 
 
 
-@inline """
+function CartesianDiscretization(Sizes::NTuple{N,T},Lengths::NTuple{N,NTuple{2,S}}, beta) where {N,T,S}
+    ranges= Base.OneTo.(2 .+Sizes)
+    lefts=Tuple( Lengths[i][1] for i in SOneTo{N}())
+    rights=Tuple( Lengths[i][2] for i in SOneTo{N}())
+    grid_spacing_fine_end_coarse_end(L,beta,epsilon) = L*(1-tanh(beta*(1-epsilon))/tanh(beta))
+    #x_half = [grid_spacing_fine_end_coarse_end.(Ref(rights[i]), Ref(beta), range(0.,1.,length=div(length(ranges[i]),2))) for i in eachindex(Lengths)]
+    x_half = grid_spacing_fine_end_coarse_end.(Ref(rights[1]), Ref(beta), range(0.,1.,length=div(length(ranges[1]),2)))
+    @show x = prepend!(x_half,reverse(x_half)[1:end-1].*(-1))
+    Dxs=Tuple( (Lengths[i][2]- Lengths[i][1]) / Sizes[i] for i in SOneTo{N}())
+    @show grid=Tuple.(x)
+    newL=Tuple( Tuple( convert(eltype(eltype(grid)),j) for j in i ) for i in Lengths)
+    CartesianDiscretization{N,Sizes,newL,Dxs,eltype(eltype(grid))}(grid)
+end 
+
+"""
     CartesianDiscretization(oned_size::Int,oned_lenght::NTuple{2,T}) where {T}
 
 Construct a one-dimensional grid of size oned_size and oned_lengh as extrama with ghosted cell at the boundary
 """
-function CartesianDiscretization(oned_size::Int,left::X,right::Y) where {X<:Number,Y<:Number}
+@inline function CartesianDiscretization(oned_size::Int,left::X,right::Y) where {X<:Number,Y<:Number}
 
     CartesianDiscretization((oned_size,),(promote(left,right),))
 end
+
 @inline CartesianDiscretization(x::CartesianDiscretization{N_dim1,Sizes1,Lengths1,DXS1,T1}) where {N_dim1,Sizes1,Lengths1,DXS1,T1} =x
 
 @inline function CartesianDiscretization(::CartesianDiscretization{N_dim1,Sizes1,Lengths1,DXS1,T1},::CartesianDiscretization{N_dim2,Sizes2,Lengths2,DXS2,T2}) where {N_dim1,Sizes1,Lengths1,DXS1,T1,N_dim2,Sizes2,Lengths2,DXS2,T2}
@@ -36,14 +49,12 @@ end
 end
 
 
-
 """
     CartesianDiscretization(x...)
 
 Compose multiple cartesian grid as a tensor product.
 """
 function CartesianDiscretization(x...)
-    @show x
     CartesianDiscretization(
         CartesianDiscretization((first(x))
         ),CartesianDiscretization(Base.tail(x)...))
@@ -75,14 +86,15 @@ Base.getindex(S::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T},t::M,i::Cart
 @inline Base.getindex(S::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T},i::NTuple{N_dim,Int}) where {N_dim,Sizes,Lengths,DXS,T} = S.grid[i...]
 @inline Base.getindex(S::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T},i::NTuple{N_dim,Int},::Val{:SVector}) where {N_dim,Sizes,Lengths,DXS,T} = SVector{N_dim,T}(S.grid[i...])
 
-@inline """
+"""
     Δx(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T}
 
 Return the Δ of the cell in each dimension 
 """
-Δx(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T}=DXS
-
-
+@inline Δx(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T}=DXS
+@inline left_exterior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = 1 
+@inline right_exterior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = (first(Sizes)+2)
+@inline interior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = 2:(first(Sizes)+1)
 """
     SymmetricInterval(oned_size::Int,oned_lenght::X) where{X<:Number}
 
