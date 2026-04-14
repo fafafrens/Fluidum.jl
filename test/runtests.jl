@@ -7,7 +7,6 @@ using DifferentiationInterface
 
 
 @testset "equation of state" begin
-    ccbar = 30.
     @test IdealQCD()==IdealQCD(3,2)
     @test isfinite(thermodynamic(1,IdealQCD()).pressure[1])
     @test isfinite(thermodynamic(0,IdealQCD()).pressure_derivative[1])
@@ -16,10 +15,10 @@ using DifferentiationInterface
     @test length(thermodynamic(10,IdealQCD(1,0)).pressure_derivative)==1
     @test length(thermodynamic(10,IdealQCD(1,0)).pressure_hessian)==1
 
-    @test isfinite(free_charm(1,0,Heavy_Quark(readresonancelist(), ccbar))[1])
-    @test round(pressure(1,Heavy_Quark(readresonancelist(), ccbar)), sigdigits=10)==round(pressure(1,FluiduMEoS()), sigdigits=10)
-    @test round(pressure(1,Heavy_Quark(readresonancelist(), ccbar)), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
-    @test pressure(1,Heavy_Quark(readresonancelist(), ccbar)) ≈ pressure(1,FluiduMEoS()) atol=0.01
+    @test isfinite(free_charm(1,0,Heavy_Quark())[1])
+    @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(pressure(1,FluiduMEoS()), sigdigits=10)
+    @test round(pressure(1,Heavy_Quark()), sigdigits=10)==round(thermodynamic(1,FluiduMEoS()).pressure[1], sigdigits=10)
+    @test pressure(1,Heavy_Quark()) ≈ pressure(1,FluiduMEoS()) atol=0.01
 
     eos=FluiduMEoS()
     @test  isapprox(DifferentiationInterface.derivative(x->Fluidum.pressure_derivative(x,Val(2),eos),AutoForwardDiff(),0.2),Fluidum.pressure_derivative(0.2,Val(3),eos))
@@ -44,7 +43,7 @@ end
 @testset "diffusion_properties" begin
     fmGeV= 1/0.1973261
     ccbar = 30.
-    eos = Heavy_Quark(readresonancelist(), ccbar)
+    eos = Heavy_Quark(HRGc_list, ccbar) #use the HRGc list for the EoS
     T = 1.0 #we fix an arbitrary temperature for the present test
 
     shear = QGPViscosity(0.1,0.2)
@@ -61,7 +60,7 @@ end
     constant_DsT = ConstDiffusion(DsT, 1.5);
     params = Fluidum.FluidProperties(eos,shear,bulk,constant_DsT)
     dpt = pressure_derivative(1.0,Val(1),params.eos)
-    @test Fluidum.diffusion(T,dpt,params.diffusion)==DsT/T*dpt/fmGeV #check the
+    @test Fluidum.diffusion(T,dpt,params.diffusion)==DsT/T*dpt/fmGeV #check the definition of the kappa, the diffusion coefficient
     
     #third example: linear diffusion 
     slope = 1.765
@@ -125,6 +124,21 @@ end
 end
 
 @testset "initialconditions" begin
+    cfg = RunConfig(
+        det = Detector(;det_name = "ALICE", energy = 5.02, nuclei = "PbPb", PDF = "CTEQ"), #detector specifications  
+        grid = GridParameters(rmax = 30., gridpoints = 400), #grid parameters
+        temp_norm = 90., #initial conditions parameters
+        tspan = (0.4,12.), 
+        cent = Centrality(0,10), #centrality classes
+        Tfo = 0.156, #freeze-out temperature 
+    )
+
+    @test cfg.grid.rmax == 30.
+    @test cfg.det.det_name == "ALICE"
+    @test cfg.cent.cent1 == 0
+end
+
+@testset "initial_configuration" begin
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))>0
     @test Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(2))>Fluidum.temperature(1,Fluidum.Trento_Intial_Condition(1))
     @test Fluidum.dNdy(Fluidum.Step_Intial_Condition(31.57,4.0),Fluidum.pQCD_Initial_Condition(1,70.,0.463))==Fluidum.dNdy(Fluidum.Step_Intial_Condition(31.57,4.0),Fluidum.charm_pQCD())
@@ -183,9 +197,7 @@ end
 
 @testset "causality check" begin
     #define equation of state and transport coefficients
-    ccbar = 30.
-    #eos = Heavy_Quark(readresonancelist(), ccbar)
-    eos = Heavy_Quark(readresonancelist(), ccbar)
+    eos = Heavy_Quark()
 
     viscosity = QGPViscosity(0.1,0.2); #or, ZeroViscosity();
     bulk = SimpleBulkViscosity(0.083,15.0); #or, ZeroBulkViscosity();   

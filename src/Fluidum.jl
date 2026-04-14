@@ -105,7 +105,7 @@ include("wraps2.jl")
 export detector_dict
 export RunConfig, Detector, GridParameters, InitialParameters, Tspan, ExpTail, Centrality
 
-export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields
+export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields, HRGc_list
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult, initialize_fields_free_HQ, FreezeOutResultPerturbation
 export get_profile, map_initial_profile, Profiles, Profiles2 
