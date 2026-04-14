@@ -84,6 +84,7 @@ include("fluidevo/test_functions.jl")
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
 include("fluidevo/initial_diffusion.jl")
+include("fluidevo/initial_parameters.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 include("Matrix/1d_viscous_HQ_cilindrical_gamma.jl")
@@ -100,19 +101,9 @@ include("Matrix/2d_viscous_fugacity.jl")
 
 include("wraps2.jl")
 
-const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
-RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
-ALICE1 =detector("ALICE1",     6.62 ,    7.00 ,        0.0463,	"Pb_Pb")
-)
-
-const detector_dict=Dict(
-:ALICE_NNPDF=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
-:ALICE_CTEQ =>detector(:ALICE,6.62,7.00 ,0.0463,:Pb_Pb),
-:ALICE_average =>detector(:ALICE,6.62,7.00, 0.061,:Pb_Pb),
-:RHIC =>detector(:RHIC ,7.,4.23,0.005968,:Au_Au),
-)
  
-export detector_collection,detector_dict
+export detector_dict
+export RunConfig, Detector, GridParameters, InitialParameters, Tspan, ExpTail, Centrality
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
