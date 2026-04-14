@@ -106,6 +106,20 @@ end
 ZeroDiffusion(; mass::T = 1.5) where {T<:Real} = ZeroDiffusion{T}(mass)
 ZeroDiffusion(mass::T) where {T<:Real} = ZeroDiffusion{T}(mass)
 
+struct ConstDiffusion{T} <:Diffusion
+    DsT::T
+    mass::T
+end
+
+ConstDiffusion(DsT::T, mass::T) where {T<:Real} = ConstDiffusion{T}(DsT,mass)
+
+struct LinearDiffusion{T} <:Diffusion
+    slope::T
+    offset::T
+    mass::T
+end
+
+LinearDiffusion(slope::T, offset::T, mass::T) where {T<:Real} = LinearDiffusion{T}(slope, offset, mass)
 
 
 @inline function diffusion(T,x::Thermodynamic{N,1,1},y::SimpleDiffusionCoefficient{N}) where{N}
@@ -165,9 +179,6 @@ end
 struct ZeroBulkViscosity<:BulkViscosity
 end
 
-#@inline @fastmath function speed_of_sound_squared(T,x::EquationOfState)
-#    pressure_derivative(T,Val(1),x)/(T*pressure_derivative(T,Val(2),x)) 
-#end
 
 @inline function bulk_viscosity(T,x::Thermodynamic{N,1,1},y::SimpleBulkViscosity{N}) where {N}
    y.ζs/(1+((T-0.175)/0.024)^2)*invfmGeV*x.pressure_derivative[1]

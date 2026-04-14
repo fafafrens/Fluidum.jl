@@ -29,23 +29,55 @@ end
 @testset "fluid_properties" begin
     eos = FluiduMEoS()
     @test det(Fluidum.one_d_viscous_matrix_fugacity([0.2,0.1,0,0,0,-0.1,0],2.,2.,0.5,0.5,0,0,0,0,0,0,1.,1.,0.1,0.1,0.1,1.,0)[1])!=0 
-    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),ConstDiffusion(0.2,1.5))
     dpt = pressure_derivative(1.0,Val(1),params.eos)
     @test Fluidum.viscosity(1.0,dpt,params.shear)!=0
-    params=Fluidum.FluidProperties(eos,ZeroViscosity(),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    params=Fluidum.FluidProperties(eos,ZeroViscosity(),SimpleBulkViscosity(0.1,15.0),ConstDiffusion(0.2,1.5))
     @test Fluidum.viscosity(1.0,dpt,params.shear)==0
-    params=Fluidum.FluidProperties(eos,ZeroViscosity(),ZeroBulkViscosity(),HQdiffusion(0.2,1.5))
+    params=Fluidum.FluidProperties(eos,ZeroViscosity(),ZeroBulkViscosity(),ConstDiffusion(0.2,1.5))
     @test Fluidum.bulk_viscosity(1.0,dpt,params.bulk)==0
     @test τ_bulk(1.0,dpt,params.bulk)==1
     params=Fluidum.FluidProperties(eos,ZeroViscosity(),ZeroBulkViscosity(),ZeroDiffusion())
     @test Fluidum.diffusion(1.0,dpt,params.diffusion)==0
 end
 
+@testset "diffusion_properties" begin
+    fmGeV= 1/0.1973261
+    ccbar = 30.
+    eos = Heavy_Quark(readresonancelist(), ccbar)
+    T = 1.0 #we fix an arbitrary temperature for the present test
+
+    shear = QGPViscosity(0.1,0.2)
+    bulk = SimpleBulkViscosity(0.1,15.0)
+
+    #First example: zero diffusion
+    zero_diffusion = ZeroDiffusion();
+    params=Fluidum.FluidProperties(eos,shear,bulk,ZeroDiffusion())
+    dpt = pressure_derivative(1.0,Val(1),params.eos)
+    @test Fluidum.diffusion(T,dpt,params.diffusion)==0
+    
+    #second example: constant diffusion
+    DsT = 0.24
+    constant_DsT = ConstDiffusion(DsT, 1.5);
+    params = Fluidum.FluidProperties(eos,shear,bulk,constant_DsT)
+    dpt = pressure_derivative(1.0,Val(1),params.eos)
+    @test Fluidum.diffusion(T,dpt,params.diffusion)==DsT/T*dpt/fmGeV #check the
+    
+    #third example: linear diffusion 
+    slope = 1.765
+    offset = -0.159
+    linear_DsT = LinearDiffusion(slope, offset, 1.5);
+    params = Fluidum.FluidProperties(eos,shear,bulk,linear_DsT)
+    dpt = pressure_derivative(1.0,Val(1),params.eos)
+    @test Fluidum.diffusion(T,dpt,params.diffusion)==(slope*T+offset)/T*dpt/fmGeV
+
+end
+
 #=
 @testset "observables" begin 
     eos = Heavy_Quark()
     eos_HQ = HadronResonaceGas()
-    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),HQdiffusion(0.2,1.5))
+    params=Fluidum.FluidProperties(eos,QGPViscosity(0.2,0.2),SimpleBulkViscosity(0.1,15.0),ConstDiffusion(0.2,1.5))
     fo = Fluidum.runFluidum_fo(Fluidum.Step_Intial_Condition(31.57,4),Fluidum.pQCD_Initial_Condition(1,70.,0.463),Fluidum.Trento_Intial_Condition(1),params,eos_HQ,0.4)
     obs = Fluidum.Observables(fo,0.200,params,0.156)
     Fluidum.save_observables(obs)
@@ -102,42 +134,40 @@ end
 
 @testset "2d viscous " begin
 
-fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
+    fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
 
-# the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
-twod_visc_hydro=Fields(
-NDField((:ghost,:ghost),(:ghost,:ghost),:temperature),
-NDField((:ghost,:ghost),(:ghost,:ghost),:ux),
-NDField((:ghost,:ghost),(:ghost,:ghost),:uy),
-NDField((:ghost,:ghost),(:ghost,:ghost),:piyy),
-NDField((:ghost,:ghost),(:ghost,:ghost),:pizz),
-NDField((:ghost,:ghost),(:ghost,:ghost),:pixy),
-NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
-)
+    # the convention here are T, ux, uy, piyy, pizz, pixy, piB this has to match with the matrix defined
+    twod_visc_hydro=Fields(
+    NDField((:ghost,:ghost),(:ghost,:ghost),:temperature),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:ux),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:uy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:piyy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:pizz),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:pixy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
+    )
 
-#we define a 2 cartesian grid form -25 to 25 50 point each dimension 
-discretization=CartesianDiscretization(Fluidum.SymmetricInterval(50,25.),Fluidum.SymmetricInterval(50,25.))
+    #we define a 2 cartesian grid form -25 to 25 50 point each dimension 
+    discretization=CartesianDiscretization(Fluidum.SymmetricInterval(50,25.),Fluidum.SymmetricInterval(50,25.))
 
-# we prepare the field with the discretization
-twod_visc_hydro_discrete=DiscreteFields(twod_visc_hydro,discretization,Float64)
+    # we prepare the field with the discretization
+    twod_visc_hydro_discrete=DiscreteFields(twod_visc_hydro,discretization,Float64)
 
- #we define some random intial condition 
-function temperature(r)
-       #0.4(1+0.3rand())/(exp(abs(r)-10)+1 )+0.01
-       0.4/(exp(abs(r)-10)+1 )+0.01
-end
-#we set the array corresponding to the temperature 
-phi=set_array((x,y)->temperature(hypot(x,y)),:temperature,twod_visc_hydro_discrete);
+    #we define some random intial condition 
+    function temperature(r)
+        #0.4(1+0.3rand())/(exp(abs(r)-10)+1 )+0.01
+        0.4/(exp(abs(r)-10)+1 )+0.01
+    end
+    
+    #we set the array corresponding to the temperature 
+    phi=set_array((x,y)->temperature(hypot(x,y)),:temperature,twod_visc_hydro_discrete);
 
+    #this is the time span 
+    tspan=(0.4,20)
+    # this create the ODEProblem  and feed it diffenential equations 
+    res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrix2d_visc!,fluidpropery,phi,tspan)
 
-#this is the time span 
-tspan=(0.4,20)
-
-
-# this create the ODEProblem  and feed it diffenential equations 
-res=oneshoot(twod_visc_hydro_discrete,Fluidum.matrix2d_visc!,fluidpropery,phi,tspan)
-
-#plot the solution 
+    #plot the solution 
 
     result=res(20)
     @test all(isfinite.(result))
@@ -160,7 +190,7 @@ end
     viscosity = QGPViscosity(0.1,0.2); #or, ZeroViscosity();
     bulk = SimpleBulkViscosity(0.083,15.0); #or, ZeroBulkViscosity();   
 
-    diffusion_Ds = HQdiffusion(0.1, 1.5);
+    diffusion_Ds = ConstDiffusion(0.1, 1.5);
     params_Ds=Fluidum.FluidProperties(eos,viscosity,bulk,diffusion_Ds);
     #define a radial grid
     rmax = 20;
