@@ -12,9 +12,6 @@ using MuladdMacro
 using StaticArrays
 using Artifacts 
 
-#pkg used for intial conditions
-
-
 #pkg used by the fluid evolution. 
 using Interpolations
 using OrdinaryDiffEq
@@ -41,9 +38,10 @@ using UnPack
 
 
 const root_particle_lists=artifact"particle_lists"
-
+const HRGc_list = string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt")
 
 const root_kernels=artifact"kernels"
+
 
 const fmGeV= 1/0.1973261 
 const invfmGeV= 1/fmGeV
@@ -61,16 +59,13 @@ include("EquationOfState/IdealQCD.jl")
 include("EquationOfState/FluiduMEoS.jl")
 include("EquationOfState/conformalEOS.jl")
 
-include("EquationOfState/charm_HRG.jl")
 include("EquationOfState/simpletransport.jl")
+include("EquationOfState/charm_HRG.jl")
+include("EquationOfState/heavyquark.jl")
 include("EquationOfState/Analytic.jl")
 
-include("EquationOfState/heavyquark.jl")
 
-
-include("fluidevo/detector_struct.jl")
 include("fluidevo/inverse_function.jl")
-
 
 
 include("fluidevo/discretization.jl") 
@@ -78,7 +73,6 @@ include("fluidevo/picewisefunction.jl")
 include("fluidevo/discreteFields.jl")  
 
 include("fluidevo/generating_kernels_3d.jl")
-#include("fluidevo/generating_kernels.jl")
 include("fluidevo/particle_dictionary.jl")
 
 
@@ -86,8 +80,11 @@ include("fluidevo/spectra_fastreso_dict_HQ.jl")
 include("fluidevo/spectra.jl")
 
 include("fluidevo/test_functions.jl")
+
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
+include("fluidevo/initial_diffusion.jl")
+include("fluidevo/initial_parameters.jl")
 
 include("Matrix/1d_viscous_HQ_cilindrical_fugacity.jl")
 include("Matrix/1d_viscous_HQ_cilindrical_gamma.jl")
@@ -103,28 +100,15 @@ include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
 
 include("wraps2.jl")
-#include("plotting_routines.jl")
-
-const  detector_collection=(;ALICE=detector("ALICE",6.62,7.00,0.0757,"Pb_Pb"),
-RHIC =detector("RHIC" ,7.,4.23,0.005968,"Au_Au"),
-ALICE1 =detector("ALICE1",     6.62 ,    7.00 ,        0.0463,	"Pb_Pb")
-)
-
-const detector_dict=Dict(
-:ALICE_NNPDF=>detector(:ALICE,6.62,7.00,0.0757,:Pb_Pb),
-:ALICE_CTEQ =>detector(:ALICE,6.62,7.00 ,0.0463,:Pb_Pb),
-:ALICE_average =>detector(:ALICE,6.62,7.00, 0.061,:Pb_Pb),
-:RHIC =>detector(:RHIC ,7.,4.23,0.005968,:Au_Au),
-)
 
  
-export detector_collection,detector_dict
+export detector_dict
+export RunConfig, Detector, GridParameters, InitialParameters, Tspan, ExpTail, Centrality
 
-export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields
+export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields, HRGc_list
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult, initialize_fields_free_HQ, FreezeOutResultPerturbation
-export get_profile, map_initial_profile, Profiles, Profiles2 #RunFluidum_hf, RunFluidum_array, save_to_h5, RunFluidum_lf, SetFluidProperties, FluidParameters
-
+export get_profile, map_initial_profile, Profiles, Profiles2 
 """
 
     thermodynamic(T[,μ],x::EquationofState)
@@ -297,7 +281,7 @@ export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_
 export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
-export Heavy_Quark, HQdiffusion, free_charm, QGPViscosity,ZeroDiffusion
+export Heavy_Quark, ConstDiffusion, LinearDiffusion, free_charm, QGPViscosity,ZeroDiffusion
 export InverseFuction 
 # type piracy 
 

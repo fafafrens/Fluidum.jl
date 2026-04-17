@@ -43,9 +43,6 @@ struct NewParticle{A,B,C} #for therminator type of file, e.g. PDG2016Plus_massor
     N_decay_channels::A
 end
 
-
-
-
 #read in resonances
 function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
     data     =readdlm(name_file,comment_char='#',comments=true)
@@ -85,7 +82,7 @@ function HadronResonaceGas(;name_file=string(root_particle_lists,"/OpenCharmPart
 
 end
 
-function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmParticleList_corrJS.txt"),Maxmass=4,Minmass=1.0,condition=x->true)
+function readresonancelist(;name_file=HRGc_list,Maxmass=4,Minmass=1.0,condition=x->true)
 
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
@@ -124,39 +121,6 @@ function readresonancelist(;name_file=string(root_particle_lists,"/OpenCharmPart
 end
 
 
-#read in resonances
-function HadronResonaceGasNew(;name_file=root_particle_lists*"/PDG2016Plus_massorder.dat",Maxmass=3.2,Minmass=1.8,condition=x->true)
-    data     =readdlm(name_file,comment_char='#',comments=true)
-    ID          =convert.(Int64,data[:,1])
-    Name =convert.(String,data[:,2])
-    Mass =convert.(Float64,data[:,3])
-    Width =convert.(Float64,data[:,4])
-    Degeneracy =convert.(Int64,data[:,5]) 
-    Baryon =convert.(Int64,data[:,6])
-    Strangeness=convert.(Int64,data[:,7])
-    Charm=convert.(Int64,data[:,8])
-    Bottom=convert.(Int64,data[:,9])
-    Isospin=convert.(Float64,data[:,10])
-    ElectricCharge=convert.(Int64,data[:,11])
-    N_decay_channels=convert.(Int64,data[:,12])
-
-    fulllist=StructArray(NewParticle.(
-       ID,
-       Name, 
-       Mass ,
-       Width ,
-       Degeneracy, 
-       Baryon,
-       Strangeness,
-       Charm,
-       Bottom,
-       Isospin,
-       ElectricCharge,
-       N_decay_channels,
-       ))
-    filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Charm!=0&&condition(x)),fulllist)
-   HadronResonaceGasNew(filterlist)
-end
 
 #pretty printing
 function Base.show(io::IO, z::HadronResonaceGas)
