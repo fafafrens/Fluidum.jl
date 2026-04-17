@@ -97,8 +97,6 @@ end
 
 function gamma(T, nhard_profile, r, eos; rdrop = 20, m = 1.5)       
     if r<=rdrop
-        @show nhard_profile(10)
-        @show thermodynamic(T(10),0.0,eos).pressure
         return nhard_profile(r)/(thermodynamic(T(r),0.0,eos).pressure)
         else return nhard_profile(rdrop)/(thermodynamic(T(rdrop),0.0,eos).pressure)
     end            
@@ -148,8 +146,7 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, z::Tabu
     nhard_profile(r) = density_fs_total.(Ref(fonll_profile),Ref(ncoll_profile),r; tau0 = tau0, m = m) 
     
     ccbar_hard = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=1e-5)[1]
-    @show ccbar_hard
-
+    
     Ncoll = nucl_radius(det)*quadgk(x->2*pi*x*nhard_profile(x)/(2/tau0*dσ_QQdy(det)),0,rmax,rtol=1e-5)[1]
     eos = Heavy_Quark(cfg.particle_list, ccbar_hard) 
     #fugacity(r) = fug_cut(temperature_profile, nhard_profile, r, eos.hadron_list; rmax = rmax)   
@@ -157,8 +154,9 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}, z::Tabu
     fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list; rdrop = tail_pars.rdrop)   
     
     ccbar_thermo= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure,0,rmax,rtol=1e-5)[1] #integration to obtain the total number of charm
-    @show ccbar_thermo
-        
+    
+    print_ccbar_summary(ccbar_hard, ccbar_thermo)
+
     nur_profile(r) = nur.(temperature_profile(r),Ref(fonll_profile),Ref(ncoll_profile) ,r; tau0 = tau0, m)
         
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
@@ -188,15 +186,14 @@ function initialize_fields(x::TabulatedData{A,B}, y::TabulatedData{C,D}; cfg) wh
     
     ccbar_hard = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=1e-5)[1]  
     
-    @show ccbar_hard
     eos = Heavy_Quark(cfg.particle_list, ccbar_hard)
     
     #fugacity(r) = fug_cut(temperature_profile, nhard_profile, r, eos.hadron_list; rmax = rmax)
     fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list; rdrop = tail_pars.rdrop)
      
     ccbar_thermo,err= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure,0,rmax,rtol=1e-5) #integration to obtain the total number of charm
-    @show ccbar_thermo
-    
+    print_ccbar_summary(ccbar_hard, ccbar_thermo)
+
     oned_visc_hydro = Fluidum.HQ_viscous_1d()
     disc=CartesianDiscretization(OriginInterval(gridpoints,rmax)) 
     disc_fields = DiscreteFields(oned_visc_hydro,disc,Float64) 
@@ -330,13 +327,12 @@ function initialize_fields(x::TabulatedData{A,B}; cfg) where {A,B}
     
     nhard_profile(r) = norm_y*ncoll_step(r; rdrop = tail_pars.rdrop, R = nucl_radius(det))*(temperature_profile(r)/temperature_profile(0.0))^4 
     ccbar_hard = quadgk(x->2*pi*x*tau0*nhard_profile(x),0,rmax,rtol=1e-5)[1]
-    @show ccbar_hard
-
+    
     eos = Heavy_Quark(cfg.particle_list, ccbar_hard)
     fugacity(r) = fug(temperature_profile, nhard_profile, r, eos.hadron_list;rdrop = tail_pars.rdrop)
 
     ccbar_thermo= quadgk(x->2*pi*x*tau0*thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure,0,rmax,rtol=1e-5)[1]
-    @show ccbar_thermo
+    print_ccbar_summary(ccbar_hard, ccbar_thermo)
     
     n_therm(x) = thermodynamic(temperature_profile(x),fugacity(x),eos.hadron_list).pressure
     

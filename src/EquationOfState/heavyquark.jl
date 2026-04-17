@@ -9,9 +9,7 @@ function Heavy_Quark(particle_list, ccbar)
     return Heavy_Quark(hadron_list = list)
 end
 
-@inline @fastmath pressure(T, x::Heavy_Quark) = pressure(T, x.eos)
-@inline pressure_derivative(T, v::Val{1}, x::Heavy_Quark) = pressure_derivative(T, v, x.eos)
-@inline pressure_derivative(T, v::Val{2}, x::Heavy_Quark) = pressure_derivative(T, v, x.eos)
+@inline @fastmath thermodynamic(T, x::Heavy_Quark) = thermodynamic(T,x.eos)
 
 function free_charm(T,fug,x::Heavy_Quark)
     m = x.mass
@@ -47,11 +45,7 @@ end
 end
 
 @inline function DsT(m::LinearDiffusion,T; Tc = 0.180)
-    if T > Tc
-        return m.slope*T + m.offset
-    else
-        return m.slope*Tc + m.offset
-    end
+    ifelse(T > Tc, m.slope*T + m.offset, m.slope*Tc + m.offset)
 end 
 
 

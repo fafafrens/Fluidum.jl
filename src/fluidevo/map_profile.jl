@@ -162,3 +162,8 @@ function Profiles(x::TabulatedData{A,B};
         return temperature_funct
     end   
 end
+
+function print_ccbar_summary(ccbar_hard, ccbar_thermo)
+    println("  ccbar_hard   = ", ccbar_hard)
+    println("  ccbar_thermo = ", ccbar_thermo)
+end
