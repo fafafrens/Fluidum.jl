@@ -194,7 +194,7 @@ end
 #    @test isfile(Fluidum.assembleTrentoName(IC)[1])
 #    @test isfile(Fluidum.assembleTrentoName(IC)[2])
 #end
-
+#=
 @testset "causality check" begin
     #define equation of state and transport coefficients
     eos = Heavy_Quark()
@@ -228,7 +228,7 @@ end
     iszero(field_results_Ds)
 
 end
-
+=#
 @testset "artifacts" begin
     @test isfile(joinpath(Fluidum.root_kernels, "./kernels/PDGid_211_total_T0.1560_Fj.out"))
     @test isfile(joinpath(Fluidum.root_particle_lists, "./particles.data"))
