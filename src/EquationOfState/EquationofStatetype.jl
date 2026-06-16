@@ -142,7 +142,7 @@ function cs2(T,wal::N) where {N<:EquationOfState}
     therm=thermodynamic(T,wal)
     pr=therm.pressure
     entrop=therm.pressure_derivative[1]
-    dtdtp=therm.pressure_hessian[2]
+    dtdtp=therm.pressure_hessian[1]
 
     cs2= entrop/(T*dtdtp)
 end 
