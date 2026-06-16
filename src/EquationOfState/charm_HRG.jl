@@ -183,7 +183,7 @@ function Base.show(io::IO, z::HadronResonaceGasNew)
     min ,max = extrema(z.particle_list.Mass)
     print(io,"Hadron Resonace gas: ",length(z.particle_list)," particles with mass ⊆ ",min,"..",max," GeV" )
     for part in z.particle_list
-        print(io,part.Name," mass=",part.Mass,"\t","charm=",part.Charm,"\n")
+        print(io,part.Name," mass=",part.Mass,"\n")
     end 
 end
 
