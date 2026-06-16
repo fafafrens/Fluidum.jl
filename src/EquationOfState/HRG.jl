@@ -202,5 +202,6 @@ end
 """
 function thermodynamic(T,x::HadronResonaceGasLightFlavour{L,B})  where {L,B}
     μ = zero(T)
-    return  thermodynamic(T,μ,x)
+    twodthemodynamic=  thermodynamic(T,μ,x)
+    Thermodynamic(twodthemodynamic.pressure,(twodthemodynamic.pressure_derivative[1],),(twodthemodynamic.pressure_hessian[1],))
 end
