@@ -28,19 +28,20 @@ struct Particle{A,B,C} #for particle.data file
     MC::C
 end
 
-struct NewParticle{A,B,C} #for therminator type of file, e.g. PDG2016Plus_massorder.dat
-    ID::A
-    Name::B 
-    Mass ::C
-    Width ::C
-    Degeneracy::A 
-    Baryon::A
-    Strangeness::A
-    Charm::A
-    Bottom::A
-    Isospin::C
-    ElectricCharge::A
-    N_decay_channels::A
+struct NewParticle{A,B,C} #for particle.data file
+    Name::A
+    Mass::B
+    Gamma::B
+    Spin::B
+    Isospin::B
+    I3::B
+    Nq::B
+    Ns::B
+    Naq::B
+    Nas::B
+    Nc::B
+    Nac::B
+    MC::C
 end
 
 #read in resonances
@@ -138,7 +139,7 @@ function HadronResonaceGasNew(;name_file=root_particle_lists*"/particles.data",M
     MC       =convert.(Int64,data[:,13])
 
 
-    fulllist=StructArray(Particle.(
+    fulllist=StructArray(NewParticle.(
         names    ,
         mass     ,
         gamma    ,
