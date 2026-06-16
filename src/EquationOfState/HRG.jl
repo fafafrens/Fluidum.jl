@@ -1,6 +1,6 @@
 
 
-struct HadronResonaceGasLighFlavour{T,Bool} <:EquationOfState
+struct HadronResonaceGasLightFlavour{T,Bool} <:EquationOfState
     particle_list::T
     relativistic::Bool
 end
@@ -26,7 +26,7 @@ end
 
 
 #read in resonaces
-function HadronResonaceGasLighFlavour(;name_file=root_particle_lists*"/particles.data",Maxmass=2.1,Minmass=0.05,condition=x->true,relativistic = false)
+function HadronResonaceGasLightFlavour(;name_file=root_particle_lists*"/particles.data",Maxmass=2.1,Minmass=0.05,condition=x->true,relativistic = false)
     data     =readdlm(name_file,comment_char='#',comments=true)
     names    =convert.(String,data[:,1])
     mass     =convert.(Float64,data[:,2])
@@ -59,20 +59,20 @@ function HadronResonaceGasLighFlavour(;name_file=root_particle_lists*"/particles
         MC       
        ))
     filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Name != "de2000plb"&&x.Name !="de2000plu"&&condition(x)),fulllist)
-   HadronResonaceGas(filterlist,relativistic)
+   HadronResonaceGasLightFlavour(filterlist,relativistic)
 
 end
 
 
 
 #pretty printing
-function Base.show(io::IO, z::HadronResonaceGasLighFlavour)
+function Base.show(io::IO, z::HadronResonaceGasLightFlavour)
     min ,max = extrema(z.particle_list.Mass)
     print(io,"Hadron Resonace gas: ",length(z.particle_list)," particles with mass ⊆ ",min,"..",max," GeV" )
 end
 
 
-function Base.show(io::IO, ::MIME"text/plain", z::HadronResonaceGasLighFlavour) 
+function Base.show(io::IO, ::MIME"text/plain", z::HadronResonaceGasLightFlavour) 
     min ,max = extrema(z.particle_list.Mass)
     print(io,"Hadron Resonace gas: ",length(z.particle_list)," particles with mass ⊆ ",min,"..",max,"GeV\n " )
     for part in z.particle_list
@@ -84,15 +84,15 @@ end
 #waleckacondition(x)=x.Name != "f00600zer"&&x.Name !="om0782zer"&& x.Name != "pr0938plu"  && x.Name !="pr0938plb" && x.Name !="ne0939zer" && x.Name != "ne0939zrb"#remove neutrons
 
 
-@inline Base.getindex(elm::HadronResonaceGasLighFlavour, i::Int)= elm.particle_list[i]
-@inline Base.eachindex(elm::HadronResonaceGasLighFlavour)=Base.eachindex(elm.particle_list)
+@inline Base.getindex(elm::HadronResonaceGasLightFlavour, i::Int)= elm.particle_list[i]
+@inline Base.eachindex(elm::HadronResonaceGasLightFlavour)=Base.eachindex(elm.particle_list)
 
 
 """
     Pressure and its derivatives of a Hadron Gas, for either relativistic (Bose-Einstein/Fermi-Dirac) or non-relativistic (Maxwell-Boltzmann) statistics,
     for non zero chemical potential 
 """
-function thermodynamic(T,μ,x::HadronResonaceGasLighFlavour{L,B})  where {L,B}
+function thermodynamic(T,μ,x::HadronResonaceGasLightFlavour{L,B})  where {L,B}
     relativistic = x.relativistic
     if isless(T,zero(T))
         return Thermodynamic(zero(T),(zero(T),zero(T)),(zero(T),zero(T),zero(T)))
@@ -200,7 +200,7 @@ end
     Pressure and its derivatives of a Hadron Gas, for either relativistic (Bose-Einstein/Fermi-Dirac) or non-relativistic (Maxwell-Boltzmann) statistics, 
     for zero chemical potential 
 """
-function thermodynamic(T,x::HadronResonaceGasLighFlavour{L,B})  where {L,B}
+function thermodynamic(T,x::HadronResonaceGasLightFlavour{L,B})  where {L,B}
     μ = zero(T)
     return  thermodynamic(T,μ,x)
 end
