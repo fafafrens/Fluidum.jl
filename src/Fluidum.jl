@@ -63,6 +63,7 @@ include("EquationOfState/simpletransport.jl")
 include("EquationOfState/charm_HRG.jl")
 include("EquationOfState/heavyquark.jl")
 include("EquationOfState/Analytic.jl")
+include("EquationOfState/HRG.jl")
 
 
 include("fluidevo/inverse_function.jl")
@@ -278,7 +279,7 @@ end
 
 export thermodynamic,pressure, pressure_derivative , TwoDPicewiseEquationOfState ,OneDPicewiseEquationOfState, energy_density,cs2
 export FluidProperties, viscosity, τ_shear,bulk_viscosity,τ_bulk,diffusion,τ_diffusion
-export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar
+export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, HadronResonaceGasNew, HadronResonaceGas_ccbar,HadronResonaceGasLightFlavour
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
 export Heavy_Quark, ConstDiffusion, LinearDiffusion, free_charm, QGPViscosity,ZeroDiffusion
