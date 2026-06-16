@@ -138,6 +138,15 @@ function energy_density(T,wal::N) where {N<:EquationOfState}
     T*entrop-pr
 end 
 
+function cs2(T,wal::N) where {N<:EquationOfState}
+    therm=thermodynamic(T,wal)
+    pr=therm.pressure
+    entrop=therm.pressure_derivative[1]
+    dtdtp=therm.pressure_hessian[2]
+
+    cs2= entrop/(T*dtdtp)
+end 
+
 
 
 
