@@ -121,6 +121,44 @@ function readresonancelist(;name_file=HRGc_list,Maxmass=4,Minmass=1.0,condition=
 end
 
 
+function HadronResonaceGasNew(;name_file=root_particle_lists*"/particles.data",Maxmass=2.1,Minmass=0.05,condition=x->true)
+    data     =readdlm(name_file,comment_char='#',comments=true)
+    names    =convert.(String,data[:,1])
+    mass     =convert.(Float64,data[:,2])
+    gamma    =convert.(Float64,data[:,3])
+    spin     =convert.(Float64,data[:,4])
+    iso_spin =convert.(Float64,data[:,5])
+    I3       =convert.(Float64,data[:,6])
+    Nq       =convert.(Float64,data[:,7])
+    Ns       =convert.(Float64,data[:,8])
+    Naq      =convert.(Float64,data[:,9])
+    Nas      =convert.(Float64,data[:,10])
+    Nc       =convert.(Float64,data[:,11])
+    Nac      =convert.(Float64,data[:,12])
+    MC       =convert.(Int64,data[:,13])
+
+
+    fulllist=StructArray(Particle.(
+        names    ,
+        mass     ,
+        gamma    ,
+        spin     ,
+        iso_spin ,
+        I3       ,
+        Nq       ,
+        Ns       ,
+        Naq      ,
+        Nas      ,
+        Nc       ,
+        Nac      ,
+        MC
+       ))
+    filterlist=filter(x->(x.Mass<Maxmass&&x.Mass>Minmass&&x.Name != "de2000plb"&&x.Name !="de2000plu"&&condition(x)),fulllist)
+   HadronResonaceGasNew(filterlist)
+
+end
+
+
 
 #pretty printing
 function Base.show(io::IO, z::HadronResonaceGas)
