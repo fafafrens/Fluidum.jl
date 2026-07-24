@@ -78,13 +78,14 @@ function τ_diffusion_hadron(T,μ,x::Heavy_Quark,y::Diffusion)
     for i in x.hadron_list.particle_list
         m = i.Mass
         q = i.Nc + i.Nac
+        deg = i.Degeneracy
         b2 = besselkx(2,m/T)*exp(-m/T)
         b1 = besselk1x(m/T)*exp(-m/T)
         b3 = b1+4/(m/T)*b2  
         b4 = b2 + 6/(m/T)*b3  
         b5 = b3+8/(m/T)*b4
         ex = exp(q*μ)
-        tauq += ((2*π*DsT(y,T))/(192*π^3*T^3)*q^2*m^5*ex*(2*b1 - 3*b3 +b5)); 
+        tauq += deg*((2*π*DsT(y,T))/(192*π^3*T^3)*q^2*m^5*ex*(2*b1 - 3*b3 +b5)); 
     end   
   return tauq/normalization(T,μ,x)*(fmGeV^2); #
 end
