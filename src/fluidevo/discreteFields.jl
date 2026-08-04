@@ -738,7 +738,6 @@ function problem(two_ideal_hydro_discrete::DiscreteFields{T, total_dimensions, s
     NewT=eltype(init)
     
     two_ideal_hydro_discrete=convert_field(NewT,two_ideal_hydro_discrete)
-        
     ODEProblem((du,u,p,t)->basicupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
     #ODEProblem((du,u,p,t)->chebupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
 end
@@ -758,7 +757,9 @@ function oneshoot_debug(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,param
     e_i=two_ideal_hydro_discrete.index_structure.unit_inidices_space
     X=two_ideal_hydro_discrete.discretization
     causal = 0
-    @inbounds for (uprev,tprev,u,t) in intervals(integrator)
+    @inbounds for i in integrator
+        u, t = integrator.u, integrator.t
+        uprev, tprev = integrator.uprev, integrator.tprev
         @inbounds for I in two_ideal_hydro_discrete.index_structure.interior
             ϕ=@views u[:,I]
             #@show X[I][1], t, ϕ[1]
@@ -823,7 +824,10 @@ function isosurface(disc::DiscreteFields{T, total_dimensions, space_dimension, N
     max_size=length(surface_list)
     count=1
     max_of_index=zero(T)
-    @inbounds for (uprev,tprev,u,t) in intervals(integrator)
+    @inbounds for i in integrator
+        u, t = integrator.u, integrator.t
+        uprev, tprev = integrator.uprev, integrator.tprev
+    #@inbounds for (uprev,tprev,u,t) in intervals(integrator)
         #@show t ,max_of_index  
         max_of_index=zero(T)
         @inbounds for I in disc.index_structure.interior
@@ -924,7 +928,9 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
     max_size_pert=length(surface_list_pert)
     count=1
     max_of_index=zero(T)
-    @inbounds for (uprev,tprev,u,t) in intervals(integrator)
+    @inbounds for i in integrator
+        u, t = integrator.u, integrator.t
+        uprev, tprev = integrator.uprev, integrator.tprev
         max_of_index=zero(T)
         @inbounds for I in disc.index_structure.interior
           
@@ -945,8 +951,8 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                     
                     surface_list_pert[count]=crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
                     X[t,I,Val{:SVector}()],
-                    uprev.C[:,:,:,1,I,:],
-                    u.C[:,:,:,1,I,:])     
+                    uprev.C[:,:,:,:,I,:],
+                    u.C[:,:,:,:,I,:])
                     count=count +1 
                     else 
                     push!(surface_list,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
@@ -956,7 +962,7 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                     
                     push!(surface_list_pert,crossing_point_type_pert(X[tprev,I,Val{:SVector}()],
                     X[t,I,Val{:SVector}()]
-                    ,uprev.C[:,:,:,1,I,:],u.C[:,:,:,1,I,:]))     
+                    ,uprev.C[:,:,:,:,I,:],u.C[:,:,:,:,I,:]))
                 
                     count=count +1 
                 end
@@ -982,7 +988,7 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                         surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
-                            uprev.C[:,:,:,1,I,:],uprev.C[:,:,:,1,I_check_plus,:])
+                            uprev.C[:,:,:,:,I,:],uprev.C[:,:,:,:,I_check_plus,:])
                         count=count +1 
                     else 
                         push!(surface_list,surface_crossing_point(
@@ -994,8 +1000,8 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                         push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_plus,Val{:SVector}()],
-                            uprev.C[:,:,:,1,I,:],
-                            uprev.C[:,:,:,1,I_check_plus,:]
+                            uprev.C[:,:,:,:,I,:],
+                            uprev.C[:,:,:,:,I_check_plus,:]
                             )
                             )
                         count=count +1
@@ -1013,8 +1019,8 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                         surface_list_pert[count]=crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
-                            uprev.C[:,:,:,1,I,:],
-                            uprev.C[:,:,:,1,I_check_minus,:]
+                            uprev.C[:,:,:,:,I,:],
+                            uprev.C[:,:,:,:,I_check_minus,:]
                             )
                         count=count +1  
                     else 
@@ -1027,8 +1033,8 @@ function isosurface_retarded(disc::DiscreteFields{T, total_dimensions, space_dim
                         push!(surface_list_pert,crossing_point_type_pert(
                             X[tprev,I,Val{:SVector}()],
                             X[tprev,I_check_minus,Val{:SVector}()],
-                            uprev.C[:,:,:,1,I,:],
-                            uprev.C[:,:,:,1,I_check_minus,:]
+                            uprev.C[:,:,:,:,I,:],
+                            uprev.C[:,:,:,:,I_check_minus,:]
                         ))
                         
                         count=count +1
@@ -1110,8 +1116,8 @@ end
 struct surface_crossing_point_pert{S,T,N_dim,N_field,n_grid}
     X_1::SVector{N_dim,T}
     X_2::SVector{N_dim,T}
-    C_1::Array{S,4}
-    C_2::Array{S,4}
+    C_1::Array{S,5}
+    C_2::Array{S,5}
 end
 
 
@@ -1125,12 +1131,13 @@ function Base.zero(::Type{surface_crossing_point{S,T,N_dim,N_field}}) where {S,T
 end
 
 function Base.zero(::Type{surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}}) where {S,T,N_dim, N_field,n_grid}
+    #the m-mode axis size isn't known here (it's a runtime axis size of u.C, not a type parameter); this placeholder is always overwritten before use, so 1 is a harmless stand-in
     surface_crossing_point_pert{S,T,N_dim, N_field,n_grid}(
     zeros(SVector{N_dim,T}),
     zeros(SVector{N_dim,T}),
-    zeros(S,2,N_field,N_field,n_grid),
-    zeros(S,2,N_field,N_field,n_grid))
-    
+    zeros(S,2,N_field,N_field,1,n_grid),
+    zeros(S,2,N_field,N_field,1,n_grid))
+
 end
 
 
@@ -1194,8 +1201,8 @@ struct surface_point{S,T,N_dim,N_field}
 end 
 struct surface_point_pert{S,T,N_dim}
     X::SVector{N_dim,T}
-    C::Array{S,4}
-end 
+    C::Array{S,5}
+end
 
 struct Surface_coordinates{S,T,N_parm,N_dim,N_field}
     coordinates::SVector{N_parm,T}
@@ -1206,8 +1213,8 @@ end
 struct Surface_coordinates_pert{S,T,N_parm,N_dim}
     coordinates::SVector{N_parm,T}
     X::SVector{N_dim,T}
-    C::Array{S,4}
-end 
+    C::Array{S,5}
+end
 
 
 function Surface_coordinates(point::surface_point{S,T,N_dim,N_field} ) where {S,T,N_dim,N_field}
@@ -1427,9 +1434,9 @@ function _radial_basisinterpolate(surf::AbstractVector{Surface_coordinates_pert{
     end
     correlator_dimension = first(sortedcha).C
     C_interp = map(CartesianIndices(correlator_dimension)) do I
-        k, field1, field2, r2 = Tuple(I)
+        k, field1, field2, m_idx, r2 = Tuple(I)
         C_i = map(sortedcha) do s
-            s.C[k, field1, field2, r2]
+            s.C[k, field1, field2, m_idx, r2]
         end
     
         RadialBasis(alpha, C_i, total_left, total_right, rad=thinplateRadial())
@@ -1572,4 +1579,6 @@ function freezeout_interpolation(surf::Chart_pert{S,T,N_parm,N_dim},grid;baches=
     
     spline_interpolation(radial_basisinterpolate(surf,grid, baches=baches,sort_index=sort_index),ndim_tuple=ndim_tuple)
 end 
+
+
 
