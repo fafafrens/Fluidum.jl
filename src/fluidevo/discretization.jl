@@ -95,6 +95,9 @@ Return the Δ of the cell in each dimension
 @inline left_exterior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = 1 
 @inline right_exterior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = (first(Sizes)+2)
 @inline interior(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T} = 2:(first(Sizes)+1)
+@inline left_faces(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T}= 1:(first(Sizes))
+@inline right_faces(::CartesianDiscretization{N_dim,Sizes,Lengths,DXS,T}) where {N_dim,Sizes,Lengths,DXS,T}= 2:(first(Sizes)+1)
+
 """
     SymmetricInterval(oned_size::Int,oned_lenght::X) where{X<:Number}
 
