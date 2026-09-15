@@ -6,9 +6,9 @@ using StaticArrays
 
 export AbstractEquationOfState,
        GrandCanonicalPoint,
-       ThermodynamicState,
        CanonicalPoint,
-       ConservedPoint,
+       MicrocanonicalPoint,
+       ThermodynamicState,
        pressure,
        thermodynamic,
        entropy_density,
@@ -17,6 +17,8 @@ export AbstractEquationOfState,
        susceptibility,
        susceptibilities,
        energy_density,
+       canonical,
+       microcanonical,
        grandcanonical,
        invert,
        AbstractShearTransport,
@@ -37,19 +39,19 @@ export AbstractEquationOfState,
        transport,
        PolynomialMultiChargeEOS
 
-# -----------------------------------------------------------------------------
-# Thermodynamic coordinates
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Thermodynamic representations
+# =============================================================================
 
 """
     GrandCanonicalPoint(T, μ)
 
-A point in grand-canonical intensive-variable space
+Grand-canonical coordinates
 
-    x = (T, μ₁, ..., μₙ).
+    (T, μ₁, ..., μₙ).
 
-The chemical potentials are stored in an `SVector`, so the number of conserved
-charges is part of the concrete type.
+These coordinates select a point at which the pressure is evaluated. They are
+not themselves the complete thermodynamic state.
 """
 struct GrandCanonicalPoint{T,N}
     T::T
@@ -66,6 +68,40 @@ end
 
 GrandCanonicalPoint(T, μ...) = GrandCanonicalPoint(T, SVector(μ...))
 
+"""
+    CanonicalPoint(T, n)
+
+Canonical local thermodynamic coordinates `(T, n₁, ..., nₙ)`.
+"""
+struct CanonicalPoint{T,N}
+    T::T
+    n::SVector{N,T}
+end
+
+function CanonicalPoint(T::S, n::SVector{N,U}) where {S,U,N}
+    R = promote_type(S,U)
+    CanonicalPoint{R,N}(R(T), SVector{N,R}(n))
+end
+
+"""
+    MicrocanonicalPoint(energy_density, n)
+
+Microcanonical local thermodynamic coordinates `(ε, n₁, ..., nₙ)`.
+
+Using energy density here keeps the ensemble terminology literal: the
+microcanonical representation fixes energy and conserved charges. Entropy is a
+derived thermodynamic quantity.
+"""
+struct MicrocanonicalPoint{T,N}
+    energy_density::T
+    n::SVector{N,T}
+end
+
+function MicrocanonicalPoint(ε::S, n::SVector{N,U}) where {S,U,N}
+    R = promote_type(S,U)
+    MicrocanonicalPoint{R,N}(R(ε), SVector{N,R}(n))
+end
+
 @inline coordinates(x::GrandCanonicalPoint) = SVector(x.T, x.μ...)
 
 @inline function grandcanonical_from_coordinates(y::SVector{D,T}) where {D,T}
@@ -76,22 +112,23 @@ GrandCanonicalPoint(T, μ...) = GrandCanonicalPoint(T, SVector(μ...))
     GrandCanonicalPoint(y[1], μ)
 end
 
-# -----------------------------------------------------------------------------
-# EOS interface
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Equation of state
+# =============================================================================
 
 abstract type AbstractEquationOfState end
 
 """
     pressure(eos, x::GrandCanonicalPoint)
 
-Fundamental EOS interface. Concrete EOS models only need to define the pressure
-as a function of the grand-canonical coordinates. An optimized EOS may also
-override `thermodynamic` directly.
+Fundamental EOS interface. A concrete EOS defines its pressure as a function of
+grand-canonical coordinates. Optimized or tabulated EOS implementations may
+also specialize `thermodynamic` directly.
 """
 function pressure end
 
-# EOS-level algebra. There is deliberately no algebra on ThermodynamicState.
+# EOS algebra is defined at the model level. ThermodynamicState itself is just
+# evaluated data and deliberately has no symbolic/calculus algebra.
 struct SumEOS{A<:AbstractEquationOfState,B<:AbstractEquationOfState} <: AbstractEquationOfState
     a::A
     b::B
@@ -114,22 +151,31 @@ Base.:*(eos::AbstractEquationOfState, a::Number) = a*eos
 Base.:/(eos::AbstractEquationOfState, a::Number) = inv(a)*eos
 
 @inline pressure(eos::SumEOS, x::GrandCanonicalPoint) = pressure(eos.a,x) + pressure(eos.b,x)
-@inline pressure(eos::ScaledEOS, x::GrandCanonicalPoint) = eos.factor * pressure(eos.eos,x)
+@inline pressure(eos::ScaledEOS, x::GrandCanonicalPoint) = eos.factor*pressure(eos.eos,x)
 @inline pressure(eos::OppositeEOS, x::GrandCanonicalPoint) = -pressure(eos.eos,x)
 
-# -----------------------------------------------------------------------------
-# Evaluated thermodynamics
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Evaluated thermodynamic state
+# =============================================================================
 
 """
     ThermodynamicState
 
-Value, gradient and Hessian of the pressure at a grand-canonical point.
-For x = (T, μ₁, ..., μₙ),
+Thermodynamic information obtained by evaluating an EOS at a chosen point.
+In grand-canonical coordinates
 
-    gradient = (s, n₁, ..., nₙ)
+    x = (T, μ₁, ..., μₙ),
 
-and the lower-right Hessian block is the charge-susceptibility matrix.
+it stores
+
+    p(x),  ∇p(x),  ∇²p(x).
+
+The gradient is the Legendre-dual vector
+
+    ∇p = (s, n₁, ..., nₙ),
+
+not another grand-canonical point. The lower-right Hessian block is the charge
+susceptibility matrix `χᵢⱼ = ∂nᵢ/∂μⱼ`.
 """
 struct ThermodynamicState{T,D,G,H}
     pressure::T
@@ -144,8 +190,8 @@ end
 """
     thermodynamic(eos, x)
 
-Generic second-order ForwardDiff fallback. Concrete/tabulated EOS implementations
-can specialize this method and return the same `ThermodynamicState` interface.
+Generic second-order ForwardDiff fallback. A concrete/tabulated EOS can
+specialize this method while returning the same `ThermodynamicState` interface.
 """
 function thermodynamic(eos::AbstractEquationOfState, x::GrandCanonicalPoint)
     y = coordinates(x)
@@ -181,7 +227,7 @@ end
 """
     energy_density(x, th)
 
-Full Legendre transform of the pressure,
+Legendre transform
 
     ε = -p + T s + μ⋅n.
 """
@@ -189,104 +235,130 @@ Full Legendre transform of the pressure,
     -th.pressure + x.T*entropy_density(th) + dot(x.μ, charge_densities(th))
 end
 
-# -----------------------------------------------------------------------------
-# Alternative thermodynamic coordinates and inversion
-# -----------------------------------------------------------------------------
+# Representation changes when the state has already been evaluated.
+@inline canonical(x::GrandCanonicalPoint, th::ThermodynamicState) =
+    CanonicalPoint(x.T, charge_densities(th))
 
-"""Coordinates (T, n₁, ..., nₙ), useful for fixed-temperature inversion."""
-struct CanonicalPoint{T,N}
-    T::T
-    n::SVector{N,T}
+@inline microcanonical(x::GrandCanonicalPoint, th::ThermodynamicState) =
+    MicrocanonicalPoint(energy_density(x,th), charge_densities(th))
+
+# Convenience forms that evaluate the EOS once.
+@inline function canonical(eos::AbstractEquationOfState, x::GrandCanonicalPoint)
+    th = thermodynamic(eos,x)
+    canonical(x,th)
 end
 
-function CanonicalPoint(T::S, n::SVector{N,U}) where {S,U,N}
-    R = promote_type(S,U)
-    CanonicalPoint{R,N}(R(T), SVector{N,R}(n))
+@inline function microcanonical(eos::AbstractEquationOfState, x::GrandCanonicalPoint)
+    th = thermodynamic(eos,x)
+    microcanonical(x,th)
 end
 
-"""Coordinates (s, n₁, ..., nₙ), conjugate to (T, μ₁, ..., μₙ)."""
-struct ConservedPoint{T,N}
-    s::T
-    n::SVector{N,T}
-end
-
-function ConservedPoint(s::S, n::SVector{N,U}) where {S,U,N}
-    R = promote_type(S,U)
-    ConservedPoint{R,N}(R(s), SVector{N,R}(n))
-end
-
-@inline coordinates(y::ConservedPoint) = SVector(y.s, y.n...)
+# =============================================================================
+# EOS inversion
+# =============================================================================
 
 """
     grandcanonical(eos, target::CanonicalPoint, μguess; ...)
 
-Solve n(T,μ) = target.n at fixed temperature. The Newton Jacobian is exactly the
-susceptibility matrix χᵢⱼ.
+Invert `(T,n) -> (T,μ)`. At fixed temperature the Newton Jacobian is exactly
+the charge-susceptibility matrix `χ`.
 """
 function grandcanonical(
     eos::AbstractEquationOfState,
     target::CanonicalPoint{T,N},
-    μguess::SVector{N};
+    μguess::SVector{N,U};
     atol = 1e-12,
     rtol = 1e-10,
     maxiter::Integer = 30,
-) where {T,N}
+) where {T,N,U}
     μ = μguess
 
     for _ in 1:maxiter
         x = GrandCanonicalPoint(target.T, μ)
         th = thermodynamic(eos,x)
-        n = charge_densities(th)
-        residual = n - target.n
+        residual = charge_densities(th) - target.n
 
-        if norm(residual, Inf) <= atol + rtol*max(norm(target.n,Inf), one(eltype(target.n)))
+        scale = max(norm(target.n,Inf), one(eltype(target.n)))
+        if norm(residual,Inf) <= atol + rtol*scale
             return x
         end
 
-        χ = susceptibilities(th)
-        μ -= χ \ residual
+        μ -= susceptibilities(th) \ residual
     end
 
-    error("fixed-T EOS inversion did not converge in $maxiter iterations")
+    error("canonical -> grand-canonical inversion did not converge in $maxiter iterations")
 end
 
 """
-    invert(eos, target::ConservedPoint, guess::GrandCanonicalPoint; ...)
+    grandcanonical(eos, target::MicrocanonicalPoint, guess; ...)
 
-Solve ∇p(T,μ) = (s,n) using Newton iteration. The pressure Hessian is the exact
-Jacobian of this map.
+Invert `(ε,n) -> (T,μ)` by Newton iteration.
+
+Only the pressure Hessian is required. Since
+
+    ε = -p + x⋅∇p,       x = (T,μ),
+
+we have
+
+    ∂ε/∂x = (∇²p) x.
+
+The remaining Jacobian rows are the corresponding rows of `∇²p` because
+`nᵢ = ∂p/∂μᵢ`.
 """
-function invert(
+function grandcanonical(
     eos::AbstractEquationOfState,
-    target::ConservedPoint,
+    target::MicrocanonicalPoint,
     guess::GrandCanonicalPoint;
     atol = 1e-12,
     rtol = 1e-10,
     maxiter::Integer = 30,
 )
     xvec = coordinates(guess)
-    ytarget = coordinates(target)
+    D = length(xvec)
+    N = D - 1
 
-    length(xvec) == length(ytarget) || throw(DimensionMismatch("guess and target have different thermodynamic dimensions"))
+    length(target.n) == N || throw(DimensionMismatch(
+        "guess and microcanonical point have different numbers of charges"
+    ))
+
+    target_values = SVector(target.energy_density, target.n...)
 
     for _ in 1:maxiter
         x = grandcanonical_from_coordinates(xvec)
         th = thermodynamic(eos,x)
-        residual = th.gradient - ytarget
 
-        if norm(residual, Inf) <= atol + rtol*max(norm(ytarget,Inf), one(eltype(ytarget)))
+        values = SVector(energy_density(x,th), charge_densities(th)...)
+        residual = values - target_values
+
+        scale = max(norm(target_values,Inf), one(eltype(target_values)))
+        if norm(residual,Inf) <= atol + rtol*scale
             return x
         end
 
-        xvec -= th.hessian \ residual
+        # Jacobian of (ε,n) with respect to (T,μ).
+        dε = th.hessian*xvec
+        J = SMatrix{D,D}(ntuple(k -> begin
+            i = (k-1) % D + 1
+            j = (k-1) ÷ D + 1
+            i == 1 ? dε[j] : th.hessian[i,j]
+        end, D*D))
+
+        xvec -= J \ residual
     end
 
-    error("full EOS inversion did not converge in $maxiter iterations")
+    error("microcanonical -> grand-canonical inversion did not converge in $maxiter iterations")
 end
 
-# -----------------------------------------------------------------------------
+# Keep `invert` as a descriptive alias for the inverse representation maps.
+@inline invert(eos::AbstractEquationOfState, target::CanonicalPoint, guess; kwargs...) =
+    grandcanonical(eos,target,guess; kwargs...)
+
+@inline invert(eos::AbstractEquationOfState, target::MicrocanonicalPoint, guess; kwargs...) =
+    grandcanonical(eos,target,guess; kwargs...)
+
+# =============================================================================
 # Transport models
-# -----------------------------------------------------------------------------
+# =============================================================================
 
 abstract type AbstractShearTransport end
 abstract type AbstractBulkTransport end
@@ -309,8 +381,8 @@ struct ConstantZetaOverS{T} <: AbstractBulkTransport
 end
 
 """
-A generic coupled charge sector. Both the conductivity and relaxation time are
-matrices, so off-diagonal charge transport is supported from the start.
+Coupled charge-transport model. Conductivity and relaxation time are matrices,
+so off-diagonal transport among conserved charges is supported directly.
 """
 struct ConstantChargeTransport{K,R} <: AbstractChargeTransport
     kappa::K
@@ -355,7 +427,7 @@ end
 end
 
 @inline function shear_state(model::ConstantEtaOverS, x, th)
-    eta = model.eta_over_s * entropy_density(th)
+    eta = model.eta_over_s*entropy_density(th)
     enthalpy = energy_density(x,th) + th.pressure
     tau = eta/(model.Ctau*enthalpy)
     ShearState(eta,tau)
@@ -367,7 +439,7 @@ end
 end
 
 @inline function bulk_state(model::ConstantZetaOverS, x, th)
-    zeta = model.zeta_over_s * entropy_density(th)
+    zeta = model.zeta_over_s*entropy_density(th)
     enthalpy = energy_density(x,th) + th.pressure
     tau = zeta/(model.Ctau*enthalpy)
     BulkState(zeta,tau)
@@ -379,7 +451,8 @@ end
     ChargeState(Z,Z)
 end
 
-@inline charge_state(model::ConstantChargeTransport, x, th) = ChargeState(model.kappa, model.tau)
+@inline charge_state(model::ConstantChargeTransport, x, th) =
+    ChargeState(model.kappa,model.tau)
 
 @inline function transport(model::TransportModel, x::GrandCanonicalPoint, th::ThermodynamicState)
     TransportState(
@@ -394,9 +467,9 @@ end
     th, transport(fluid.transport,x,th)
 end
 
-# -----------------------------------------------------------------------------
-# Small analytic EOS used to exercise the prototype
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Analytic EOS used to exercise the prototype
+# =============================================================================
 
 """
     PolynomialMultiChargeEOS(a, chi)
@@ -405,8 +478,8 @@ Toy multi-charge EOS
 
     p(T,μ) = a T⁴ + 1/2 T² μᵀ chi μ.
 
-It is intentionally simple but has nontrivial T-μ and charge-charge Hessian
-blocks, making it useful for prototyping multi-charge thermodynamics.
+It has nontrivial temperature-charge and charge-charge Hessian blocks and is
+therefore useful for exercising multi-charge thermodynamics and inversion.
 """
 struct PolynomialMultiChargeEOS{A,K} <: AbstractEquationOfState
     a::A
@@ -414,7 +487,9 @@ struct PolynomialMultiChargeEOS{A,K} <: AbstractEquationOfState
 end
 
 @inline function pressure(eos::PolynomialMultiChargeEOS, x::GrandCanonicalPoint)
-    length(x.μ) == size(eos.chi,1) || throw(DimensionMismatch("EOS and point have different numbers of charges"))
+    length(x.μ) == size(eos.chi,1) || throw(DimensionMismatch(
+        "EOS and point have different numbers of charges"
+    ))
     eos.a*x.T^4 + (x.T^2/2)*dot(x.μ, eos.chi*x.μ)
 end
 
