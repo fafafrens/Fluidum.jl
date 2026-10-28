@@ -243,9 +243,10 @@ Collect the information of the field and the space-doiscretization in one data t
 """
 function DiscreteFields(fields::Fields{N_field,space_dimension,S}
 ,discretization::CartesianDiscretization{space_dimension,Sizes,Lengths,DXS,M},type::Type{T},N_copies::Int=6) where {N_field,space_dimension,S,Sizes,Lengths,DXS,M,T}
-if N_copies<6 
-    N_copies=6
-end 
+# The interior sweep needs four vector copies and one matrix copy per worker (see the note above
+# `basicupwinding`), so the floor is 4 x threads. `Threads.nthreads()` is read here and not at
+# module scope, where it would be fixed at precompile time.
+N_copies = max(N_copies, 6, 4*Threads.nthreads())
 
 Sizes_ghosted=Sizes.+2
 idx=IndexStructure(N_field,Sizes_ghosted)
@@ -410,39 +411,40 @@ boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_par
 #end
 
 
-@inbounds function basicupwinding(dphi,phi,t,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
-    #this is the discretization
-    #@show t
-    X=discrete_fields.discretization
-    #then we have the index structure 
-    idx=discrete_fields.index_structure
-    # the interior 
-    Interior=idx.interior
-    # this are the unit vector (1,0,0,...)
-    e_i=idx.unit_inidices_space
-    #parity stuff 
-    left_parity=discrete_fields.left_parity
-    right_parity=discrete_fields.right_parity
-    periodicity=discrete_fields.periodicity
-    #chace matrices where to write the intermidiate results
-    cache=discrete_fields.cache
-    #this is a ntuple of matrices Ndim
-    @inbounds A_i= cache.matrix[1]
-    #this is just a vector that is need it for the source term 
-    @inbounds Source= cache.vector[1][1]
-    @inbounds nabla= cache.vector[2]
-    @inbounds delta= cache.vector[3]
-    @inbounds temp= cache.vector[4][1]
+# The interior sweep. Each interior cell reads `phi` at I and I ± e_i and writes only `dphi[:,I]`,
+# so cells are independent and the threaded path is bitwise identical to the serial one.
+# Each worker needs its own scratch: one matrix copy and four vector copies (Source, nabla, delta,
+# temp) of `FieldsCache`, so `N_copies` must be ≥ 4 × workers. The work is split into chunks and
+# the buffer is chosen by chunk index, not `Threads.threadid()`, since tasks may migrate between
+# threads under the `:dynamic` scheduler. Slot 1 holds the buffers of the serial path.
 
-    #now let do some computation regaring the grid 
+"how many chunks the interior sweep may use: threads, but never more than the cache can feed"
+@inline function _upwind_workers(discrete_fields, nI::Int)
+    cache = discrete_fields.cache
+    min(Threads.nthreads(), length(cache.matrix), length(cache.vector) >> 2, nI)
+end
+
+# the interior sweep over `Interior[lo:hi]`, using cache slot `slot`
+@inbounds function _basicupwinding_range!(dphi,phi,t,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params,slot::Int,lo::Int,hi::Int) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
+    X=discrete_fields.discretization
+    idx=discrete_fields.index_structure
+    Interior=idx.interior
+    e_i=idx.unit_inidices_space
+    cache=discrete_fields.cache
+    b = (slot-1) << 2
+    @inbounds A_i= cache.matrix[slot]
+    @inbounds Source= cache.vector[b+1][1]
+    @inbounds nabla= cache.vector[b+2]
+    @inbounds delta= cache.vector[b+3]
+    @inbounds temp= cache.vector[b+4][1]
+
     deltax=Δx(X)
     inv_deltax=1 ./deltax
-    #inv_deltax_2=inv_deltax *inv_deltax
     onehalf= one(T)/2
     two=2*one(T)
 
-    #Loop over all the interior point I is a space iteration (x,y,z,....) the first index is not iterate
-    @inbounds @simd for I in Interior
+    @inbounds @simd for k in lo:hi
+        I = Interior[k]
         # now is a N_field vector here i do not allocate nothing  
         ϕ=@views phi[:,I]
         dϕ=@views dphi[:,I]
@@ -477,11 +479,29 @@ boundary_condition!(phi,discrete_fields.index_structure,discrete_fields.left_par
                 dϕ[n_field] -=  Δ_iϕ[n_field]
             end 
         end  
+    end
+    return nothing
+end
 
+@inbounds function basicupwinding(dphi,phi,t,discrete_fields::DiscreteFields{T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2},matrix_equation!,params) where {T,total_dimensions,space_dimension,N_field,Sizes_ghosted,Sizes,Length,DXS,M,S,N_field2}
+    idx=discrete_fields.index_structure
+    Interior=idx.interior
+    nI = length(Interior)
+    nw = _upwind_workers(discrete_fields, nI)
+
+    if nw <= 1
+        _basicupwinding_range!(dphi,phi,t,discrete_fields,matrix_equation!,params,1,1,nI)
+    else
+        # contiguous, balanced chunks; the buffer follows the chunk, not the thread
+        Threads.@threads for c in 1:nw
+            lo = 1 + ((c-1)*nI) ÷ nw
+            hi = (c*nI) ÷ nw
+            hi >= lo && _basicupwinding_range!(dphi,phi,t,discrete_fields,matrix_equation!,params,c,lo,hi)
+        end
     end
 
     #before returning we  we apply the boundary_condition to the array are already decided 
-    boundary_condition!(dphi,idx,left_parity, right_parity, periodicity)
+    boundary_condition!(dphi,idx,discrete_fields.left_parity, discrete_fields.right_parity, discrete_fields.periodicity)
 
     return nothing
 end
@@ -742,9 +762,13 @@ function problem(two_ideal_hydro_discrete::DiscreteFields{T, total_dimensions, s
     #ODEProblem((du,u,p,t)->chebupwinding(du,u,t,two_ideal_hydro_discrete,matrix_eq,cs),NewT.(init),tspan)
 end
 
+# Max internal time step: a `dtmax` keyword, else FLUIDUM_DTMAX, else 0.01. The variable sets it for
+# every solve of a run without touching the call sites; a smaller step resolves fast transients such
+# as a fast central freeze-out.
 function oneshoot(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan,args...;kwargs...)
     prob=problem(two_ideal_hydro_discrete,ideal_matrix_equation_2d!,cs,phi,tspan)
-    solve(prob,Tsit5(),args...;kwargs..., dtmax = 0.01)
+    dtmax = haskey(kwargs, :dtmax) ? kwargs[:dtmax] : parse(Float64, get(ENV, "FLUIDUM_DTMAX", "0.01"))
+    solve(prob,Tsit5(),args...; kwargs..., dtmax = dtmax)
 end
 
 

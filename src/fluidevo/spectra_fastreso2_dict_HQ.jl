@@ -18,7 +18,7 @@
         end
     end
 
-    fact = besseli(1, eos.hadron_list.ccbar/2)/besseli(0, eos.hadron_list.ccbar/2)
+    fact = canonical_factor(eos.hadron_list)
 
     if charm == 2
         fact = 1
@@ -32,7 +32,8 @@
     det_g = -τ*r
     Ebar = mT*chη*uτ - pT*cϕ*ur
     
-    charm_prefactor = -inv(T)*charm/normalization(T,fugacity,eos)
+    # δf₁ = f₀ ν_l k_l/(nT) with ν_l k_l = ν^r (pT cos ϕ − mT cosh η ur/uτ), for N^μ = n u^μ + ν^μ
+    charm_prefactor = inv(T)*charm/normalization(T,fugacity,eos)
     bulk_prefactor = zero(charm_prefactor)
     shear_prefactor = zero(charm_prefactor)
     entropy = pressure_derivative(T,Val(1),eos)

@@ -187,6 +187,46 @@ end
     @test all(isfinite.(result))
 end 
 
+@testset "threaded interior sweep" begin
+    # The sweep is split into chunks, each with its own cache slot. Any split must give the same
+    # bits as one serial pass, whatever the number of threads this test runs with.
+    fluidpropery=FluidProperties(FluiduMEoS(),SimpleShearViscosity(0.1,.1),ZeroBulkViscosity(),ZeroDiffusion())
+    fields=Fields(
+    NDField((:ghost,:ghost),(:ghost,:ghost),:temperature),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:ux),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:uy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:piyy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:pizz),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:pixy),
+    NDField((:ghost,:ghost),(:ghost,:ghost),:piB)
+    )
+    disc=CartesianDiscretization(Fluidum.SymmetricInterval(30,15.),Fluidum.SymmetricInterval(30,15.))
+    nslots=4
+    df=DiscreteFields(fields,disc,Float64,4*nslots)
+    phi=set_array((x,y)->0.4/(exp(hypot(x,y)-6)+1)+0.01,:temperature,df)
+    set_array!(phi,(x,y)->0.1*x/(1+x^2+y^2),:ux,df)
+    set_array!(phi,(x,y)->-0.05*y/(1+x^2+y^2),:uy,df)
+    set_array!(phi,(x,y)->0.001*exp(-(x^2+y^2)/20),:pixy,df)
+    t=0.7
+    nI=length(df.index_structure.interior)
+
+    serial=zero(phi)
+    Fluidum._basicupwinding_range!(serial,phi,t,df,Fluidum.matrix2d_visc!,fluidpropery,1,1,nI)
+    chunked=zero(phi)
+    for c in 1:nslots
+        lo=1+((c-1)*nI)÷nslots
+        hi=(c*nI)÷nslots
+        Fluidum._basicupwinding_range!(chunked,phi,t,df,Fluidum.matrix2d_visc!,fluidpropery,c,lo,hi)
+    end
+    @test chunked == serial
+
+    # and the public entry point, at however many threads this process has
+    full=zero(phi)
+    Fluidum.basicupwinding(full,phi,t,df,Fluidum.matrix2d_visc!,fluidpropery)
+    I=df.index_structure.interior
+    @test full[:,I] == serial[:,I]
+end
+
 #@testset "trento_initial_conditions" begin
 #    IC=Fluidum.TrenTo_IC("Pb",0.0,1.5,0.5,0.5,1,0.0,6.4)
 #    stats=Fluidum.TrenTo_IC_stats(10,1:50:100,20)
@@ -229,8 +269,21 @@ end
 
 end
 =#
+# freeze-out: isotherm contours with two branches, surfaces from a path, the tau_0 cap
+include("test_freezeout_contour.jl")
+
 @testset "artifacts" begin
     @test isfile(joinpath(Fluidum.root_kernels, "./kernels/PDGid_211_total_T0.1560_Fj.out"))
     @test isfile(joinpath(Fluidum.root_particle_lists, "./particles.data"))
 end
 
+
+# 1+1D and 2+1D viscous solvers: closed-form characteristic speeds, isotropy, the Bjorken limit.
+include("test_1p1d_viscous.jl")
+include("test_2p1d_viscous.jl")
+# charm on a prescribed background: EOS inputs, first and second moment, 2-D -> 1-D, allocations
+include("test_hq_moments.jl")
+# the two-way medium + charm system
+include("test_two_way.jl")
+include("test_charm_delta_f.jl")
+include("test_charm_conventions.jl")

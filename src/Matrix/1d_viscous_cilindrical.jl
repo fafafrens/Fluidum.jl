@@ -1,9 +1,17 @@
 # the convention here are T, ux,  \[Pi]yy, \[Pi]zz, \[Pi]B
+# the shear rows carry the DNMR term dpp pi theta, dpp = delta_pipi(tauS) = 4/3 tauS by default
 
 
+"""
+    matrix1d_visc!(; delta_pipi = true)
+1+1D viscous hydro; `delta_pipi = false` drops the DNMR term (plain Israel-Stewart).
+"""
+function matrix1d_visc!(; delta_pipi::Bool = true)
+    (A_i, Source, ϕ, t, X, params) -> matrix1d_visc!(A_i, Source, ϕ, t, X, params; delta_pipi = delta_pipi)
+end
 
 
-function matrix1d_visc!(A_i,Source,ϕ,t,X,params)
+function matrix1d_visc!(A_i,Source,ϕ,t,X,params; delta_pipi::Bool = true)
  
     p = pressure(ϕ[1],params.eos) #entropy
     dpt = pressure_derivative(ϕ[1],Val(1),params.eos) #entropy
@@ -15,7 +23,8 @@ function matrix1d_visc!(A_i,Source,ϕ,t,X,params)
     zeta=bulk_viscosity(ϕ[1],dpt,params.bulk)
     
  
-    (At,Ax, source)=one_d_viscous_matrix(ϕ,t,X[1],p,dpt,dptt,zeta,etaVisc,tauS,tauB)
+    (At,Ax, source)= delta_pipi ? one_d_viscous_matrix(ϕ,t,X[1],p,dpt,dptt,zeta,etaVisc,tauS,tauB) :
+                                  one_d_viscous_matrix(ϕ,t,X[1],p,dpt,dptt,zeta,etaVisc,tauS,tauB,zero(tauS))
     
 
         
@@ -61,7 +70,7 @@ end
 
 
 
-@inbounds function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,zeta,visc,tauS,tauB)
+@inbounds function one_d_viscous_matrix(u,tau,R,p,dtp,dtdtp,zeta,visc,tauS,tauB,dpp=delta_pipi(tauS))
     
 At=SMatrix{5,5}(
 
@@ -187,7 +196,31 @@ source=SVector{5}(
 
 )
 
-return (At,Ax, source)
+iszero(dpp) && return (At,Ax, source)
+    # dpp pi theta in the two shear rows
+dAt=SMatrix{5,5}(
+    0,0,0,0,0
+    ,0,0,(u[3]*u[2])/(^(R,2)*sqrt(1 + ^(u[2],2))),(u[4]*u[2])/(^(tau,2)*sqrt(1 + ^(u[2],2))),0
+    ,0,0,0,0,0
+    ,0,0,0,0,0
+    ,0,0,0,0,0
+)
+dAx=SMatrix{5,5}(
+    0,0,0,0,0
+    ,0,0,u[3]/^(R,2),u[4]/^(tau,2),0
+    ,0,0,0,0,0
+    ,0,0,0,0,0
+    ,0,0,0,0,0
+)
+dsource=SVector{5}(
+    0,0
+    ,(u[3]*(sqrt(1 + ^(u[2],2))/tau + u[2]/R))/^(R,2)
+    ,(u[4]*(sqrt(1 + ^(u[2],2))/tau + u[2]/R))/^(tau,2)
+    ,0
+)
+return (At + dpp*dAt, Ax + dpp*dAx, source + dpp*dsource)
 end
 
+# the DNMR coefficient of the shear rows
+@inline delta_pipi(tauS) = (4/3) * tauS
 
