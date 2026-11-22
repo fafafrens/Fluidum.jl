@@ -68,6 +68,14 @@ end
     
     #viscosity(T,x,y)/((T*x.pressure_derivative[1])*y.Cs)
 end
+
+# from a scalar entropy
+@inline function viscosity(T,entropy::Number,y::SimpleShearViscosity{N}) where {N}
+    y.ηs*entropy*invfmGeV
+end
+@inline function τ_shear(T,entropy::Number,y::SimpleShearViscosity{N}) where {N}
+    y.ηs*invfmGeV/(T*y.Cs)
+end
 @inline function τ_shear_dervative(T,x::ThermodynamicPerturbation{N,1,1,1},y::ZeroViscosity) where {N}
     #entropy=x.pressure_derivative[1]
     zero(promote_type(typeof(T),N))
@@ -117,9 +125,10 @@ struct LinearDiffusion{T} <:Diffusion
     slope::T
     offset::T
     mass::T
+    Tc::T   # below Tc the law is frozen at its value at Tc
 end
 
-LinearDiffusion(slope::T, offset::T, mass::T) where {T<:Real} = LinearDiffusion{T}(slope, offset, mass)
+LinearDiffusion(slope::T, offset::T, mass::T; Tc = 0.180) where {T<:Real} = LinearDiffusion{T}(slope, offset, mass, T(Tc))
 
 
 @inline function diffusion(T,x::Thermodynamic{N,1,1},y::SimpleDiffusionCoefficient{N}) where{N}

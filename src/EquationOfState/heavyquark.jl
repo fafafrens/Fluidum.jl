@@ -1,7 +1,7 @@
-Base.@kwdef struct Heavy_Quark{T,S} <:EquationOfState 
+Base.@kwdef struct Heavy_Quark{T,S<:CharmHadronList} <:EquationOfState
     mass::T = 1.5
     eos::FluiduMEoS{T} = FluiduMEoS()
-    hadron_list::HadronResonaceGas_ccbar{S,T} = HadronResonaceGas_ccbar(readresonancelist(), 30.)
+    hadron_list::S = HadronResonaceGas_ccbar(readresonancelist(), 30.)
 end
 
 function Heavy_Quark(particle_list, ccbar)
@@ -44,7 +44,7 @@ end
     m.DsT
 end
 
-@inline function DsT(m::LinearDiffusion,T; Tc = 0.180)
+@inline function DsT(m::LinearDiffusion,T; Tc = m.Tc)
     ifelse(T > Tc, m.slope*T + m.offset, m.slope*Tc + m.offset)
 end 
 
@@ -198,6 +198,89 @@ end
 
 function diffusion_hadron(T,μ,x::Heavy_Quark,y::ZeroDiffusion) 
     return 0.0
+end
+
+# shear viscosity and τ_shear of QGPViscosity from a Thermodynamic
+@inline function viscosity(T,x::Thermodynamic{N,1,1},y::QGPViscosity{N}) where {N}
+    y.ηs*(@inbounds x.pressure_derivative[1])*invfmGeV
+end
+@inline function τ_shear(T,x::Thermodynamic{N,1,1},y::QGPViscosity{N}) where {N}
+    y.ηs*invfmGeV/(T*y.Cs)
+end
+
+
+# every charm-EOS input of the generated charm matrices at (T, α): n and its derivatives from the list, and
+# from its species sums weighted by q² n_i the enthalpy per particle h, ⟨m²⟩ and C (Boltzmann: C_i = m K4/K3)
+function charm_eos(T, α, list::CharmHadronList)
+    th = thermodynamic(T, α, list)
+    n = th.pressure
+    dndT, dnda = th.pressure_derivative
+    R = float(promote_type(typeof(T), typeof(α)))
+    # common scale e^{-sh}, sh = max_i (q_i α - z_i), so no weight underflows
+    sh = typemin(R)
+    for p in list.particle_list
+        sh = max(sh, round(p.Nc + p.Nac) * α - p.Mass / T)
+    end
+    D = zero(R); dD = zero(R); Hn = zero(R); dHn = zero(R); M2 = zero(R); WC = zero(R); dWC = zero(R)
+    for p in list.particle_list
+        q = round(p.Nc + p.Nac); m = p.Mass; g = p.Degeneracy
+        z = m / T
+        K1 = besselk1x(z); K2 = besselkx(2, z)          # exponentially scaled; the e^z cancels in ratios
+        K3 = K1 + 4 / z * K2
+        K4 = K2 + 6 / z * K3
+        K5 = K3 + 8 / z * K4
+        ex = exp(q * α - z - sh)
+        w  = q^2 * g * m^2 * T * K2 * ex                                # q² n_i, up to a common factor
+        dw = q^2 * g * ex * m^2 * (m * K1 + 2 * T * K2 + m * K3) / (2 * T)   # ∂_T at fixed α
+        hi  = m * K3 / K2
+        dhi = -(z / T) * m * ((-(K2 + K4) / 2) * K2 - K3 * (-(K1 + K3) / 2)) / K2^2
+        Ci  = m * K4 / K3
+        dCi = -(z / T) * m * ((-(K3 + K5) / 2) * K3 - K4 * (-(K2 + K4) / 2)) / K3^2
+        D += w; dD += dw
+        Hn += w * hi; dHn += dw * hi + w * dhi
+        M2 += w * m^2
+        WC += w * hi * Ci; dWC += (dw * hi + w * dhi) * Ci + w * hi * dCi
+    end
+    h = Hn / D; dhdT = (dHn - h * dD) / D
+    C = WC / Hn; dCdT = (dWC - C * dHn) / Hn
+    return (n = n, dndT = dndT, dnda = dnda, h = h, dhdT = dhdT,
+            I31 = n * T * h, dI31dT = dndT * T * h + n * h + n * T * dhdT, dI31da = dnda * T * h,
+            aQ = M2 / D + 5 * T * h, bQ = T * h, dbQdT = h + T * dhdT, cQ = C, dcQdT = dCdT)
+end
+
+"""
+    ColdEdge(; T_edge = 0.156, width = 0.020, floor = 0.01, corona = true)
+The cold-edge treatment of the two-way system. Charm decouples below T_edge: D_s → f(T) D_s with f = 1
+for T ≥ T_edge, f = floor below T_edge - width, and a C² smoothstep in between. With `corona`,
+`two_way_problem` also updates the charm number below T_edge in flux form (the corona update), which
+keeps n positive at an under-resolved charm edge.
+"""
+struct ColdEdge
+    T_edge::Float64
+    width::Float64
+    floor::Float64
+    corona::Bool
+end
+function ColdEdge(; T_edge = 0.156, width = 0.020, floor = 0.01, corona::Bool = true)
+    (0 < floor <= 1 && width > 0) || error("ColdEdge: need 0 < floor ≤ 1 and width > 0")
+    return ColdEdge(T_edge, width, floor, corona)
+end
+
+# the factor f(T) on D_s; edge = nothing switches it off
+@inline edge_factor(T, ::Nothing) = one(T)
+@inline function edge_factor(T, e::ColdEdge)
+    T < e.T_edge || return one(T)
+    x = (T - (e.T_edge - e.width)) / e.width
+    x <= 0 && return oftype(one(T), e.floor)
+    return e.floor + (1 - e.floor) * (x^3 * (10 - 15x + 6x^2))
+end
+
+# the weight of the corona update: 0 for T ≥ T_edge, 1 below T_edge - width, the same smoothstep between
+@inline function corona_weight(T, e::ColdEdge)
+    (e.corona && T < e.T_edge) || return zero(T)
+    x = (T - (e.T_edge - e.width)) / e.width
+    x <= 0 && return one(T)
+    return 1 - x^3 * (10 - 15x + 6x^2)
 end
 
 

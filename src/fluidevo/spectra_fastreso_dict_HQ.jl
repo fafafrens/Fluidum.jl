@@ -29,7 +29,7 @@ end
         @warn string("Radial velocity out of fastreso limits")       
     end 
     
-    fact = besseli(1, eos.hadron_list.ccbar/2)/besseli(0, eos.hadron_list.ccbar/2)
+    fact = canonical_factor(eos.hadron_list)
     q = 1
     if part.name == "Dc2007zer" || part.name == "Dc2010plu" #D* has degeneracy 3 since total angular momentum = 3.  
         deg = 3
@@ -123,20 +123,27 @@ function multiplicity(fo::FreezeOutResult{A,B},part::particle_attribute{S,R,U,V}
     
 end
 
-function _pointwise_spectra_internal(pt,m,alpha,x::A,phi::B;deg=1) where {A<:SplineInterp,B<:SplineInterp}
+function _pointwise_spectra_internal(pt,m,alpha,x::A,phi::B;deg=1,delta_f=nothing) where {A<:SplineInterp,B<:SplineInterp}
     t,r= x(alpha)
     dta,dra=jacobian(x,alpha)
-    T,ur,pi_phi,pi_eta,pi_b,μ,ν=phi(alpha)
-    internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=deg)
+    ϕ=phi(alpha)
+    T,ur,pi_phi,pi_eta,pi_b,μ,ν=ϕ
+    delta_f===nothing && return internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,zero(ν);deg=deg)
+    n=charm_eos(T,μ,delta_f.list).n
+    res=internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν/n;deg=deg)
+    delta_f.second_moment || return res
+    piphiphi_Q,pietaeta_Q,piB_Q=ϕ[delta_f.idx[1]],ϕ[delta_f.idx[2]],ϕ[delta_f.idx[3]]
+    res+internal_df2_spectra(pt,m,r,t,dra,dta,ur,T,μ,piphiphi_Q,pietaeta_Q,piB_Q,delta_f.list;deg=deg)
 end
+
+# f₀ (1 + ν_l k_l/(nT)) integrated over η and φ, with ν the ratio ν^r/n: k_l = u^τ p^r − u^r p^τ and
+# ν_l = ν^r/u^τ are the rest-frame radial components (N^μ = n u^μ + ν^μ). ν = 0 is the equilibrium spectrum.
 function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=1)
     fmGeV = 5.068
     mt=sqrt(m^2+pt^2)
     factor=1/(2*pi^2)*t*r
     karg=mt*sqrt(1+ur^2)/T
     iarg=pt*ur/T
-    #n = federica(T,μ,Heavy_Quark())[1]
-    #n = 1
     ut = sqrt(1+ur*ur) 
     
     r_factor=-factor* dra*mt
@@ -152,29 +159,69 @@ function internal_thermal_spectra(pt,m,r,t,dra,dta,ur,T,μ,ν;deg=1)
     k2min=besselk(-2,karg)
     rcc = 1/4*(k2min+2*k0+k2)
     acc = 1/4*(i2min+2*i0+i2)
-    #ν=-ν   #the correction has a minus sign in front of the 1/P_hq
-    ν = 0 #commented on 23.10
-    #n = thermodynamic(T,μ,eos.hadron_list).pressure
-    n=1
 
-    result= (r_factor*(k1*i0-i1*k1*pt*ν/n/T+mt*ν/n/T*ur/ut*i0*rcc)+
-    t_factor*(k0*i1-pt*k0*ν/n/T*acc+mt*ν/n/T*ur/ut*i1*k1))*exp(μ)
-    #result= (r_factor*(k1*i0)+t_factor*(k0*i1))*exp(μ)
-    #corr = (r_factor*(-i1*k1*pt*ν/n/T+mt*ν/n/T*ur/ut*i0*rcc)+
-    #t_factor*(-pt*k0*ν/n/T*acc+mt*ν/n/T*ur/ut*i1*k1))*exp(μ)
-    #corr = (r_factor*(-i1*k1*pt*ν/n/T+mt*ν/n/T*ur/ut*i0*rcc))*exp(μ)
-    #corr = (t_factor*(-pt*k0*ν/n/T*acc+mt*ν/n/T*ur/ut*i1*k1))*exp(μ)
+    result= (r_factor*(k1*i0+i1*k1*pt*ν/T-mt*ν/T*ur/ut*i0*rcc)+
+    t_factor*(k0*i1+pt*k0*ν/T*acc-mt*ν/T*ur/ut*i1*k1))*exp(μ)
     
     return result*fmGeV^3*deg
 end 
 
-function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100,deg=1) where {A<:SplineInterp,B<:SplineInterp}
+"""
+    CharmDeltaF(list; second_moment = true, idx = (8, 9, 10))
+The off-equilibrium correction of the charm distribution at freeze-out, for `spectra_internal(...; delta_f)`,
+with k the momentum in the fluid rest frame:
+
+    δf₁ = f₀ ν_l k_l / (n T)
+    δf₂ = f₀ [pi_Q^ij k_i k_j + piB_Q (k² − ⟨k²⟩)] / (2 n h T²),   ⟨k²⟩ = 3 T h.
+
+δf₁ reproduces the diffusion current ν^μ (N^μ = n u^μ + ν^μ), read as nur from the seventh field and α from the
+sixth, the `two_way_1d` layout (the conformal layouts have both one field earlier). δf₂, included
+with `second_moment`, reproduces the charm stress and leaves the density unchanged; it is read at `idx` as
+(piphiphi_Q, pietaeta_Q, piB_Q), the components of the medium's (piphiphi, pietaeta, piB), as in `two_way_1d`;
+the radial component in the fluid rest frame is −(piphiphi_Q + pietaeta_Q). n and h are `charm_eos(T, α, list)`
+of the list the moments were evolved with; the spectrum is that of one species of the given mass and `deg`.
+"""
+struct CharmDeltaF{L}
+    list::L
+    second_moment::Bool
+    idx::NTuple{3,Int}
+end
+CharmDeltaF(list; second_moment::Bool = true, idx = (8, 9, 10)) = CharmDeltaF(list, second_moment, idx)
+
+# the coefficients of δf₂/f₀ = Ar k_r² + Aφ k_φ² + Aη k_η² + d, k in the fluid rest frame
+function df2_coefficients(T,α,piphiphi_Q,pietaeta_Q,piB_Q,list)
+    ch=charm_eos(T,α,list)
+    a=1/(2*ch.n*ch.h*T^2)
+    return (Ar=a*(piB_Q-piphiphi_Q-pietaeta_Q), Aφ=a*(piphiphi_Q+piB_Q), Aη=a*(pietaeta_Q+piB_Q), d=-3*piB_Q/(2*ch.n*T))
+end
+
+# the δf₂ part of the spectrum, in the normalisation of internal_thermal_spectra; the η and φ integrals
+# are done in closed form
+function internal_df2_spectra(pt,m,r,t,dra,dta,ur,T,μ,piphiphi_Q,pietaeta_Q,piB_Q,list;deg=1)
+    fmGeV = 5.068
+    c=df2_coefficients(T,μ,piphiphi_Q,pietaeta_Q,piB_Q,list)
+    mt=sqrt(m^2+pt^2)
+    ut=sqrt(1+ur^2)
+    karg=ut*mt/T
+    iarg=ur*pt/T
+    k0,k1,k2,k3=besselk0(karg),besselk1(karg),besselk(2,karg),besselk(3,karg)
+    i0,i1,i2,i3=besseli0(iarg),besseli1(iarg),besseli(2,iarg),besseli(3,iarg)
+    Srr = ut^2*pt^2*(dta*pt*k0*(3*i1+i3)-2*dra*mt*k1*(i0+i2)) -
+          4*ut*ur*pt*mt*(dta*pt*k1*(i0+i2)-dra*mt*(k0+k2)*i1) +
+          ur^2*mt^2*(2*dta*pt*(k0+k2)*i1-dra*mt*(3*k1+k3)*i0)
+    Sφφ = pt^2*(dta*pt*k0*(i1-i3)-2*dra*mt*k1*(i0-i2))
+    Sηη = mt^2*(2*dta*pt*(k2-k0)*i1-dra*mt*(k3-k1)*i0)
+    S1  = 4*(dta*pt*k0*i1-dra*mt*k1*i0)
+    return t*r/(8*pi^2)*(c.Ar*Srr+c.Aφ*Sφφ+c.Aη*Sηη+c.d*S1)*exp(μ)*fmGeV^3*deg
+end
+
+function spectra_internal(m::Number,fo::FreezeOutResult{A,B};pt_min=0.,pt_max=8.0,step=100,deg=1,delta_f=nothing) where {A<:SplineInterp,B<:SplineInterp}
     x,phi=fo
     lb=leftbounds(x)
     rb=rightbounds(x)
     buff=alloc_segbuf(Float64, eltype(lb),Float64 ;size=1)
     
-    [quadgk(alpha->_pointwise_spectra_internal(pt,m,alpha,x,phi,deg=deg),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ] 
+    [quadgk(alpha->_pointwise_spectra_internal(pt,m,alpha,x,phi,deg=deg,delta_f=delta_f),lb...,rb...;segbuf=buff) for pt in range(pt_min,pt_max,step) ]
 
 end
 

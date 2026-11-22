@@ -31,6 +31,7 @@ using TensorCast
 using SimpleNonlinearSolve
 
 using QuadGK
+using NumericalIntegration   # multiplicity_analytic (fluidevo/spectra.jl)
 using Integrals
 using HCubature
 using Cuba
@@ -83,6 +84,7 @@ include("fluidevo/spectra_fastreso2_dict_HQ.jl")
 include("fluidevo/spectra.jl")
 
 include("fluidevo/test_functions.jl")
+include("fluidevo/freezeout_contour.jl")
 
 include("fluidevo/map_profile.jl")
 include("fluidevo/initial_fields.jl")
@@ -102,6 +104,13 @@ include("Matrix/1d_viscous_cilindrical.jl")
 include("Matrix/2d_viscous.jl")
 include("Matrix/2d_viscous_fugacity.jl")
 
+include("Matrix/1d_viscous_HQ_cilindrical_BG.jl")
+include("Matrix/1d_viscous_HQ_cilindrical_BG_m2.jl")
+include("Matrix/2d_viscous_HQ_BG.jl")
+include("Matrix/2d_viscous_HQ_BG_m2.jl")
+include("Matrix/1d_two_way_cilindrical.jl")
+include("Matrix/2d_two_way.jl")
+
 include("wraps2.jl")
 
  
@@ -110,6 +119,7 @@ export RunConfig, Detector, GridParameters, InitialParameters, Tspan, ExpTail, C
 
 export NDField, Fields, OriginInterval, CartesianDiscretization, DiscreteFields, HRGc_list
 export set_array, set_array!, freeze_out_routine, fo_integral, jgemvavx!, oneshoot, test_integral_cauchy, SplineInterp, spectra_analitic
+export FOContourOpts, isotherm_contour, isotherm_branches, freezeout_from_path, freezeout_cap, freezeout_from_isotherm
 export spectra, spectra_lf, multiplicity, multiplicity_lf, DiscreteFields, TabulatedData, initialize_fields, FreezeOutResult, initialize_fields_free_HQ, FreezeOutResultPerturbation
 export get_profile, map_initial_profile, Profiles, Profiles2 
 """
@@ -285,6 +295,13 @@ export IdealQCD, FluiduMEoS, HadronResonaceGas,waleckacondition,LatticeQCD, Hadr
 export SimpleBulkViscosity,SimpleShearViscosity,SimpleDiffusionCoefficient , ZeroViscosity, ZeroBulkViscosity
 export Analytic, Gluing,Thermodynamic, EquationOfState, readresonancelist
 export Heavy_Quark, ConstDiffusion, LinearDiffusion, free_charm, QGPViscosity,ZeroDiffusion
+export viscous_2d
+export HadronResonaceGas_ccbar_grandcanonical, ConformalEOS, charm_quark_list, ColdEdge, CharmDeltaF
+export matrix1d_visc_HQ_BG!, matrix1d_visc_HQ_BG_consistent!, matrix1d_visc_HQ_BG_consistent_m2!
+export matrix2d_HQ_BG!, matrix2d_HQ_BG_consistent!, matrix2d_HQ_BG_m2!, matrix2d_visc_HQ_BG!
+export matrix1d_two_way!, matrix2d_two_way!, two_way_problem
+export HQ_const_BG_init, HQ_const_BG_second_moment_init, HQ_2p1d_BG_init, HQ_2p1d_BG_m2_init, HQ_viscous_2d
+export two_way_1d, two_way_conformal_1d, two_way_2d, two_way_conformal_2d
 export InverseFuction 
 # type piracy 
 
